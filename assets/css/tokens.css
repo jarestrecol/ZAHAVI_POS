@@ -1,0 +1,103 @@
+/*
+ * Fichas de diseño del recetario.
+ *
+ * Los valores de color no son los del prototipo original: varios no alcanzaban
+ * el contraste mínimo AA sobre el papel y se oscurecieron conservando la familia
+ * cálida. El ratio comprobado va anotado junto a cada uno.
+ */
+
+:root {
+  /* Papel y tinta */
+  --paper: #f4ead1;
+  --paper-light: #fbf3de;
+  --paper-card: #fffdf7;
+  --paper-sunk: #fcf8ec;
+  --ink: #2a1d14;           /* 13,7:1 sobre papel */
+  --ink-strong: #241811;
+  --ink-soft: #4a3524;      /* 8,6:1 */
+  --ink-muted: #6e6152;     /* 5,4:1 — sustituye #9A8A78 (2,8:1) */
+  --ink-faint: #7a6748;     /* 4,9:1 — sustituye #A99470 (2,5:1) */
+
+  /* Dorados: el claro solo se usa sobre fondo oscuro */
+  --gold-on-dark: #b8935a;  /* 6,1:1 sobre #241811 */
+  --gold-bright: #d8b978;
+  --gold-text: #7c5e2e;     /* 5,4:1 sobre papel — sustituye #A88141 (3,0:1) */
+  --gold-line: #96825a;     /* 3,1:1 — borde de campos, sustituye #D9CDB8 (1,3:1) */
+  --gold-hairline: #e0d0ac;
+  --gold-dotted: #cdb98f;
+  --accent: #c9a265;
+
+  /* Encuadernación */
+  --cloth: #2e4034;
+  --cloth-light: #405646;
+  --cloth-dark: #24322a;
+  --cloth-deep: #1b241e;
+  --desk: #241811;
+
+  /* Categorías: sin opacidad, que era lo que hundía el contraste */
+  --cat-pasteleria: #7a2e2e; /* 7,8:1 */
+  --cat-panaderia: #8a5a20;  /* 4,9:1 */
+  --cat-galletas: #7c5e2e;   /* 5,4:1 — sustituye #B8935A (2,1:1) */
+  --cat-otros: #5a4a3c;      /* 6,4:1 */
+
+  /* Estado */
+  --danger: #8f2020;
+  --success: #2f5c2f;
+
+  /* Foco: par claro/oscuro, ambos muy por encima de 3:1 */
+  --focus-on-light: #241811;
+  --focus-on-dark: #f0e3cb;
+
+  /* Tipografía: serif del sistema, sin ninguna petición externa.
+     Georgia está en Windows, macOS y Android; el resto son respaldos. */
+  --font-body: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+
+  /* Escala. Los mínimos son pisos duros de accesibilidad: 0,75rem para datos
+     y 0,875rem para el cuerpo. El prototipo bajaba hasta 10px. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: clamp(1.125rem, 1rem + 0.6vw, 1.375rem);
+  --text-display: clamp(1.5rem, 1.1rem + 1.6vw, 2.125rem);
+  --text-cover: clamp(2.5rem, 1rem + 7vw, 5rem);
+
+  /* Ritmo */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Objetivos táctiles mínimos (WCAG 2.5.8) */
+  --tap-min: 24px;
+  --tap-comfortable: 44px;
+
+  /* Movimiento */
+  --dur-fast: 160ms;
+  --dur-normal: 320ms;
+  --dur-open: 420ms;
+  --dur-shut: 620ms;
+  --dur-turn: 780ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-page: cubic-bezier(0.3, 0.02, 0.22, 1);
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --shadow-card: 0 20px 60px -20px rgba(42, 29, 20, 0.25);
+  --shadow-window: 0 44px 90px -22px rgba(0, 0, 0, 0.72);
+}
+
+/* Quien pide menos movimiento no recibe ninguna coreografía. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-normal: 0ms;
+    --dur-open: 0ms;
+    --dur-shut: 0ms;
+    --dur-turn: 0ms;
+  }
+}

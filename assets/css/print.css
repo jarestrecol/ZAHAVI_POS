@@ -1,0 +1,215 @@
+/* Impresión en A4. La hoja se genera aparte de la maqueta de pantalla. */
+
+#print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 15mm 16mm;
+  }
+
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+    color: #000;
+  }
+
+  #app,
+  .no-print,
+  .overlay,
+  .notice,
+  .skip-link {
+    display: none !important;
+  }
+
+  #print-root {
+    display: block;
+  }
+
+  .sheet {
+    font-family: var(--font-body);
+    font-size: 10pt;
+    line-height: 1.45;
+    color: #000;
+    background: #fff;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .sheet__head {
+    margin-bottom: 12pt;
+    break-inside: avoid;
+  }
+
+  .sheet__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 9pt;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .sheet__title {
+    margin: 0 0 4pt;
+    font-family: var(--font-display);
+    font-size: 26pt;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.005em;
+  }
+
+  .sheet__yield {
+    margin-bottom: 2pt;
+    font-family: var(--font-display);
+    font-size: 12pt;
+    font-style: italic;
+    color: #333;
+  }
+
+  .sheet__rule {
+    border: 0;
+    border-top: 1.2pt solid #000;
+    margin: 0 0 14pt;
+  }
+
+  .sheet__body--split {
+    display: flex;
+    align-items: flex-start;
+    gap: 11mm;
+  }
+
+  .sheet__body--split .sheet__ingredients {
+    flex: 0 0 41%;
+    max-width: 41%;
+  }
+
+  .sheet__ingredients {
+    column-gap: 10mm;
+  }
+
+  .sheet__ingredients--cols-2 {
+    column-count: 2;
+  }
+
+  .sheet__ingredients--cols-3 {
+    column-count: 3;
+  }
+
+  .sheet__method {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sheet__section {
+    margin: 0 0 8pt;
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    column-span: all;
+  }
+
+  .sheet__body--split .sheet__section {
+    column-span: none;
+  }
+
+  .sheet__component {
+    margin-bottom: 11pt;
+    break-inside: avoid;
+  }
+
+  .sheet__component-name {
+    margin: 0 0 4pt;
+    font-family: var(--font-display);
+    font-size: 12.5pt;
+    font-style: italic;
+    font-weight: 600;
+  }
+
+  .sheet__item {
+    display: flex;
+    align-items: baseline;
+    gap: 6pt;
+    padding: 2.6pt 0;
+    border-bottom: 0.4pt dotted #999;
+    break-inside: avoid;
+  }
+
+  .sheet__item-name {
+    flex: 1;
+  }
+
+  .sheet__item-qty {
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sheet__item-unit {
+    font-weight: 500;
+    font-size: 8.5pt;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .sheet__method-body {
+    font-size: 10.5pt;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    text-wrap: pretty;
+  }
+
+  .sheet__index {
+    column-count: 3;
+    column-gap: 9mm;
+  }
+
+  .sheet__group {
+    margin-bottom: 10pt;
+    break-inside: avoid;
+  }
+
+  .sheet__group-name {
+    margin: 0 0 5pt;
+    padding-bottom: 3pt;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-bottom: 0.6pt solid #000;
+    break-after: avoid;
+  }
+
+  .sheet__index-row {
+    display: flex;
+    align-items: baseline;
+    gap: 5pt;
+    padding: 1.6pt 0;
+    font-size: 8.6pt;
+    break-inside: avoid;
+  }
+
+  .sheet__index-row span:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sheet__index-id {
+    font-size: 7.6pt;
+    letter-spacing: 0.04em;
+    color: #555;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sheet__empty {
+    font-size: 10.5pt;
+    font-style: italic;
+  }
+}

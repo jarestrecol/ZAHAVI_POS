@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "nota": "Recetas de demostracion. No son formulas de produccion. Importa tu respaldo desde Ajustes para trabajar con tu recetario real.",
+  "recipes": [
+    {
+      "id": "R001",
+      "nombre": "PAN CAMPESINO X 4 UND",
+      "categoria": "PANADERÍA",
+      "metodo": "1. Mezcla la masa madre con el agua tibia hasta disolverla por completo.\n2. Incorpora la harina y la sal. Amasa 12 minutos a velocidad baja hasta obtener una masa lisa que se despegue del bol.\n3. Reposo en bloque de 90 minutos a temperatura ambiente, con un plegado cada 30 minutos.\n4. Divide en 4 piezas de 480 gr. Bolea sin desgasificar en exceso y reposa 20 minutos cubierto.\n5. Da forma redonda, coloca en banneton enharinado y lleva a frio 12 horas.\n6. Hornea a 240 C con vapor los primeros 15 minutos, luego 25 minutos a 210 C sin vapor.\n7. Enfria sobre rejilla al menos 2 horas antes de cortar.",
+      "componentes": [
+        {
+          "nombre": "MASA MADRE",
+          "items": [
+            { "ingrediente": "HARINA DE TRIGO", "cantidad": "150", "unidad": "GR" },
+            { "ingrediente": "AGUA", "cantidad": "150", "unidad": "ML" },
+            { "ingrediente": "FERMENTO NATURAL", "cantidad": "30", "unidad": "GR" }
+          ]
+        },
+        {
+          "nombre": "MASA FINAL",
+          "items": [
+            { "ingrediente": "HARINA DE TRIGO", "cantidad": "1000", "unidad": "GR" },
+            { "ingrediente": "AGUA", "cantidad": "680", "unidad": "ML" },
+            { "ingrediente": "SAL", "cantidad": "22", "unidad": "GR" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R002",
+      "nombre": "CROISSANT DE MANTEQUILLA X 16 UND",
+      "categoria": "PANADERÍA",
+      "metodo": "1. Amasa todos los ingredientes de la masa 8 minutos. La masa debe quedar firme, no lisa.\n2. Aplana en rectangulo, cubre y refrigera 4 horas.\n3. Forma el empaste con la mantequilla entre dos hojas de papel, hasta la mitad del area de la masa.\n4. Encierra el empaste y da tres vueltas sencillas, con 45 minutos de frio entre cada una.\n5. Estira a 3,5 mm. Corta triangulos de 9 cm de base y enrolla sin apretar.\n6. Fermenta 2 horas a 26 C hasta que tiemblen al mover la bandeja.\n7. Pinta con huevo y hornea 18 minutos a 190 C.",
+      "componentes": [
+        {
+          "nombre": "MASA",
+          "items": [
+            { "ingrediente": "HARINA DE TRIGO", "cantidad": "1000", "unidad": "GR" },
+            { "ingrediente": "AGUA", "cantidad": "260", "unidad": "ML" },
+            { "ingrediente": "LECHE", "cantidad": "260", "unidad": "ML" },
+            { "ingrediente": "AZÚCAR", "cantidad": "120", "unidad": "GR" },
+            { "ingrediente": "SAL", "cantidad": "22", "unidad": "GR" },
+            { "ingrediente": "LEVADURA FRESCA", "cantidad": "40", "unidad": "GR" },
+            { "ingrediente": "MANTEQUILLA", "cantidad": "50", "unidad": "GR" }
+          ]
+        },
+        {
+          "nombre": "EMPASTE",
+          "items": [
+            { "ingrediente": "MANTEQUILLA DE HOJALDRE", "cantidad": "500", "unidad": "GR" }
+          ]
+        },
+        {
+          "nombre": "TERMINACIÓN",
+          "items": [
+            { "ingrediente": "HUEVOS", "cantidad": "2", "unidad": "UND" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R003",
+      "nombre": "PAN DE QUESO X 24 UND",
+      "categoria": "PANADERÍA",
+      "metodo": "1. Ralla el queso en frio y resérvalo.\n2. Mezcla el almidon con la leche hirviendo hasta escaldar. Deja templar a 40 C.\n3. Agrega los huevos uno a uno y luego el queso. Amasa hasta integrar.\n4. Porciona en bolas de 45 gr y coloca separadas en bandeja con papel.\n5. Hornea 22 minutos a 200 C hasta que doren de forma pareja.",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            { "ingrediente": "ALMIDÓN DE YUCA", "cantidad": "500", "unidad": "GR" },
+            { "ingrediente": "QUESO CAMPESINO", "cantidad": "400", "unidad": "GR" },
+            { "ingrediente": "LECHE", "cantidad": "200", "unidad": "ML" },
+            { "ingrediente": "HUEVOS", "cantidad": "2", "unidad": "UND" },
+            { "ingrediente": "MANTEQUILLA", "cantidad": "60", "unidad": "GR" },
+            { "ingrediente": "SAL", "cantidad": "8", "unidad": "GR" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R004",
+      "nombre": "TORTA DE VAINILLA X 2 UND",
+      "categoria": "PASTELERÍA",
+      "metodo": "1. Cremar la mantequilla con el azucar 6 minutos hasta que blanquee.\n2. Agregar los huevos uno a uno, esperando que cada uno se integre.\n3. Alternar los secos tamizados con la leche en tres tandas. No sobrebatir.\n4. Repartir en dos moldes de 20 cm engrasados y enharinados.\n5. Hornear 38 minutos a 170 C. Probar con palillo al centro.\n6. Desmoldar tibia, calar con el almibar y dejar enfriar por completo.\n7. Cubrir con la crema de vainilla y refrigerar 1 hora antes de servir.",
+      "componentes": [
+        {
+          "nombre": "MASA",
+          "items": [
+            { "ingrediente": "HARINA DE TRIGO", "cantidad": "500", "unidad": "GR" },
+            { "ingrediente": "AZÚCAR", "cantidad": "450", "unidad": "GR" },
+            { "ingrediente": "MANTEQUILLA", "cantidad": "350", "unidad": "GR" },
+            { "ingrediente": "HUEVOS", "cantidad": "8", "unidad": "UND" },
+            { "ingrediente": "LECHE", "cantidad": "180", "unidad": "ML" },
+            { "ingrediente": "POLVO DE HORNEAR", "cantidad": "18", "unidad": "GR" },
+            { "ingrediente": "ESENCIA DE VAINILLA", "cantidad": "15", "unidad": "ML" },
+            { "ingrediente": "SAL", "cantidad": "4", "unidad": "GR" }
+          ]
+        },
+        {
+          "nombre": "ALMÍBAR",
+          "items": [
+            { "ingrediente": "AZÚCAR", "cantidad": "120", "unidad": "GR" },
+            { "ingrediente": "AGUA", "cantidad": "120", "unidad": "ML" },
+            { "ingrediente": "ESENCIA DE VAINILLA", "cantidad": "5", "unidad": "ML" }
+          ]
+        },
+        {
+          "nombre": "CREMA DE VAINILLA",
+          "items": [
+            { "ingrediente": "CREMA DE LECHE", "cantidad": "500", "unidad": "ML" },
+            { "ingrediente": "AZÚCAR PULVERIZADA", "cantidad": "80", "unidad": "GR" },
+            { "ingrediente": "ESENCIA DE VAINILLA", "cantidad": "8", "unidad": "ML" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R005",
+      "nombre": "BROWNIE CLÁSICO X 12 UND",
+      "categoria": "PASTELERÍA",
+      "metodo": "1. Fundir el chocolate con la mantequilla a baño maria, sin pasar de 45 C.\n2. Batir los huevos con el azucar hasta que dupliquen volumen.\n3. Unir las dos mezclas con movimientos envolventes.\n4. Incorporar la harina tamizada y las nueces.\n5. Verter en molde de 30 x 20 cm forrado con papel.\n6. Hornear 24 minutos a 175 C. El centro debe quedar humedo.\n7. Enfriar completamente antes de cortar en 12 porciones.",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            { "ingrediente": "CHOCOLATE SEMIAMARGO", "cantidad": "300", "unidad": "GR" },
+            { "ingrediente": "MANTEQUILLA", "cantidad": "220", "unidad": "GR" },
+            { "ingrediente": "AZÚCAR", "cantidad": "280", "unidad": "GR" },
+            { "ingrediente": "HUEVOS", "cantidad": "4", "unidad": "UND" },
+            { "ingrediente": "HARINA DE TRIGO", "cantidad": "160", "unidad": "GR" },
+            { "ingrediente": "NUECES", "cantidad": "100", "unidad": "GR" },
+            { "ingrediente": "SAL", "cantidad": "3", "unidad": "GR" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R006",
+      "nombre": "MOUSSE DE CHOCOLATE X 8 PORCIONES",
+      "categoria": "PASTELERÍA",
+      "metodo": "1. Hidratar la gelatina en agua fria 10 minutos.\n2. Calentar un tercio de la crema, disolver la gelatina y verter sobre el chocolate picado.\n3. Emulsionar con espatula desde el centro hacia afuera hasta obtener brillo.\n4. Cuando la ganache baje a 35 C, incorporar el resto de la crema montada a punto medio.\n5. Dosificar en copas y refrigerar 4 horas.\n6. Terminar con el crocante de cacao justo antes de servir.",
+      "componentes": [
+        {
+          "nombre": "BASE",
+          "items": [
+            { "ingrediente": "CHOCOLATE SEMIAMARGO", "cantidad": "250", "unidad": "GR" },
+            { "ingrediente": "CREMA DE LECHE", "cantidad": "600", "unidad": "ML" },
+            { "ingrediente": "GELATINA SIN SABOR", "cantidad": "6", "unidad": "GR" }
+          ]
+        },
+        {
+          "nombre": "CROCANTE",
+          "items": [
+            { "ingrediente": "CACAO EN POLVO", "cantidad": "20", "unidad": "GR" },
+            { "ingrediente": "AZÚCAR", "cantidad": "60", "unidad": "GR" },
+            { "ingrediente": "ALMENDRA LAMINADA", "cantidad": "50", "unidad": "GR" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R007",
+      "nombre": "GALLETAS DE MANTEQUILLA X 40 UND",
+      "categoria": "GALLETAS",
+      "metodo": "1. Cremar la mantequilla fria con el azucar pulverizada solo hasta unir. No airear.\n2. Agregar el huevo y la vainilla.\n3. Incorporar la harina de una vez y mezclar lo minimo indispensable.\n4. Formar un cilindro de 5 cm, envolver y refrigerar 2 horas.\n5. Cortar discos de 8 mm y disponer separados en bandeja.\n6. Hornear 14 minutos a 165 C hasta que los bordes apenas doren.",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            { "ingrediente": "MANTEQUILLA", "cantidad": "400", "unidad": "GR" },
+            { "ingrediente": "AZÚCAR PULVERIZADA", "cantidad": "200", "unidad": "GR" },
+            { "ingrediente": "HARINA DE TRIGO", "cantidad": "600", "unidad": "GR" },
+            { "ingrediente": "HUEVOS", "cantidad": "1", "unidad": "UND" },
+            { "ingrediente": "ESENCIA DE VAINILLA", "cantidad": "8", "unidad": "ML" },
+            { "ingrediente": "SAL", "cantidad": "3", "unidad": "GR" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R008",
+      "nombre": "GALLETAS DE AVENA Y PASAS X 30 UND",
+      "categoria": "GALLETAS",
+      "metodo": "1. Remojar las pasas en agua tibia 15 minutos y escurrir bien.\n2. Cremar mantequilla con los dos azucares 4 minutos.\n3. Agregar el huevo y la canela.\n4. Incorporar harina, avena y pasas. Mezclar sin trabajar de mas.\n5. Porcionar bolas de 40 gr, aplanar levemente y separar en bandeja.\n6. Hornear 15 minutos a 170 C. Salen blandas del horno y firman al enfriar.",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            { "ingrediente": "AVENA EN HOJUELAS", "cantidad": "350", "unidad": "GR" },
+            { "ingrediente": "HARINA DE TRIGO", "cantidad": "300", "unidad": "GR" },
+            { "ingrediente": "MANTEQUILLA", "cantidad": "250", "unidad": "GR" },
+            { "ingrediente": "AZÚCAR MORENA", "cantidad": "180", "unidad": "GR" },
+            { "ingrediente": "AZÚCAR", "cantidad": "100", "unidad": "GR" },
+            { "ingrediente": "PASAS", "cantidad": "150", "unidad": "GR" },
+            { "ingrediente": "HUEVOS", "cantidad": "2", "unidad": "UND" },
+            { "ingrediente": "CANELA EN POLVO", "cantidad": "4", "unidad": "GR" }
+          ]
+        }
+      ]
+    }
+  ],
+  "ingredientes": [
+    { "id": "I001", "nombre": "HARINA DE TRIGO", "unidad": "GR" },
+    { "id": "I002", "nombre": "AGUA", "unidad": "ML" },
+    { "id": "I003", "nombre": "SAL", "unidad": "GR" },
+    { "id": "I004", "nombre": "AZÚCAR", "unidad": "GR" },
+    { "id": "I005", "nombre": "MANTEQUILLA", "unidad": "GR" },
+    { "id": "I006", "nombre": "HUEVOS", "unidad": "UND" },
+    { "id": "I007", "nombre": "LECHE", "unidad": "ML" },
+    { "id": "I008", "nombre": "LEVADURA FRESCA", "unidad": "GR" },
+    { "id": "I009", "nombre": "FERMENTO NATURAL", "unidad": "GR" },
+    { "id": "I010", "nombre": "MANTEQUILLA DE HOJALDRE", "unidad": "GR" },
+    { "id": "I011", "nombre": "ALMIDÓN DE YUCA", "unidad": "GR" },
+    { "id": "I012", "nombre": "QUESO CAMPESINO", "unidad": "GR" },
+    { "id": "I013", "nombre": "POLVO DE HORNEAR", "unidad": "GR" },
+    { "id": "I014", "nombre": "ESENCIA DE VAINILLA", "unidad": "ML" },
+    { "id": "I015", "nombre": "CREMA DE LECHE", "unidad": "ML" },
+    { "id": "I016", "nombre": "AZÚCAR PULVERIZADA", "unidad": "GR" },
+    { "id": "I017", "nombre": "CHOCOLATE SEMIAMARGO", "unidad": "GR" },
+    { "id": "I018", "nombre": "NUECES", "unidad": "GR" },
+    { "id": "I019", "nombre": "GELATINA SIN SABOR", "unidad": "GR" },
+    { "id": "I020", "nombre": "CACAO EN POLVO", "unidad": "GR" },
+    { "id": "I021", "nombre": "ALMENDRA LAMINADA", "unidad": "GR" },
+    { "id": "I022", "nombre": "AVENA EN HOJUELAS", "unidad": "GR" },
+    { "id": "I023", "nombre": "AZÚCAR MORENA", "unidad": "GR" },
+    { "id": "I024", "nombre": "PASAS", "unidad": "GR" },
+    { "id": "I025", "nombre": "CANELA EN POLVO", "unidad": "GR" }
+  ]
+}

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zahavi · Recetario</title>
+    <meta
+      name="description"
+      content="Recetario de panadería y pastelería. Funciona sin conexión y guarda las recetas en este dispositivo."
+    />
+
+    <!--
+      Sin conexiones externas: no hay CDN, ni tipografías remotas, ni analítica.
+      `connect-src 'self'` permite leer el JSON de recetas del propio sitio.
+      Nota: `frame-ancestors` no tiene efecto declarado en una etiqueta meta,
+      y GitHub Pages no permite cabeceras propias, así que no se puede impedir
+      que el sitio sea incrustado en un marco ajeno.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'none'; base-uri 'none'"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#241811" />
+
+    <!-- Todas las rutas son relativas: el sitio vive en una subruta de GitHub
+         Pages y también debe funcionar abierto desde el disco. -->
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./assets/css/tokens.css" />
+    <link rel="stylesheet" href="./assets/css/base.css" />
+    <link rel="stylesheet" href="./assets/css/book.css" />
+    <link rel="stylesheet" href="./assets/css/views.css" />
+    <link rel="stylesheet" href="./assets/css/dialogs.css" />
+    <link rel="stylesheet" href="./assets/css/print.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <div id="app">
+      <p class="booting">Cargando recetario…</p>
+    </div>
+
+    <!-- Hoja de impresión: se rellena aparte de la maqueta de pantalla. -->
+    <div id="print-root" aria-hidden="true"></div>
+
+    <noscript>
+      <p style="padding: 2rem; color: #f0e3cb; font-family: Georgia, serif">
+        Este recetario necesita JavaScript activado para funcionar.
+      </p>
+    </noscript>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

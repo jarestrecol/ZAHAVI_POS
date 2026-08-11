@@ -1,0 +1,24 @@
+# Dependencias: este proyecto no necesita ninguna en tiempo de ejecucion.
+node_modules/
+package-lock.json
+
+# Datos reales de la panaderia. Nunca deben entrar al repositorio publico.
+RESPALDO-PRIVADO-*.json
+*.xlsx
+*.xls
+uploads/
+data/recipes.private.json
+
+# Artefactos de compilacion
+dist/
+
+# Sistema y editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Entorno
+.env
+.env.*

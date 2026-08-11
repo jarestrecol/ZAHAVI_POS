@@ -1,0 +1,12 @@
+{
+  "name": "Zahavi · Recetario",
+  "short_name": "Zahavi",
+  "description": "Recetario de panadería y pastelería. Funciona sin conexión.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#241811",
+  "theme_color": "#241811",
+  "lang": "es",
+  "icons": [{ "src": "./assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

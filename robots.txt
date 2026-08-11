@@ -1,0 +1,4 @@
+# Sitio de uso interno. Se pide a los buscadores que no lo indexen.
+# Esto no es una medida de seguridad: el contenido sigue siendo publico.
+User-agent: *
+Disallow: /
