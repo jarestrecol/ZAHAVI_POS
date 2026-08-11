@@ -133,8 +133,17 @@ function wrapModule(file, source) {
 const css = STYLES.map((name) => readFileSync(join(root, 'assets/css', `${name}.css`), 'utf8')).join('\n');
 const seed = readFileSync(join(root, 'data/recipes.json'), 'utf8');
 
+// El logo se incrusta como data URI: en un archivo suelto no hay ruta desde la
+// que cargarlo.
+const logoData =
+  'data:image/png;base64,' + readFileSync(join(root, 'assets/logo-zahavi.png')).toString('base64');
+
 const wrapped = MODULES.map((file) => {
-  const source = readFileSync(join(root, 'src', file), 'utf8');
+  // La ruta del logo se cambia por el data URI: en un archivo suelto no hay
+  // carpeta desde la que cargarlo.
+  const source = readFileSync(join(root, 'src', file), 'utf8')
+    .split("'./assets/logo-zahavi.png'")
+    .join('window.__ZAHAVI_LOGO__');
   return `/* ===== ${file} ===== */\n${wrapModule(file, source)}`;
 }).join('\n\n');
 
@@ -154,6 +163,7 @@ function __mod(name) {
 // Las recetas iniciales viajan dentro de este archivo: sobre file:// no hay
 // servidor al que pedirlas.
 window.__ZAHAVI_SEED__ = ${seed};
+window.__ZAHAVI_LOGO__ = '${logoData}';
 const __fetchOriginal = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
 window.fetch = function (input, init) {
   const url = String(typeof input === 'string' ? input : (input && input.url) || '');

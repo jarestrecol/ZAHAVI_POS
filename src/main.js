@@ -180,6 +180,8 @@ function render() {
           : renderPlaceholder({
               count: state.recipes.length,
               withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
+              categories: new Set(state.recipes.map((r) => r.categoria).filter(Boolean)).size,
+              ingredients: state.ingredientes.length,
             }),
       ]),
     ]),

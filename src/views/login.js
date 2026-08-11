@@ -43,9 +43,14 @@ export function renderLogin(options) {
 
   const form = el('form', { class: 'login__card', on: { submit } }, [
     el('div', { class: 'login__brand' }, [
-      el('p', { class: 'eyebrow', text: 'panadería · pastelería' }),
-      el('h1', { class: 'login__wordmark', id: 'login-title', text: 'Zahavi' }),
-      el('span', { class: 'login__rule' }),
+      el('img', {
+        class: 'login__logo',
+        src: './assets/logo-zahavi.png',
+        alt: 'Zahavi, panadería, repostería y café',
+        width: 254,
+        height: 78,
+      }),
+      el('h1', { class: 'login__wordmark sr-only', id: 'login-title', text: 'Zahavi' }),
       el('p', { class: 'login__tagline', text: 'Recetario de producción' }),
     ]),
     el('label', { class: 'label', for: 'login-password', text: 'contraseña' }),

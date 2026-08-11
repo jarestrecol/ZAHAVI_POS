@@ -1,84 +1,99 @@
 /*
  * Sistema de diseño del recetario.
  *
- * Dirección: obrador, no libro de cocina. La referencia no es el papel antiguo
- * sino la ficha técnica de producción: superficie limpia de mármol y acero,
- * estructura oscura que enmarca el trabajo, y un ámbar de corteza como único
- * acento. El elemento que manda en pantalla son las cantidades, tratadas como
- * lectura de báscula, porque es el dato que se mira mientras se pesa.
+ * La paleta nace del logo de la marca, con los valores tomados del archivo:
+ * naranja #F68A1E, dorado #FCE00C y blanco #FCFCFC. El naranja es la identidad,
+ * pero sobre blanco se queda en 2,3:1, así que solo se usa como relleno, borde e
+ * icono; para texto existe una versión oscurecida que conserva el matiz.
+ *
+ * Dirección: obrador, no libro de cocina. Superficie clara de trabajo, estructura
+ * oscura que enmarca y el naranja de la marca como único acento. El elemento que
+ * manda en pantalla son las cantidades, tratadas como lectura de báscula.
  *
  * Tres tipografías con papeles distintos, todas del sistema para que no haya
  * ninguna petición de red ni salto de maquetación al cargar:
  *   - interfaz en sans: es lo que convierte esto en un sistema y no en un libro
- *   - display serif solo para la marca y el nombre de la receta
+ *   - display serif para la marca y el nombre de la receta
  *   - monoespaciada tabular para las cifras, que deben alinearse siempre
+ *
+ * El modo oscuro no es cosmético: las panaderías arrancan a las tres o cuatro de
+ * la madrugada y una pantalla blanca a brillo alto en un obrador a oscuras
+ * deslumbra.
  */
 
 :root {
+  color-scheme: light;
+
+  /* ---- Marca ---- */
+  --brand: #f68a1e;
+  --brand-deep: #b45f08;
+  --brand-gold: #fce00c;
+  --brand-ink: #16120f;
+
   /* ---- Superficies ---- */
   --surface: #fbfaf9;
   --surface-card: #ffffff;
-  --surface-sunk: #f2f0ec;
-  --surface-hover: #f6f2ea;
+  --surface-sunk: #f4f1ec;
+  --surface-hover: #fdf2e3;
 
-  /* Estructura oscura: barra superior y cabecera de la lista */
+  /* Estructura oscura: barra superior y diálogos */
   --rail: #1a1714;
   --rail-2: #262019;
   --rail-line: #3a3128;
 
   /* ---- Tinta sobre claro ----
-     Ratios verificados sobre --surface-card. Se lee de pie, a distancia y con
-     posible reflejo, asi que el texto de lectura llega a AAA y no se queda en
-     el minimo de AA. */
+     El texto de lectura llega a AAA porque se lee de pie y con reflejo. */
   --ink: #16120f;    /* 18,6:1 */
   --ink-2: #3d362e;  /* 11,9:1 */
-  --ink-3: #534b42;  /* 8,6:1  — AAA */
-  --ink-4: #6e665a;  /* 5,7:1  — el #8A7F71 inicial se quedaba en 3,9:1 */
+  --ink-3: #534b42;  /* 8,6:1  */
+  --ink-4: #6e665a;  /* 5,7:1  */
 
   /* ---- Tinta sobre el rail ---- */
   --on-rail: #f5f1ea;   /* 15,9:1 */
-  --on-rail-2: #b9ae9d; /* 8,2:1 */
+  --on-rail-2: #b9ae9d; /* 8,2:1  */
 
-  /* ---- Acento: corteza de pan ----
-     El ambar vivo solo vale para relleno, icono, borde grueso y texto grande:
-     sobre claro se queda en 3,4:1. Para texto normal existe la version oscura. */
-  --amber: #c8791b;
-  --amber-text: #9c5e15; /* 5,2:1 */
-  --amber-deep: #a35f10;
-  --amber-soft: #f7e9d3;
-  --amber-on-rail: #e9a951; /* 8,7:1 sobre el rail */
+  /* ---- Acento ----
+     El naranja puro solo para relleno, borde e icono. Para texto, la version
+     profunda; sobre el rail oscuro el naranja de marca ya contrasta de sobra. */
+  --amber: var(--brand);
+  --amber-text: #9c5e15;  /* 5,2:1 sobre blanco */
+  --amber-deep: var(--brand-deep);
+  --amber-soft: #fdefdc;
+  --amber-on-rail: #f9a94a;
 
   /* ---- Categorías ----
-     Las tres llegan a AAA. Galletas se desplaza a oliva porque en su tono
-     dorado original quedaba a 14 grados de Panaderia, y ese salto desaparece
-     en deuteranopia y protanopia: las dos se percibian como el mismo marron. */
-  --cat-pasteleria: #9b294a; /* 7,5:1 */
-  --cat-panaderia: #7b4911;  /* 7,5:1 */
-  --cat-galletas: #495625;   /* 7,9:1 */
+     Las tres llegan a AAA. Galletas se desplaza a oliva porque en su tono dorado
+     quedaba a 14 grados de Panaderia, y ese salto desaparece en deuteranopia y
+     protanopia: las dos se percibian como el mismo marron. */
+  --cat-pasteleria: #9b294a;
+  --cat-panaderia: #7b4911;
+  --cat-galletas: #495625;
   --cat-otros: #4f473e;
 
   /* ---- Estado ---- */
-  --danger: #a31d1d;  /* 7,6:1 */
+  --danger: #a31d1d;
   --danger-soft: #fbeaea;
-  --ok: #296038;      /* 7,4:1 */
+  --ok: #296038;
   --ok-soft: #e8f2ea;
 
-  /* ---- Líneas ----
-     La suave solo para separaciones decorativas; la fuerte cuando el borde es
-     la unica señal de un control, donde hace falta llegar a 3:1. */
-  --line: #e4dfd6;
-  --line-strong: #7c7770; /* 4,3:1 */
+  /* ---- Líneas ---- */
+  --line: #e6e0d6;
+  --line-strong: #7c7770;
 
-  /* ---- Foco: par claro/oscuro ---- */
+  /* ---- Foco ---- */
   --focus: #16120f;
   --focus-on-dark: #f5f1ea;
+
+  /* ---- Elevación ---- */
+  --shadow-sm: 0 1px 2px rgba(22, 18, 15, 0.06);
+  --shadow: 0 4px 16px -4px rgba(22, 18, 15, 0.12);
+  --shadow-lg: 0 24px 60px -16px rgba(22, 18, 15, 0.32);
 
   /* ---- Tipografía ---- */
   --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --font-num: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
 
-  /* Escala. El piso es 0,8125rem (13px): se lee de pie y a distancia. */
   --text-2xs: 0.6875rem;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
@@ -89,13 +104,11 @@
   --text-2xl: clamp(1.5rem, 1.2rem + 1.4vw, 2.125rem);
   --text-3xl: clamp(2rem, 1.4rem + 2.8vw, 3.25rem);
 
-  /* La cantidad es el dato que se mira mientras se pesa: va por encima del
-     nombre del ingrediente, no al mismo peso visual. */
+  /* La cantidad va por encima del nombre del ingrediente: es lo que se mira. */
   --text-ingredient: 1.0625rem;
   --text-qty: 1.375rem;
 
-  /* Modo producción: se lee de pie, junto a la báscula, a un brazo de
-     distancia. Ahí los tamaños suben de escalón. */
+  /* Modo producción: se lee de pie, junto a la báscula. */
   --text-prod-name: 1.75rem;
   --text-prod-qty: 2.5rem;
 
@@ -115,20 +128,74 @@
   --radius-sm: 4px;
   --radius-lg: 10px;
 
-  /* Objetivos táctiles: por encima del mínimo de la norma, porque se toca con
-     las manos ocupadas y a veces con guante. */
+  /* Objetivos táctiles por encima del mínimo de la norma: se tocan con las
+     manos ocupadas y a veces con guante. */
   --tap-min: 2.25rem;
   --tap-row: 2.75rem;
-
-  /* ---- Elevación ---- */
-  --shadow-sm: 0 1px 2px rgba(22, 18, 15, 0.06);
-  --shadow: 0 4px 16px -4px rgba(22, 18, 15, 0.12);
-  --shadow-lg: 0 24px 60px -16px rgba(22, 18, 15, 0.32);
 
   /* ---- Movimiento: solo funcional ---- */
   --dur-fast: 110ms;
   --dur: 180ms;
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/*
+ * Modo oscuro. No es una inversión: el fondo no es negro puro, porque en un
+ * obrador a oscuras el texto blanco sobre negro absoluto produce halo. Las
+ * categorías se aclaran para mantener el contraste sobre fondo oscuro sin
+ * perder la separación de tono entre ellas.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --surface: #16130f;
+    --surface-card: #1e1a15;
+    --surface-sunk: #14110d;
+    --surface-hover: #2a231b;
+
+    --rail: #100e0b;
+    --rail-2: #1e1a15;
+    --rail-line: #332b22;
+
+    --ink: #f6f1e8;
+    --ink-2: #ded5c6;
+    --ink-3: #b8ad9b;
+    --ink-4: #968c7c;
+
+    --on-rail: #f6f1e8;
+    --on-rail-2: #b8ad9b;
+
+    /* El naranja de marca ya contrasta de sobra sobre fondo oscuro, así que
+       aquí sí puede usarse tal cual también para texto. */
+    --amber: var(--brand);
+    --amber-text: #f9a94a;
+    --amber-deep: #f68a1e;
+    --amber-soft: #2f2214;
+    --amber-on-rail: #f9a94a;
+
+    --cat-pasteleria: #e7809b;
+    --cat-panaderia: #e0a05a;
+    --cat-galletas: #a8bd6a;
+    --cat-otros: #b0a696;
+
+    --danger: #f08a8a;
+    --danger-soft: #2c1616;
+    --ok: #86c294;
+    --ok-soft: #16261a;
+
+    --line: #2e2820;
+    --line-strong: #5a5245;
+
+    --focus: #f6f1e8;
+    --focus-on-dark: #f6f1e8;
+
+    /* Sobre fondo oscuro las sombras no separan: la elevación la dan las
+       superficies más claras y los bordes. */
+    --shadow-sm: none;
+    --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 24px 60px -16px rgba(0, 0, 0, 0.7);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

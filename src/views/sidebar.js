@@ -94,6 +94,9 @@ function renderLink(recipe, selectedId) {
       },
     },
     [
+      // Punto de categoria en todas las filas, no solo en la activa: da lectura
+      // instantanea de que es cada cosa y rompe la monotonia de 121 filas iguales.
+      el('span', { class: 'recipe-link__dot', attrs: { 'aria-hidden': 'true' } }),
       el('span', { class: 'recipe-link__name', text: titleCase(base) }),
       rinde ? el('span', { class: 'recipe-link__yield', text: '×' + rinde.toLowerCase() }) : null,
     ],

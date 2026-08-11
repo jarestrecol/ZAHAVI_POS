@@ -33,6 +33,13 @@
   border-radius: var(--radius-sm);
 }
 
+.topbar__logo {
+  display: block;
+  height: 1.75rem;
+  width: auto;
+  border-radius: 3px;
+}
+
 .topbar__wordmark {
   font-family: var(--font-display);
   font-size: var(--text-xl);
@@ -258,6 +265,19 @@
 .recipe-link.is-active[data-category='PANADERÍA'] { border-left-color: var(--cat-panaderia); }
 .recipe-link.is-active[data-category='GALLETAS'] { border-left-color: var(--cat-galletas); }
 
+/* Punto de categoria: presente en todas las filas. */
+.recipe-link__dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cat-otros);
+}
+
+.recipe-link[data-category='PASTELERÍA'] .recipe-link__dot { background: var(--cat-pasteleria); }
+.recipe-link[data-category='PANADERÍA'] .recipe-link__dot { background: var(--cat-panaderia); }
+.recipe-link[data-category='GALLETAS'] .recipe-link__dot { background: var(--cat-galletas); }
+
 .recipe-link__name {
   flex: 1 1 auto;
   min-width: 0;
@@ -315,6 +335,16 @@
   color: var(--amber-text);
 }
 
+.welcome__logo {
+  display: block;
+  width: 100%;
+  max-width: 18rem;
+  height: auto;
+  margin: 0 auto var(--space-5);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
 .welcome__title {
   margin: var(--space-3) 0;
   font-family: var(--font-display);
@@ -338,6 +368,24 @@
   margin-top: var(--space-6);
   padding-top: var(--space-5);
   border-top: 1px solid var(--line);
+}
+
+.welcome__hint {
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+.welcome__hint kbd {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.35rem;
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  background: var(--surface-card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
 }
 
 .welcome__stat dt {

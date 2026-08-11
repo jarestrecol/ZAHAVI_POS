@@ -179,19 +179,38 @@ function renderMethod(recipe, canEdit) {
 export function renderPlaceholder(params) {
   return el('div', { class: 'welcome', id: 'contenido' }, [
     el('div', { class: 'welcome__inner' }, [
-      el('p', { class: 'welcome__eyebrow', text: 'panadería · pastelería' }),
-      el('h1', { class: 'welcome__title', text: 'Recetario Zahavi' }),
+      el('img', {
+        class: 'welcome__logo',
+        src: './assets/logo-zahavi.png',
+        alt: 'Zahavi, panadería, repostería y café',
+        width: 254,
+        height: 78,
+      }),
+      el('h1', { class: 'welcome__title', text: 'Recetario de producción' }),
       el('p', { class: 'welcome__lead', text: 'Elige una receta del listado o busca por nombre o ingrediente.' }),
       el('dl', { class: 'welcome__stats' }, [
-        el('div', { class: 'welcome__stat' }, [
-          el('dt', { text: 'Recetas' }),
-          el('dd', { text: String(params.count) }),
-        ]),
-        el('div', { class: 'welcome__stat' }, [
-          el('dt', { text: 'Con método' }),
-          el('dd', { text: String(params.withMethod) }),
-        ]),
+        ...stat('Recetas', String(params.count)),
+        ...stat('Categorías', String(params.categories)),
+        ...stat('Ingredientes', String(params.ingredients)),
+        ...stat('Con método', `${params.withMethod} de ${params.count}`),
+      ]),
+      el('p', { class: 'welcome__hint' }, [
+        'Pulsa ',
+        el('kbd', { text: '/' }),
+        ' para buscar, ',
+        el('kbd', { text: '↑' }),
+        el('kbd', { text: '↓' }),
+        ' para recorrer el listado.',
       ]),
     ]),
   ]);
+}
+
+function stat(label, value) {
+  return [
+    el('div', { class: 'welcome__stat' }, [
+      el('dt', { text: label }),
+      el('dd', { text: value }),
+    ]),
+  ];
 }

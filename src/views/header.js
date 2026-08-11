@@ -42,7 +42,13 @@ export function renderHeader(options) {
 
   return el('header', { class: 'topbar no-print' }, [
     el('a', { class: 'topbar__brand', href: '#/', attrs: { 'aria-label': 'Zahavi, recetario' } }, [
-      el('span', { class: 'topbar__wordmark', text: 'Zahavi' }),
+      el('img', {
+        class: 'topbar__logo',
+        src: './assets/logo-zahavi.png',
+        alt: 'Zahavi',
+        width: 254,
+        height: 78,
+      }),
       el('span', { class: 'topbar__sub', text: 'recetario' }),
     ]),
 
