@@ -84,6 +84,10 @@
   --focus: #16120f;
   --focus-on-dark: #f5f1ea;
 
+  /* Color de la cifra de cantidad. En claro el dorado no sirve (1,3:1), asi que
+     se usa el naranja profundo para mantener la misma familia cromatica. */
+  --qty-color: var(--ink);
+
   /* ---- Elevación ---- */
   --shadow-sm: 0 1px 2px rgba(22, 18, 15, 0.06);
   --shadow: 0 4px 16px -4px rgba(22, 18, 15, 0.12);
@@ -174,18 +178,27 @@
     --amber-soft: #2f2214;
     --amber-on-rail: #f9a94a;
 
-    --cat-pasteleria: #e7809b;
-    --cat-panaderia: #e0a05a;
-    --cat-galletas: #a8bd6a;
+    /* Separadas por luminancia ademas de por tono: en deuteranopia el matiz se
+       pierde, pero el orden de claridad se sigue percibiendo. */
+    --cat-pasteleria: #e689a4;
+    --cat-panaderia: #b87a35;
+    --cat-galletas: #a7c653;
     --cat-otros: #b0a696;
 
-    --danger: #f08a8a;
+    --danger: #eb7070;
     --danger-soft: #2c1616;
-    --ok: #86c294;
+    --ok: #53c672;
     --ok-soft: #16261a;
 
+    /* La cifra de cantidad usa el dorado del icono de marca: es el color con
+       mas contraste de todo el sistema oscuro (12,6:1) y el mas alejado en tono
+       del resto, asi que el dato critico salta sin competir con nada. */
+    --qty-color: var(--brand-gold);
+
     --line: #2e2820;
-    --line-strong: #5a5245;
+    /* Mas claro que en modo claro, no mas oscuro: sobre fondo casi negro un
+       borde sutil desaparece. */
+    --line-strong: #8a8172;
 
     --focus: #f6f1e8;
     --focus-on-dark: #f6f1e8;

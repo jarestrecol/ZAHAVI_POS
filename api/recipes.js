@@ -7,7 +7,7 @@
  * cambio que y cuando, con posibilidad de revertir.
  *
  * GET  /api/recipes  -> devuelve el recetario y el sha del archivo
- * PUT  /api/recipes  -> valida la clave, comprueba el sha y hace commit
+ * PUT  /api/recipes  -> valida clave y esquema, comprueba el sha y hace commit
  *
  * El sha actua como control de concurrencia: si alguien publico entre la lectura
  * y la escritura, GitHub rechaza el envio y aqui se responde 409 en lugar de
@@ -20,11 +20,27 @@
  *   EDIT_PASSWORD  clave que habilita la edicion
  */
 
+import { validatePayload, MAX_BYTES } from './_schema.js';
+
 const FILE_PATH = 'data/recipes.json';
 const API = 'https://api.github.com';
 
-/** Tope de tamano del cuerpo aceptado, para cortar envios absurdos. */
-const MAX_BYTES = 4 * 1024 * 1024;
+/**
+ * Intentos fallidos por origen. Una funcion serverless no tiene estado
+ * garantizado entre invocaciones, asi que esto no es un cortafuegos: solo
+ * encarece la fuerza bruta mientras la instancia siga viva. La proteccion real
+ * es que la clave sea larga.
+ */
+const attempts = new Map();
+
+/** Intentos fallidos antes de empezar a retrasar la respuesta. */
+const FREE_ATTEMPTS = 5;
+
+/** Retraso maximo aplicado tras fallos repetidos. */
+const MAX_DELAY_MS = 4000;
+
+/** Ventana tras la cual se olvidan los intentos de un origen. */
+const ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
 
 export default async function handler(request, response) {
   const config = readConfig();
@@ -72,16 +88,16 @@ async function handlePut(request, response, config) {
     return send(response, 400, { error: body.error });
   }
 
-  const payload = body.value;
+  const auth = await checkAuth(request, body.value, config);
+  if (!auth.ok) {
+    return send(response, auth.status, { error: auth.error });
+  }
 
-  if (!config.password) {
-    return send(response, 500, { error: 'El servidor no tiene configurada la clave de edición.' });
-  }
-  if (typeof payload.password !== 'string' || !safeEqual(payload.password, config.password)) {
-    return send(response, 401, { error: 'Clave de edición incorrecta.' });
-  }
-  if (!Array.isArray(payload.recipes) || payload.recipes.length === 0) {
-    return send(response, 400, { error: 'El envío no contiene recetas.' });
+  // La validacion del navegador no cuenta aqui: quien llame a la API
+  // directamente se la salta entera.
+  const validated = validatePayload(body.value.recipes, body.value.ingredientes);
+  if (!validated.ok) {
+    return send(response, 400, { error: validated.error });
   }
 
   const current = await fetchFile(config);
@@ -89,7 +105,7 @@ async function handlePut(request, response, config) {
     return send(response, current.status || 502, { error: current.error });
   }
 
-  if (payload.sha && payload.sha !== current.value.sha) {
+  if (body.value.sha && body.value.sha !== current.value.sha) {
     return send(response, 409, {
       error:
         'Otro equipo publicó cambios mientras editabas. Vuelve a cargar el recetario y aplica tus cambios sobre la versión nueva.',
@@ -97,33 +113,86 @@ async function handlePut(request, response, config) {
     });
   }
 
+  return commit(response, config, validated.value, current.value.sha, body.value.author);
+}
+
+/**
+ * Comprueba la clave de edicion, con retraso creciente tras fallos repetidos.
+ *
+ * @returns {Promise<{ok: true} | {ok: false, status: number, error: string}>}
+ */
+async function checkAuth(request, payload, config) {
+  if (!config.password) {
+    return { ok: false, status: 500, error: 'El servidor no tiene configurada la clave de edición.' };
+  }
+
+  const origin = clientKey(request);
+  const failed = readAttempts(origin);
+
+  if (typeof payload.password !== 'string' || !safeEqual(payload.password, config.password)) {
+    attempts.set(origin, { count: failed + 1, at: Date.now() });
+    if (failed >= FREE_ATTEMPTS) {
+      const delay = Math.min(MAX_DELAY_MS, 2 ** (failed - FREE_ATTEMPTS) * 250);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    return { ok: false, status: 401, error: 'Clave de edición incorrecta.' };
+  }
+
+  attempts.delete(origin);
+  return { ok: true };
+}
+
+function clientKey(request) {
+  const header = request.headers['x-forwarded-for'];
+  if (typeof header === 'string' && header) return header.split(',')[0].trim();
+  return 'desconocido';
+}
+
+function readAttempts(origin) {
+  const record = attempts.get(origin);
+  if (!record) return 0;
+  if (Date.now() - record.at > ATTEMPT_WINDOW_MS) {
+    attempts.delete(origin);
+    return 0;
+  }
+  return record.count;
+}
+
+async function commit(response, config, value, sha, rawAuthor) {
   const content = {
     version: 2,
     revision: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    recipes: payload.recipes,
-    ingredientes: Array.isArray(payload.ingredientes) ? payload.ingredientes : [],
+    recipes: value.recipes,
+    ingredientes: value.ingredientes,
   };
 
   const encoded = Buffer.from(JSON.stringify(content, null, 2) + '\n', 'utf8').toString('base64');
-  const author = typeof payload.author === 'string' && payload.author.trim() ? payload.author.trim() : 'recetario';
+  const author = typeof rawAuthor === 'string' && rawAuthor.trim() ? rawAuthor.trim().slice(0, 60) : 'recetario';
 
-  const committed = await fetch(`${API}/repos/${config.repo}/contents/${FILE_PATH}`, {
-    method: 'PUT',
-    headers: githubHeaders(config.token),
-    body: JSON.stringify({
-      message: `datos: actualiza el recetario (${content.recipes.length} recetas) desde ${author}`,
-      content: encoded,
-      sha: current.value.sha,
-      branch: config.branch,
-    }),
-  });
+  let committed;
+  try {
+    committed = await fetch(`${API}/repos/${config.repo}/contents/${FILE_PATH}`, {
+      method: 'PUT',
+      headers: githubHeaders(config.token),
+      body: JSON.stringify({
+        message: `datos: actualiza el recetario (${content.recipes.length} recetas) desde ${author}`,
+        content: encoded,
+        sha,
+        branch: config.branch,
+      }),
+    });
+  } catch {
+    return send(response, 502, { error: 'No se pudo contactar con el repositorio.' });
+  }
 
   if (!committed.ok) {
-    const detail = await safeText(committed);
     if (committed.status === 409) {
       return send(response, 409, { error: 'Conflicto al publicar. Vuelve a cargar y reintenta.' });
     }
-    return send(response, 502, { error: 'No se pudo publicar en el repositorio.', detail });
+    // El detalle del error de GitHub se queda en el registro del servidor: puede
+    // llevar informacion de configuracion del repositorio.
+    console.error('publicacion rechazada por GitHub', committed.status, await safeText(committed));
+    return send(response, 502, { error: 'No se pudo publicar en el repositorio.' });
   }
 
   const result = await committed.json();
@@ -174,8 +243,20 @@ function githubHeaders(token) {
   };
 }
 
+/**
+ * Lee el cuerpo del envio. Vercel ya entrega `request.body` parseado cuando el
+ * tipo es JSON, asi que el limite de tamano se comprueba sobre ese objeto y no
+ * solo en la lectura manual, que en la practica no llega a usarse.
+ */
 async function readBody(request) {
   if (request.body && typeof request.body === 'object') {
+    let size;
+    try {
+      size = JSON.stringify(request.body).length;
+    } catch {
+      return { ok: false, error: 'El cuerpo del envío no se pudo interpretar.' };
+    }
+    if (size > MAX_BYTES) return { ok: false, error: 'El envío es demasiado grande.' };
     return { ok: true, value: request.body };
   }
 

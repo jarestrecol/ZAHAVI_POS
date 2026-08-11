@@ -261,6 +261,14 @@
   border-left-color: var(--cat-otros);
 }
 
+/* En oscuro el tinte naranja se ensucia y resta contraste al texto: la
+   seleccion se comunica con un salto de superficie y la franja lateral. */
+@media (prefers-color-scheme: dark) {
+  .recipe-link.is-active {
+    background: var(--rail-2);
+  }
+}
+
 .recipe-link.is-active[data-category='PASTELERÍA'] { border-left-color: var(--cat-pasteleria); }
 .recipe-link.is-active[data-category='PANADERÍA'] { border-left-color: var(--cat-panaderia); }
 .recipe-link.is-active[data-category='GALLETAS'] { border-left-color: var(--cat-galletas); }

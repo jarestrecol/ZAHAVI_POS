@@ -3,7 +3,7 @@
  */
 
 import { el, svg } from '../lib/dom.js';
-import { navigate } from '../core/router.js';
+import { navigate, getRoute } from '../core/router.js';
 
 /** Espera tras la ultima tecla antes de aplicar la busqueda. */
 const SEARCH_DEBOUNCE_MS = 160;
@@ -32,13 +32,30 @@ export function renderHeader(options) {
     on: {
       input: (event) => {
         const value = event.target.value;
+        const routeAtTyping = getRoute();
         clearTimeout(debounce);
         debounce = setTimeout(() => {
+          // Si mientras corria el temporizador se abrio una receta, no hay que
+          // arrastrar al usuario de vuelta al indice.
+          const now = getRoute();
+          if (now.name !== routeAtTyping.name || now.id !== routeAtTyping.id) return;
           navigate({ name: 'index', id: null, query: value }, { replace: true });
         }, SEARCH_DEBOUNCE_MS);
       },
     },
   });
+
+  // El render reconstruye la barra entera, asi que hay que devolver el cursor
+  // al buscador si estaba escribiendo: un evento ajeno (perder la conexion, por
+  // ejemplo) no debe sacarle el foco a media palabra.
+  if (options.focusSearch) {
+    window.requestAnimationFrame(() => {
+      if (!search.isConnected) return;
+      search.focus();
+      const end = search.value.length;
+      search.setSelectionRange(end, end);
+    });
+  }
 
   return el('header', { class: 'topbar no-print' }, [
     el('a', { class: 'topbar__brand', href: '#/', attrs: { 'aria-label': 'Zahavi, recetario' } }, [

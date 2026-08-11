@@ -5,7 +5,7 @@
  * comprobar de forma aislada.
  */
 
-import { normalize, byName, indexLetter } from '../lib/format.js';
+import { normalize, byName } from '../lib/format.js';
 import { ALL_CATEGORIES } from './router.js';
 
 /**
@@ -39,27 +39,6 @@ export function filterRecipes(recipes, criteria) {
  */
 export function sortRecipes(recipes) {
   return [...recipes].sort(byName);
-}
-
-/**
- * Convierte la lista ordenada en celdas de indice, intercalando el divisor de
- * letra cada vez que cambia la inicial.
- *
- * @param {Array} recipes ya ordenadas
- * @returns {Array<{type: 'letter', letter: string} | {type: 'recipe', recipe: object}>}
- */
-export function buildIndexCells(recipes) {
-  const cells = [];
-  let lastLetter = null;
-  for (const recipe of recipes) {
-    const letter = indexLetter(recipe.nombre);
-    if (letter !== lastLetter) {
-      cells.push({ type: 'letter', letter });
-      lastLetter = letter;
-    }
-    cells.push({ type: 'recipe', recipe });
-  }
-  return cells;
 }
 
 /**

@@ -22,9 +22,6 @@ import { fetchShared, publishShared, isRemoteAvailable } from './remote.js';
 /** Clave de los cambios locales sin publicar. */
 const LOCAL_KEY = 'zahavi_recetario_v1';
 
-/** Clave de la fecha del ultimo respaldo exportado. */
-const BACKUP_KEY = 'zahavi_recetario_backup_v1';
-
 /** Archivo publicado que viaja con el sitio. */
 const PUBLISHED_URL = './data/recipes.json';
 
@@ -65,8 +62,10 @@ export async function hydrate() {
   const localValid = local && validateBackup(local).ok ? validateBackup(local).value : null;
   const localIsDirty = Boolean(local && local.dirty);
 
-  // Sin cambios locales: manda siempre lo publicado.
+  // Sin cambios locales: manda siempre lo publicado. Se limpia el conflicto
+  // para que hydrate() de el mismo resultado cuantas veces se llame.
   if (!localValid || !localIsDirty) {
+    conflict = false;
     if (fetched.ok) {
       current = { recipes: published.recipes, ingredientes: published.ingredientes };
       dirty = false;
@@ -368,16 +367,4 @@ export async function publishToAll(options) {
   return result;
 }
 
-/** Marca que se acaba de exportar un respaldo. */
-export function markBackupTaken() {
-  writeJson(BACKUP_KEY, { at: new Date().toISOString(), count: current.recipes.length });
-}
 
-/**
- * Fecha del ultimo respaldo exportado, o null si nunca se hizo uno.
- * @returns {string|null}
- */
-export function lastBackupAt() {
-  const record = readJson(BACKUP_KEY, null);
-  return record && typeof record.at === 'string' ? record.at : null;
-}

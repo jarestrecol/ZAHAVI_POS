@@ -57,18 +57,6 @@ export function text(value) {
 }
 
 /**
- * Fragmento para agrupar varios nodos en una sola insercion.
- *
- * @param {Array<Node|string|null|undefined|false>} [children]
- * @returns {DocumentFragment}
- */
-export function fragment(children = []) {
-  const frag = document.createDocumentFragment();
-  appendAll(frag, children);
-  return frag;
-}
-
-/**
  * Vacia un nodo. Mas rapido y mas seguro que asignar innerHTML = ''.
  *
  * @param {Node} node
@@ -104,17 +92,6 @@ export function replaceChildren(node, children) {
 export function on(target, type, handler, options) {
   target.addEventListener(type, handler, options);
   return () => target.removeEventListener(type, handler, options);
-}
-
-/**
- * Consulta acotada a un contenedor. Devuelve array, no NodeList.
- *
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {Array<Element>}
- */
-export function queryAll(root, selector) {
-  return Array.from(root.querySelectorAll(selector));
 }
 
 function applyProps(node, props) {

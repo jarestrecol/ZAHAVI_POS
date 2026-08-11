@@ -96,8 +96,3 @@ export function clearNotice() {
   if (state.notice !== '') setState({ notice: '', noticeKind: 'info' });
 }
 
-/** Devuelve el estado a sus valores iniciales. Solo para pruebas. */
-export function resetState() {
-  state = INITIAL;
-  listeners.clear();
-}

@@ -219,15 +219,19 @@ button {
   color: var(--surface-card);
 }
 
+/* Texto oscuro sobre el naranja de marca, no blanco: el blanco se queda en
+   2,45:1 y falla. El logo si usa blanco, pero un logotipo esta exento de la
+   norma y un boton no. */
 .btn--accent {
   background: var(--amber);
-  color: #fff;
+  color: var(--brand-ink);
   border-color: var(--amber-deep);
+  font-weight: 700;
 }
 
 .btn--accent:hover {
-  background: var(--amber-deep);
-  color: #fff;
+  background: #ffa347;
+  color: var(--brand-ink);
 }
 
 .btn--quiet {

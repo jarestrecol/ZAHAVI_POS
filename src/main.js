@@ -133,6 +133,10 @@ function render() {
   const state = getState();
   const route = getRoute();
 
+  // El buscador se reconstruye en cada render: se anota si tenia el foco para
+  // devolverselo despues.
+  const searchHadFocus = document.activeElement && document.activeElement.id === SEARCH_ID;
+
   clear(app);
 
   if (!state.ready) {
@@ -164,6 +168,7 @@ function render() {
     renderHeader({
       query: route.query,
       canEdit,
+      focusSearch: searchHadFocus,
       onNewRecipe: () => navigate({ name: 'new', id: null }),
       onSettings: () => setState({ settingsOpen: true }),
     }),
