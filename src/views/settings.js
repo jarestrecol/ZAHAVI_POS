@@ -1,27 +1,27 @@
 /**
- * Ajustes: contrasena, respaldo y estado del almacenamiento.
+ * Ajustes: estado de publicacion, contrasena y recuperacion.
+ *
+ * El bloque principal es el de publicacion, porque en un sitio sin servidor es
+ * donde se decide si lo que alguien edito llega o no al resto de las sedes.
  */
 
 import { el } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
-import { isoDate } from '../lib/format.js';
 import { changePassword, MIN_PASSWORD_LENGTH } from '../core/auth.js';
 import { validateBackup } from '../core/schema.js';
 import { createWindow } from './window.js';
 
-/** Tamano maximo aceptado para un archivo de respaldo. */
+/** Tamano maximo aceptado para un archivo importado. */
 const MAX_BACKUP_BYTES = 8 * 1024 * 1024;
-
-/** Dias tras los cuales se recomienda exportar un respaldo nuevo. */
-const BACKUP_REMINDER_DAYS = 30;
 
 /**
  * @param {Object} options
  * @param {number} options.recipeCount
- * @param {string|null} options.lastBackupAt
- * @param {() => object} options.getBackup
+ * @param {string} options.revision version publicada en uso
+ * @param {{dirty: boolean, conflict: boolean, added: number, modified: number, removed: number, total: number}} options.changes
+ * @param {() => object} options.getPublishableFile
+ * @param {() => void} options.onDiscard
  * @param {(backup: object) => void} options.onImport
- * @param {() => void} options.onExported
  * @param {() => void} options.onClose
  * @returns {{node: HTMLElement, close: () => void}}
  */
@@ -29,22 +29,12 @@ export function openSettings(options) {
   const passwordMessage = el('p', { class: 'form-note', attrs: { role: 'status' } });
   const dataMessage = el('p', { class: 'form-note', attrs: { role: 'status' } });
 
-  const newPassword = el('input', {
-    type: 'password',
-    id: 'pwd-new',
-    class: 'field',
-    autocomplete: 'new-password',
-  });
-  const confirmPassword = el('input', {
-    type: 'password',
-    id: 'pwd-confirm',
-    class: 'field',
-    autocomplete: 'new-password',
-  });
+  const newPassword = el('input', { type: 'password', id: 'pwd-new', class: 'field', autocomplete: 'new-password' });
+  const confirmPassword = el('input', { type: 'password', id: 'pwd-confirm', class: 'field', autocomplete: 'new-password' });
 
   const applyPassword = async () => {
     const result = await changePassword(newPassword.value, confirmPassword.value);
-    passwordMessage.textContent = result.ok ? 'Contraseña actualizada.' : result.message;
+    passwordMessage.textContent = result.ok ? 'Contraseña actualizada en este equipo.' : result.message;
     passwordMessage.classList.toggle('is-error', !result.ok);
     if (result.ok) {
       newPassword.value = '';
@@ -53,45 +43,42 @@ export function openSettings(options) {
     }
   };
 
-  const exportBackup = () => {
-    const blob = new Blob([JSON.stringify(options.getBackup(), null, 2)], {
+  const downloadFile = () => {
+    const blob = new Blob([JSON.stringify(options.getPublishableFile(), null, 2) + '\n'], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
-    const link = el('a', { href: url, download: `zahavi-recetario-${isoDate()}.json` });
+    const link = el('a', { href: url, download: 'recipes.json' });
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    options.onExported();
-    dataMessage.textContent = 'Respaldo descargado. Guárdalo fuera de este equipo.';
+    dataMessage.textContent = 'Archivo descargado. Reemplaza data/recipes.json del proyecto y vuelve a publicar el sitio.';
     dataMessage.classList.remove('is-error');
-    announce('Respaldo descargado.');
+    announce('Archivo de recetas descargado.');
   };
 
-  const importBackup = (event) => {
+  const importFile = (event) => {
     const file = event.target.files && event.target.files[0];
     event.target.value = '';
     if (!file) return;
-
     if (file.size > MAX_BACKUP_BYTES) {
-      showImportError(`El archivo pesa demasiado (máximo ${MAX_BACKUP_BYTES / 1024 / 1024} MB).`);
+      showError(`El archivo pesa demasiado (máximo ${MAX_BACKUP_BYTES / 1024 / 1024} MB).`);
       return;
     }
-
     const reader = new FileReader();
-    reader.onerror = () => showImportError('No se pudo leer el archivo.');
+    reader.onerror = () => showError('No se pudo leer el archivo.');
     reader.onload = () => {
       let parsed;
       try {
         parsed = JSON.parse(String(reader.result));
       } catch {
-        showImportError('El archivo no es un JSON válido.');
+        showError('El archivo no es un JSON válido.');
         return;
       }
       const result = validateBackup(parsed);
       if (!result.ok) {
-        showImportError(result.message);
+        showError(result.message);
         return;
       }
       options.onImport(result.value);
@@ -99,7 +86,7 @@ export function openSettings(options) {
     reader.readAsText(file);
   };
 
-  function showImportError(message) {
+  function showError(message) {
     dataMessage.textContent = message;
     dataMessage.classList.add('is-error');
     announce(message, 'assertive');
@@ -110,59 +97,69 @@ export function openSettings(options) {
     id: 'backup-file',
     class: 'sr-only',
     accept: 'application/json,.json',
-    on: { change: importBackup },
+    on: { change: importFile },
   });
 
   const body = el('div', { class: 'settings' }, [
     el('section', { class: 'settings__row' }, [
-      el('h3', { class: 'section-label', text: 'Cambiar contraseña' }),
-      el('div', { class: 'settings__grid' }, [
-        el('div', null, [
-          el('label', { class: 'label', for: 'pwd-new', text: 'nueva contraseña' }),
-          newPassword,
-        ]),
-        el('div', null, [
-          el('label', { class: 'label', for: 'pwd-confirm', text: 'confirmar' }),
-          confirmPassword,
-        ]),
+      el('h3', { class: 'section-label', text: 'Estado del recetario' }),
+      el('p', { class: 'settings__count' }, [
+        el('strong', { text: String(options.recipeCount) }),
+        options.recipeCount === 1 ? ' receta.' : ' recetas.',
+        options.revision ? ` Versión publicada: ${options.revision}.` : '',
       ]),
+      renderChanges(options.changes),
       el('div', { class: 'settings__actions' }, [
         el('button', {
           type: 'button',
-          class: 'btn btn--ghost',
-          text: 'Actualizar',
-          on: { click: applyPassword },
+          class: 'btn ' + (options.changes.dirty ? 'btn--primary' : 'btn--ghost'),
+          text: 'Descargar recetas actualizadas',
+          on: { click: downloadFile },
         }),
+        options.changes.dirty
+          ? el('button', {
+              type: 'button',
+              class: 'btn btn--danger',
+              text: 'Descartar cambios de este equipo',
+              on: { click: options.onDiscard },
+            })
+          : null,
+      ]),
+      dataMessage,
+      el('p', { class: 'settings__help' }, [
+        'Los cambios hechos aquí se guardan solo en este equipo. Para que los vean también en la otra sede, ',
+        el('strong', { text: 'descarga el archivo y publícalo' }),
+        ': reemplaza ',
+        el('code', { text: 'data/recipes.json' }),
+        ' en el proyecto y vuelve a desplegar el sitio.',
+      ]),
+    ]),
+
+    el('section', { class: 'settings__row' }, [
+      el('h3', { class: 'section-label', text: 'Cambiar contraseña' }),
+      el('div', { class: 'settings__grid' }, [
+        el('div', null, [el('label', { class: 'label', for: 'pwd-new', text: 'nueva contraseña' }), newPassword]),
+        el('div', null, [el('label', { class: 'label', for: 'pwd-confirm', text: 'confirmar' }), confirmPassword]),
+      ]),
+      el('div', { class: 'settings__actions' }, [
+        el('button', { type: 'button', class: 'btn btn--ghost', text: 'Actualizar', on: { click: applyPassword } }),
         passwordMessage,
       ]),
       el('p', {
         class: 'settings__help',
-        text: `Mínimo ${MIN_PASSWORD_LENGTH} caracteres. Es un filtro visual: cualquiera con acceso a este equipo puede ver las recetas.`,
+        text: `Mínimo ${MIN_PASSWORD_LENGTH} caracteres. Solo afecta a este equipo y es un filtro visual, no una protección real.`,
       }),
     ]),
+
     el('section', { class: 'settings__row' }, [
-      el('h3', { class: 'section-label', text: 'Respaldo' }),
-      el('p', { class: 'settings__count' }, [
-        el('strong', { text: String(options.recipeCount) }),
-        options.recipeCount === 1
-          ? ' receta guardada en este dispositivo.'
-          : ' recetas guardadas en este dispositivo.',
-      ]),
-      renderBackupWarning(options.lastBackupAt),
+      el('h3', { class: 'section-label', text: 'Recuperar desde un archivo' }),
       el('div', { class: 'settings__actions' }, [
-        el('button', {
-          type: 'button',
-          class: 'btn btn--ghost',
-          text: 'Exportar respaldo',
-          on: { click: exportBackup },
-        }),
-        el('label', { class: 'btn btn--ghost', for: 'backup-file', text: 'Importar respaldo' }),
+        el('label', { class: 'btn btn--ghost', for: 'backup-file', text: 'Cargar archivo de recetas' }),
         fileInput,
       ]),
-      dataMessage,
       el('p', {
         class: 'settings__help',
-        text: 'Importar reemplaza todo el recetario de este dispositivo. Exporta antes si tienes cambios sin respaldar.',
+        text: 'Reemplaza todo el recetario de este equipo por el contenido del archivo. Úsalo solo para recuperar una copia.',
       }),
     ]),
   ]);
@@ -176,28 +173,29 @@ export function openSettings(options) {
     footer: [
       el('p', { class: 'win__hint', text: 'Sesión activa en este equipo.' }),
       el('div', { class: 'win__actions' }, [
-        el('button', {
-          type: 'button',
-          class: 'btn btn--primary',
-          text: 'Cerrar',
-          on: { click: options.onClose },
-        }),
+        el('button', { type: 'button', class: 'btn btn--primary', text: 'Cerrar', on: { click: options.onClose } }),
       ]),
     ],
   });
 }
 
-function renderBackupWarning(lastBackupAt) {
-  if (!lastBackupAt) {
-    return el('p', {
-      class: 'settings__warning',
-      text: 'Nunca has exportado un respaldo. Si se borran los datos del navegador, el recetario se pierde.',
-    });
+function renderChanges(changes) {
+  if (!changes.dirty) {
+    return el('p', { class: 'settings__ok', text: 'Este equipo está igual que la versión publicada.' });
   }
-  const days = Math.floor((Date.now() - new Date(lastBackupAt).getTime()) / 86400000);
-  if (days < BACKUP_REMINDER_DAYS) return null;
-  return el('p', {
-    class: 'settings__warning',
-    text: `El último respaldo es de hace ${days} días. Conviene exportar uno nuevo.`,
-  });
+
+  const partes = [];
+  if (changes.added) partes.push(`${changes.added} nueva${changes.added === 1 ? '' : 's'}`);
+  if (changes.modified) partes.push(`${changes.modified} modificada${changes.modified === 1 ? '' : 's'}`);
+  if (changes.removed) partes.push(`${changes.removed} eliminada${changes.removed === 1 ? '' : 's'}`);
+
+  return el('div', null, [
+    el('p', { class: 'settings__warning', text: `Cambios sin publicar en este equipo: ${partes.join(', ')}.` }),
+    changes.conflict
+      ? el('p', {
+          class: 'settings__warning settings__warning--strong',
+          text: 'Además se publicó una versión nueva del recetario. Si descartas los cambios de este equipo, se perderán; si publicas, sustituirás la versión nueva.',
+        })
+      : null,
+  ]);
 }

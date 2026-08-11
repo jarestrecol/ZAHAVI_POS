@@ -1,0 +1,154 @@
+/**
+ * Service worker del recetario.
+ *
+ * Objetivo: que el recetario abra al instante y siga funcionando cuando no hay
+ * señal. En una cocina la conexión se cae, y quedarse sin las recetas a media
+ * producción no es aceptable.
+ *
+ * Estrategia por tipo de recurso:
+ *   - Carcasa (HTML, CSS, JS): primero la caché, porque no cambia salvo que se
+ *     publique una versión nueva. Arranque inmediato.
+ *   - Recetas (data/recipes.json): primero la red, para recoger enseguida una
+ *     publicación nueva; si no hay red, la copia guardada.
+ *
+ * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
+ */
+
+const CACHE_VERSION = 'zahavi-v1';
+const DATA_URL = 'data/recipes.json';
+
+/** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
+const SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './assets/favicon.svg',
+  './assets/css/tokens.css',
+  './assets/css/base.css',
+  './assets/css/book.css',
+  './assets/css/views.css',
+  './assets/css/dialogs.css',
+  './assets/css/print.css',
+  './src/main.js',
+  './src/lib/dom.js',
+  './src/lib/format.js',
+  './src/lib/a11y.js',
+  './src/core/storage.js',
+  './src/core/schema.js',
+  './src/core/repository.js',
+  './src/core/auth.js',
+  './src/core/store.js',
+  './src/core/router.js',
+  './src/core/search.js',
+  './src/views/window.js',
+  './src/views/login.js',
+  './src/views/header.js',
+  './src/views/book.js',
+  './src/views/index-view.js',
+  './src/views/detail.js',
+  './src/views/editor.js',
+  './src/views/settings.js',
+  './src/views/confirm.js',
+  './src/views/print.js',
+  './data/recipes.json',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE_VERSION)
+      // addAll falla entero si un recurso falla; se piden de a uno para que un
+      // archivo ausente no deje la aplicación sin caché.
+      .then((cache) => Promise.all(SHELL.map((url) => cache.add(url).catch(() => null))))
+      .then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.endsWith(DATA_URL) || url.pathname.endsWith('/recipes.json')) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(request));
+});
+
+/**
+ * Devuelve la copia guardada y, en paralelo, refresca la caché para la próxima vez.
+ *
+ * @param {Request} request
+ * @returns {Promise<Response>}
+ */
+async function cacheFirst(request) {
+  const cached = await caches.match(request, { ignoreSearch: true });
+  if (cached) {
+    refresh(request);
+    return cached;
+  }
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE_VERSION);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    // Navegación sin red y sin copia: se sirve la portada, que sí está cacheada.
+    if (request.mode === 'navigate') {
+      const shell = await caches.match('./index.html');
+      if (shell) return shell;
+    }
+    return new Response('Sin conexión y sin copia guardada.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+}
+
+/**
+ * Intenta la red primero para detectar una publicación nueva; si falla, sirve
+ * la última copia guardada.
+ *
+ * @param {Request} request
+ * @returns {Promise<Response>}
+ */
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE_VERSION);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    throw new Error('sin red y sin copia de las recetas');
+  }
+}
+
+function refresh(request) {
+  fetch(request)
+    .then((response) => {
+      if (!response.ok) return;
+      caches.open(CACHE_VERSION).then((cache) => cache.put(request, response));
+    })
+    .catch(() => {
+      /* sin red: se sigue con la copia guardada */
+    });
+}

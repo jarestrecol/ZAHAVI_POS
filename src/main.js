@@ -13,7 +13,7 @@ import { getRoute, navigate, onRouteChange, startRouter, ALL_CATEGORIES } from '
 import { ensurePassword, isSignedIn, signOut, isUsingDefaultPassword } from './core/auth.js';
 import { emptyRecipe } from './core/schema.js';
 import { renderLogin } from './views/login.js';
-import { renderHeader, renderContextBadge } from './views/header.js';
+import { renderHeader, renderPendingBadge } from './views/header.js';
 import { renderClosedBook, renderBookShell } from './views/book.js';
 import { renderIndex } from './views/index-view.js';
 import { renderDetail } from './views/detail.js';
@@ -69,6 +69,20 @@ async function boot() {
   onRouteChange(handleRouteChange);
   startRouter();
   render();
+  registerServiceWorker();
+}
+
+/**
+ * Registra el service worker para que el recetario abra al instante y siga
+ * funcionando sin señal. Se hace despues del primer render: si falla, la
+ * aplicacion ya esta en pantalla y no pasa nada.
+ */
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (window.location.protocol === 'file:') return;
+  navigator.serviceWorker.register('./sw.js').catch(() => {
+    /* sin trabajo sin conexion; la aplicacion funciona igual con red */
+  });
 }
 
 function handleRouteChange(route, previous) {
@@ -148,7 +162,7 @@ function render() {
   }
 
   const screen = el('div', { class: 'screen' });
-  const badge = renderContextBadge();
+  const badge = renderPendingBadge(repo.localChanges(), () => setState({ settingsOpen: true }));
   if (badge) screen.appendChild(badge);
 
   if (state.book === 'open' || state.book === 'shutting') {
@@ -263,9 +277,16 @@ function renderDialogs(screen) {
   } else if (state.settingsOpen) {
     openDialog = openSettings({
       recipeCount: state.recipes.length,
-      lastBackupAt: repo.lastBackupAt(),
-      getBackup: repo.toBackup,
-      onExported: repo.markBackupTaken,
+      revision: repo.publishedRevision(),
+      changes: repo.localChanges(),
+      getPublishableFile: repo.toPublishableFile,
+      onDiscard: () => {
+        const result = repo.discardLocalChanges();
+        setState({ recipes: repo.findAll(), ingredientes: repo.allIngredients(), settingsOpen: false });
+        notify(`Se descartaron los cambios. Vuelves a la versión publicada (${result.value} recetas).`, 'info');
+        announce('Cambios locales descartados.');
+        navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES });
+      },
       onImport: (backup) => {
         const result = repo.replaceAll(backup);
         if (!result.ok) {
@@ -273,8 +294,8 @@ function renderDialogs(screen) {
           return;
         }
         setState({ recipes: repo.findAll(), ingredientes: repo.allIngredients(), settingsOpen: false });
-        notify(`Se importaron ${result.value} recetas.`, 'success');
-        announce(`Se importaron ${result.value} recetas.`);
+        notify(`Se cargaron ${result.value} recetas en este equipo.`, 'success');
+        announce(`Se cargaron ${result.value} recetas.`);
         navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES });
       },
       onClose: () => {

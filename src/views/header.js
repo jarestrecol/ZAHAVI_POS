@@ -109,17 +109,33 @@ export function renderHeader(options) {
 }
 
 /**
- * Marca visual del origen de los datos. Abrir el archivo por doble clic y abrir
- * el sitio web usan almacenes distintos del navegador: lo que se edita en uno no
- * aparece en el otro. Decirlo evita que alguien crea que se perdieron recetas.
+ * Aviso permanente de que este equipo tiene cambios que las demas sedes no ven.
+ * Sin esto, alguien edita en la panaderia, nadie lo ve en la casa de produccion
+ * y los dos recetarios se separan sin que nadie lo note.
  *
+ * @param {{dirty: boolean, total: number, conflict: boolean}} changes
+ * @param {() => void} onOpenSettings
  * @returns {HTMLElement|null}
  */
-export function renderContextBadge() {
-  if (window.location.protocol !== 'file:') return null;
-  return el('p', {
-    class: 'context-badge no-print',
-    text: 'Modo archivo local: las recetas de esta ventana no son las mismas que las del sitio web.',
-  });
+export function renderPendingBadge(changes, onOpenSettings) {
+  if (window.location.protocol === 'file:') {
+    return el('p', {
+      class: 'context-badge no-print',
+      text: 'Modo archivo local: estas recetas no son las mismas que las del sitio web.',
+    });
+  }
+  if (!changes.dirty) return null;
+
+  const cuenta = changes.total === 1 ? '1 cambio' : `${changes.total} cambios`;
+
+  return el('p', { class: 'context-badge no-print' }, [
+    `${cuenta} sin publicar en este equipo. Las demás sedes todavía no los ven. `,
+    el('button', {
+      type: 'button',
+      class: 'context-badge__action',
+      text: 'Publicar',
+      on: { click: onOpenSettings },
+    }),
+  ]);
 }
 
