@@ -17,6 +17,8 @@
  * @property {object|null} draft receta en edicion
  * @property {boolean} draftIsNew
  * @property {string|null} confirmDelete id pendiente de confirmar
+ * @property {string|null} production id de la receta abierta en modo produccion
+ * @property {boolean} online hay conexion en este momento
  * @property {boolean} settingsOpen
  * @property {string} notice mensaje visible para la persona usuaria
  * @property {'info'|'error'|'success'} noticeKind
@@ -34,6 +36,8 @@ const INITIAL = Object.freeze({
   draft: null,
   draftIsNew: false,
   confirmDelete: null,
+  production: null,
+  online: true,
   settingsOpen: false,
   notice: '',
   noticeKind: 'info',

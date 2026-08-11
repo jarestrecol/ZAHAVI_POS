@@ -16,8 +16,14 @@ const YIELD_PATTERN = new RegExp(
 /** Posicion minima del separador para no partir nombres que empiezan por "X". */
 const MIN_YIELD_INDEX = 2;
 
-/** Decimales que se conservan al mostrar una cantidad. */
-const QTY_DECIMALS = 2;
+/**
+ * Decimales que se muestran de una cantidad.
+ *
+ * Uno basta: ninguna bascula de obrador aprecia mas, y el dato de origen trae
+ * ruido de coma flotante del Excel (283.33333333333297 gr, 5.6666666666666696
+ * und). Solo cambia la presentacion; el valor guardado no se toca.
+ */
+const QTY_DECIMALS = 1;
 
 /**
  * Separa el nombre de una receta de su rendimiento.

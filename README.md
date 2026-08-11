@@ -1,118 +1,104 @@
 # Zahavi · Recetario
 
-Recetario de panadería y pastelería. Se consulta desde el navegador en la
-panadería y en la casa de producción, funciona sin conexión y no necesita
-servidor, base de datos ni cuentas de usuario.
+Sistema de consulta de recetas para panadería y pastelería. Se abre desde el
+mismo enlace en la panadería y en la casa de producción, funciona sin conexión y
+está pensado para usarse de pie, en el obrador, con las manos ocupadas.
 
-**Fase 1**: consultar, crear y modificar recetas con sus componentes y métodos.
-Producción, costos y cálculos quedan para fases siguientes.
+**Fase 1**: consultar, crear y editar recetas con sus componentes y métodos.
+Producción, costos y escalado quedan para fases siguientes.
 
-## Cómo funciona el dato
+## Qué hace
 
-Esto es un sitio estático: no hay servidor que guarde nada. El modelo es
-deliberadamente simple y conviene entenderlo antes de usarlo.
+- **Listado permanente** a la izquierda: saltar de una receta a otra es un clic.
+- **Búsqueda** por nombre, código o ingrediente.
+- **Ficha de receta** con los ingredientes a ancho completo y las cantidades como
+  lectura de báscula: cifra grande, monoespaciada y alineada en columna.
+- **Modo Pesar**: pantalla completa, un ingrediente a la vez, barra espaciadora
+  para dar por pesado y avanzar sin tocar la pantalla.
+- **Impresión A4** de la ficha o del índice completo.
+- **Sin conexión**: el recetario abre igual y sigue consultándose.
 
-```
-data/recipes.json  ─────►  lo que ven TODAS las sedes
-   (versión publicada)     cambia solo al publicar el sitio
+### Atajos
 
-navegador de cada equipo ►  cambios locales
-   (cambios sin publicar)   los ve solo ese equipo
-```
+| Tecla | Acción |
+|---|---|
+| `/` | Ir al buscador |
+| `↑` `↓` | Moverse por el listado |
+| `E` | Editar la receta abierta |
+| `Esc` | Salir del buscador o cerrar el diálogo |
+| Espacio | En modo Pesar: dar por pesado y avanzar |
 
-Cuando alguien crea o edita una receta, el cambio se guarda **en ese equipo**.
-Aparece un aviso permanente en la cabecera: *"N cambios sin publicar en este
-equipo"*. Para que el resto de las sedes los vean hay que publicarlos.
+## Cómo se guardan los datos
 
-### Publicar cambios
+El recetario compartido vive en `data/recipes.json` **del propio repositorio**.
+No hay base de datos.
 
-1. **Ajustes → Descargar recetas actualizadas**. Obtienes un `recipes.json`.
-2. Reemplaza `data/recipes.json` del proyecto por ese archivo.
-3. `git commit` y `git push`. Vercel republica solo.
-4. En cada equipo, al recargar, el aviso desaparece: ya están publicados.
+Cuando el sitio corre en Vercel con las variables configuradas, la función
+`/api/recipes` lee y escribe ese archivo por la API de GitHub. Entonces:
 
-Si prefieres no tocar los cambios de un equipo, **Ajustes → Descartar cambios de
-este equipo** lo devuelve a la versión publicada.
+- Todos los dispositivos ven lo mismo al abrir el enlace.
+- **Publicar** desde Ajustes hace un commit real y el cambio queda visible al
+  instante en las demás sedes.
+- Cada cambio queda en el historial de git: quién, cuándo y qué, con opción de
+  revertir.
+- Si dos equipos editan a la vez, el segundo recibe un aviso de conflicto en vez
+  de pisar el trabajo del primero.
 
-### Si se publica una versión nueva y un equipo tenía cambios
+Mientras no se publica, lo editado se guarda en ese equipo y la cabecera muestra
+*"N cambios sin publicar"*. Publicar requiere la **clave de edición**, que se
+comprueba en el servidor: quien no la tenga puede consultar, pero no modificar lo
+que ven los demás.
 
-La aplicación lo detecta y avisa del conflicto en Ajustes. Hay que decidir: o se
-descartan los cambios de ese equipo, o se publican sustituyendo la versión nueva.
-No se mezclan solos, a propósito.
+Si el sitio se sirve sin las funciones (alojamiento estático o archivo local),
+todo sigue funcionando contra el archivo publicado y el almacenamiento del
+equipo, y la publicación compartida no aparece.
 
-## Sin conexión
+## Despliegue en Vercel
 
-El recetario guarda una copia en cada equipo y registra un *service worker*, así
-que abre al instante y sigue funcionando aunque se caiga la señal. Es habitual en
-una cocina, y quedarse sin las recetas a media producción no es aceptable.
-
-Al recuperar la conexión recoge sola la versión publicada más reciente.
-
-## Uso
-
-Entrar con la contraseña inicial `zahavi2026` y tocar la portada.
-
-Buscar por nombre, código o ingrediente. Filtrar por categoría. Crear, editar y
-eliminar recetas. Imprimir la ficha de una receta o el índice completo en A4.
-
-La búsqueda, el filtro y la receta abierta van en la dirección, así que se puede
-enviar por WhatsApp un enlace directo a una receta concreta.
-
-### Sobre la contraseña
-
-**Es una cortina, no una cerradura.** Se comprueba dentro del navegador. Sirve
-para que un cliente que se asome al mostrador no vea las fórmulas; no protege
-frente a alguien que sepa lo que hace. Cualquiera con el enlace puede descargar
-`data/recipes.json` directamente.
-
-Si en algún momento hace falta protección real, la vía es Deployment Protection
-de Vercel (contraseña a nivel de plataforma, delante del sitio entero).
-
-## Despliegue
-
-### Vercel
-
-Sitio estático sin compilación. Al importar el repositorio:
+Sitio estático con funciones. Al importar el repositorio:
 
 - **Framework Preset**: `Other`
 - **Build Command**: vacío
-- **Output Directory**: vacío (raíz)
+- **Output Directory**: vacío
 
-`vercel.json` ya define las cabeceras: política de seguridad de contenido,
-`X-Frame-Options`, `nosniff`, `noindex` y las reglas de caché (las recetas y el
-service worker sin caché, para que una publicación se vea enseguida).
+### Variables de entorno
 
-### Dominio en Namecheap
+En **Settings → Environment Variables**:
 
-En Vercel, **Settings → Domains**, añade el dominio. Vercel indica qué registros
-crear. En Namecheap, **Domain List → Manage → Advanced DNS**:
+| Variable | Valor |
+|---|---|
+| `GITHUB_TOKEN` | Token de GitHub con permiso de contenido sobre este repositorio |
+| `GITHUB_REPO` | `usuario/repositorio` |
+| `GITHUB_BRANCH` | `main` |
+| `EDIT_PASSWORD` | La clave que habilita publicar |
 
-| Tipo | Host | Valor |
-|---|---|---|
-| `A` | `@` | la IP que indique Vercel |
-| `CNAME` | `www` | el destino que indique Vercel |
+El token se crea en GitHub → Settings → Developer settings → Personal access
+tokens → Fine-grained tokens, con acceso solo a este repositorio y permiso de
+lectura y escritura en **Contents**. No lo pongas nunca en el código.
 
-Usa siempre los valores que muestre Vercel en ese momento, no los de ninguna
-guía. Si Namecheap trae registros de aparcamiento por defecto, bórralos. La
-propagación tarda de minutos a unas horas; el certificado HTTPS lo emite Vercel
-solo.
+Sin esas variables el sitio despliega igual, pero sin publicación compartida.
+
+### Dominio
+
+En Vercel, **Settings → Domains**, añade el dominio y usa los registros que
+indique en ese momento. En Namecheap se cargan en **Advanced DNS**. El
+certificado HTTPS lo emite Vercel.
 
 ## Desarrollo
 
-Los módulos ES necesitan servirse por HTTP; abrir `index.html` con doble clic no
-funciona.
+Los módulos ES necesitan servirse por HTTP:
 
 ```
 python -m http.server 8000
 ```
 
-Pruebas de la capa de datos (publicado, cambios locales, conflictos, sin red):
+Pruebas de la capa de datos:
 
 ```
 node scripts/test-datos.mjs
 ```
 
-Versión de un solo archivo, para llevar en memoria USB y abrir con doble clic:
+Versión de un solo archivo, para memoria USB:
 
 ```
 node scripts/build-standalone.mjs
@@ -123,66 +109,56 @@ node scripts/build-standalone.mjs
 ```
 index.html              Punto de entrada
 vercel.json             Cabeceras y caché
-sw.js                   Service worker (funcionamiento sin conexión)
-assets/css/             tokens · base · book · views · dialogs · print
-data/recipes.json       Recetas publicadas: la fuente de verdad
-src/lib/                dom (DOM sin innerHTML) · format · a11y
-src/core/               storage · schema · repository · auth · store · router · search
-src/views/              login · header · book · index-view · detail
+sw.js                   Service worker
+api/recipes.js          Lectura y publicación contra GitHub
+assets/css/             tokens · base · layout · sheet · views · dialogs · print
+data/recipes.json       Recetario publicado
+src/lib/                dom (sin innerHTML) · format · a11y
+src/core/               storage · schema · repository · remote · auth · store · router · search
+src/views/              login · header · sidebar · detail · production
                         editor · settings · confirm · window · print
 src/main.js             Arranque y orquestación
-scripts/                Pruebas y generador de la versión de un solo archivo
 ```
 
-Sin dependencias, sin compilación, sin `node_modules`. JavaScript con módulos ES
-que el navegador ejecuta tal cual. Ninguna petición externa: sin CDN, sin
-tipografías remotas, sin analítica.
+Sin dependencias, sin compilación, sin `node_modules`. Tipografías del sistema:
+ninguna petición externa.
 
-## Datos
+## Diseño
 
-```json
-{
-  "version": 2,
-  "revision": "2026-08-11",
-  "recipes": [
-    {
-      "id": "R001",
-      "nombre": "TORTA DE BANANO X 2 UND",
-      "categoria": "PASTELERÍA",
-      "metodo": "1. ...\n2. ...",
-      "componentes": [
-        {
-          "nombre": "MASA",
-          "items": [{ "ingrediente": "HARINA DE TRIGO", "cantidad": "500", "unidad": "GR" }]
-        }
-      ]
-    }
-  ],
-  "ingredientes": [{ "id": "I001", "nombre": "HARINA DE TRIGO", "unidad": "GR" }]
-}
-```
+Dirección de obrador, no de libro de cocina: superficie clara de trabajo,
+estructura oscura que enmarca, y un ámbar de corteza como único acento. Tres
+tipografías con papeles distintos: sans del sistema para la interfaz, serif para
+la marca y los títulos, monoespaciada tabular para las cifras.
 
-`revision` identifica la versión publicada y es lo que permite detectar
-conflictos. El sufijo `X 2 UND` del nombre se muestra aparte como rendimiento.
-El catálogo de `ingredientes` alimenta el autocompletado del editor y propone la
-unidad habitual.
+Contrastes verificados contra WCAG 2.2. El texto de lectura llega a AAA porque se
+lee de pie y con posible reflejo. Las categorías se separaron también en tono:
+Galletas pasó a oliva porque en dorado quedaba a 14° de Panadería y las dos se
+percibían iguales en deuteranopía.
 
-## Accesibilidad
+Navegación completa por teclado, foco visible, foco atrapado en los diálogos y
+movimiento reducido respetado.
 
-Contrastes verificados contra WCAG 2.2 AA. Navegación completa por teclado, con
-foco visible, foco atrapado en los diálogos y `Escape` para cerrarlos. Mínimo de
-12 px de letra y objetivos táctiles de 24 px. Las animaciones del libro se
-desactivan cuando el sistema pide menos movimiento.
+## Sobre los datos
 
-## Limitaciones conocidas
+Las 121 recetas se migraron sin alterar un solo valor. Las cantidades se
+**muestran** con un decimal como máximo porque el origen trae ruido de coma
+flotante del Excel (`283.33333333333297`), pero el valor guardado es el original.
 
-- Los cambios no se sincronizan solos entre sedes. Es el precio de no tener base
-  de datos, y por eso el aviso de cambios sin publicar es permanente.
-- El contenido es público para quien tenga el enlace.
+Hay dos incidencias detectadas en los datos que **no se han corregido**, porque
+son decisión del negocio:
+
+- `SACHER TORTE x 8` lleva `CHOCOLATE 70%: 10008 GR`. Las variantes ×1, ×5 y ×6
+  escalan exactas, así que el valor esperado sería `1008`.
+- `BERLINAS` mide la leche en `MG` (miligramos). Muy probablemente sea `ML`.
+
+## Limitaciones
+
+- El contenido es público para quien tenga el enlace. La contraseña de entrada es
+  un filtro visual; la que protege de verdad es la clave de edición del servidor.
 - El almacenamiento del navegador ronda los 5 MB: de sobra para texto, no para
   imágenes.
-- Borrar los datos de navegación de un equipo borra sus cambios sin publicar. Los
-  ya publicados se recuperan solos al recargar.
+- Borrar los datos de navegación de un equipo borra sus cambios sin publicar. Lo
+  ya publicado se recupera solo.
 
 ## Licencia
 

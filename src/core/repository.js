@@ -17,6 +17,7 @@
 
 import { readJson, writeJson, ok, err } from './storage.js';
 import { validateBackup, normalizeRecipe, nextRecipeId, SCHEMA_VERSION } from './schema.js';
+import { fetchShared, publishShared, isRemoteAvailable } from './remote.js';
 
 /** Clave de los cambios locales sin publicar. */
 const LOCAL_KEY = 'zahavi_recetario_v1';
@@ -99,6 +100,25 @@ export async function hydrate() {
 }
 
 async function loadPublished() {
+  // Primero el recetario compartido del servidor: es el que ven todas las sedes
+  // y el que recoge lo que alguien acaba de publicar desde otro equipo.
+  const shared = await fetchShared();
+  if (shared.ok) {
+    const validated = validateBackup(shared.value);
+    if (validated.ok) {
+      return {
+        ok: true,
+        value: {
+          recipes: validated.value.recipes,
+          ingredientes: validated.value.ingredientes,
+          revision: shared.value.revision,
+        },
+      };
+    }
+  }
+
+  // Sin funciones de servidor (archivo local, o alojamiento estatico): se lee el
+  // archivo que viaja con el sitio.
   try {
     const response = await fetch(PUBLISHED_URL, { cache: 'no-cache' });
     if (!response.ok) {
@@ -307,6 +327,45 @@ export function toPublishableFile() {
     recipes: current.recipes,
     ingredientes: current.ingredientes,
   };
+}
+
+/**
+ * Indica si este sitio puede publicar para todas las sedes o solo guardar en
+ * este equipo.
+ *
+ * @returns {boolean}
+ */
+export function canPublishToAll() {
+  return isRemoteAvailable();
+}
+
+/**
+ * Publica el estado actual para todas las sedes.
+ *
+ * @param {{password: string, author?: string}} options
+ * @returns {Promise<{ok: true, value: {revision: string, count: number}} | {ok: false, code: string, error: string}>}
+ */
+export async function publishToAll(options) {
+  const result = await publishShared({
+    recipes: current.recipes,
+    ingredientes: current.ingredientes,
+    password: options.password,
+    author: options.author,
+  });
+
+  if (result.ok) {
+    // Lo publicado pasa a ser la referencia: ya no hay nada pendiente.
+    published = {
+      recipes: current.recipes,
+      ingredientes: current.ingredientes,
+      revision: result.value.revision,
+    };
+    dirty = false;
+    conflict = false;
+    cachePublished();
+  }
+
+  return result;
 }
 
 /** Marca que se acaba de exportar un respaldo. */

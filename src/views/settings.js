@@ -17,6 +17,7 @@ const MAX_BACKUP_BYTES = 8 * 1024 * 1024;
 /**
  * @param {Object} options
  * @param {number} options.recipeCount
+ * @param {number} options.withMethod recetas que ya tienen metodo escrito
  * @param {string} options.revision version publicada en uso
  * @param {{dirty: boolean, conflict: boolean, added: number, modified: number, removed: number, total: number}} options.changes
  * @param {() => object} options.getPublishableFile
@@ -108,12 +109,17 @@ export function openSettings(options) {
         options.recipeCount === 1 ? ' receta.' : ' recetas.',
         options.revision ? ` Versión publicada: ${options.revision}.` : '',
       ]),
+      el('p', {
+        class: 'settings__help',
+        text: `${options.withMethod} de ${options.recipeCount} recetas tienen el método escrito.`,
+      }),
       renderChanges(options.changes),
+      options.canPublish ? renderPublish(options, dataMessage) : null,
       el('div', { class: 'settings__actions' }, [
         el('button', {
           type: 'button',
-          class: 'btn ' + (options.changes.dirty ? 'btn--primary' : 'btn--ghost'),
-          text: 'Descargar recetas actualizadas',
+          class: 'btn ' + (options.changes.dirty && !options.canPublish ? 'btn--primary' : 'btn--quiet'),
+          text: 'Descargar copia del recetario',
           on: { click: downloadFile },
         }),
         options.changes.dirty
@@ -125,13 +131,11 @@ export function openSettings(options) {
             })
           : null,
       ]),
-      dataMessage,
+      options.canPublish ? null : dataMessage,
       el('p', { class: 'settings__help' }, [
-        'Los cambios hechos aquí se guardan solo en este equipo. Para que los vean también en la otra sede, ',
-        el('strong', { text: 'descarga el archivo y publícalo' }),
-        ': reemplaza ',
-        el('code', { text: 'data/recipes.json' }),
-        ' en el proyecto y vuelve a desplegar el sitio.',
+        options.canPublish
+          ? 'Al publicar, los cambios quedan disponibles al instante en todas las sedes que abran el enlace.'
+          : 'Este sitio no tiene publicación compartida activa: los cambios se guardan solo en este equipo.',
       ]),
     ]),
 
@@ -142,7 +146,7 @@ export function openSettings(options) {
         el('div', null, [el('label', { class: 'label', for: 'pwd-confirm', text: 'confirmar' }), confirmPassword]),
       ]),
       el('div', { class: 'settings__actions' }, [
-        el('button', { type: 'button', class: 'btn btn--ghost', text: 'Actualizar', on: { click: applyPassword } }),
+        el('button', { type: 'button', class: 'btn btn--quiet', text: 'Actualizar', on: { click: applyPassword } }),
         passwordMessage,
       ]),
       el('p', {
@@ -154,7 +158,7 @@ export function openSettings(options) {
     el('section', { class: 'settings__row' }, [
       el('h3', { class: 'section-label', text: 'Recuperar desde un archivo' }),
       el('div', { class: 'settings__actions' }, [
-        el('label', { class: 'btn btn--ghost', for: 'backup-file', text: 'Cargar archivo de recetas' }),
+        el('label', { class: 'btn btn--quiet', for: 'backup-file', text: 'Cargar archivo de recetas' }),
         fileInput,
       ]),
       el('p', {
@@ -177,6 +181,60 @@ export function openSettings(options) {
       ]),
     ],
   });
+}
+
+/**
+ * Bloque de publicacion compartida: la clave se comprueba en el servidor, no
+ * aqui, asi que quien no la tenga no puede tocar el recetario de las demas sedes.
+ */
+function renderPublish(options, message) {
+  const key = el('input', {
+    type: 'password',
+    id: 'edit-key',
+    class: 'field',
+    value: options.editKey || '',
+    placeholder: 'Clave de edición',
+    autocomplete: 'off',
+  });
+
+  const button = el('button', {
+    type: 'button',
+    class: 'btn btn--primary',
+    text: 'Publicar para todas las sedes',
+    disabled: !options.changes.dirty,
+    on: {
+      click: async () => {
+        if (!key.value.trim()) {
+          message.textContent = 'Escribe la clave de edición para publicar.';
+          message.classList.add('is-error');
+          return;
+        }
+        button.disabled = true;
+        button.textContent = 'Publicando…';
+        message.classList.remove('is-error');
+        message.textContent = '';
+
+        const result = await options.onPublish(key.value.trim());
+
+        button.textContent = 'Publicar para todas las sedes';
+        button.disabled = !options.changes.dirty;
+
+        if (!result.ok) {
+          message.textContent = result.error;
+          message.classList.add('is-error');
+          announce(result.error, 'assertive');
+          return;
+        }
+        message.textContent = `Publicado. ${result.value.count} recetas disponibles en todas las sedes.`;
+      },
+    },
+  });
+
+  return el('div', { class: 'settings__publish' }, [
+    el('label', { class: 'label', for: 'edit-key', text: 'clave de edición' }),
+    el('div', { class: 'settings__publish-row' }, [key, button]),
+    message,
+  ]);
 }
 
 function renderChanges(changes) {

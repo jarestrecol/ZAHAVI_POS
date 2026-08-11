@@ -1,69 +1,105 @@
 /*
- * Fichas de diseño del recetario.
+ * Sistema de diseño del recetario.
  *
- * Los valores de color no son los del prototipo original: varios no alcanzaban
- * el contraste mínimo AA sobre el papel y se oscurecieron conservando la familia
- * cálida. El ratio comprobado va anotado junto a cada uno.
+ * Dirección: obrador, no libro de cocina. La referencia no es el papel antiguo
+ * sino la ficha técnica de producción: superficie limpia de mármol y acero,
+ * estructura oscura que enmarca el trabajo, y un ámbar de corteza como único
+ * acento. El elemento que manda en pantalla son las cantidades, tratadas como
+ * lectura de báscula, porque es el dato que se mira mientras se pesa.
+ *
+ * Tres tipografías con papeles distintos, todas del sistema para que no haya
+ * ninguna petición de red ni salto de maquetación al cargar:
+ *   - interfaz en sans: es lo que convierte esto en un sistema y no en un libro
+ *   - display serif solo para la marca y el nombre de la receta
+ *   - monoespaciada tabular para las cifras, que deben alinearse siempre
  */
 
 :root {
-  /* Papel y tinta */
-  --paper: #f4ead1;
-  --paper-light: #fbf3de;
-  --paper-card: #fffdf7;
-  --paper-sunk: #fcf8ec;
-  --ink: #2a1d14;           /* 13,7:1 sobre papel */
-  --ink-strong: #241811;
-  --ink-soft: #4a3524;      /* 8,6:1 */
-  --ink-muted: #6e6152;     /* 5,4:1 — sustituye #9A8A78 (2,8:1) */
-  --ink-faint: #7a6748;     /* 4,9:1 — sustituye #A99470 (2,5:1) */
+  /* ---- Superficies ---- */
+  --surface: #fbfaf9;
+  --surface-card: #ffffff;
+  --surface-sunk: #f2f0ec;
+  --surface-hover: #f6f2ea;
 
-  /* Dorados: el claro solo se usa sobre fondo oscuro */
-  --gold-on-dark: #b8935a;  /* 6,1:1 sobre #241811 */
-  --gold-bright: #d8b978;
-  --gold-text: #7c5e2e;     /* 5,4:1 sobre papel — sustituye #A88141 (3,0:1) */
-  --gold-line: #96825a;     /* 3,1:1 — borde de campos, sustituye #D9CDB8 (1,3:1) */
-  --gold-hairline: #e0d0ac;
-  --gold-dotted: #cdb98f;
-  --accent: #c9a265;
+  /* Estructura oscura: barra superior y cabecera de la lista */
+  --rail: #1a1714;
+  --rail-2: #262019;
+  --rail-line: #3a3128;
 
-  /* Encuadernación */
-  --cloth: #2e4034;
-  --cloth-light: #405646;
-  --cloth-dark: #24322a;
-  --cloth-deep: #1b241e;
-  --desk: #241811;
+  /* ---- Tinta sobre claro ----
+     Ratios verificados sobre --surface-card. Se lee de pie, a distancia y con
+     posible reflejo, asi que el texto de lectura llega a AAA y no se queda en
+     el minimo de AA. */
+  --ink: #16120f;    /* 18,6:1 */
+  --ink-2: #3d362e;  /* 11,9:1 */
+  --ink-3: #534b42;  /* 8,6:1  — AAA */
+  --ink-4: #6e665a;  /* 5,7:1  — el #8A7F71 inicial se quedaba en 3,9:1 */
 
-  /* Categorías: sin opacidad, que era lo que hundía el contraste */
-  --cat-pasteleria: #7a2e2e; /* 7,8:1 */
-  --cat-panaderia: #8a5a20;  /* 4,9:1 */
-  --cat-galletas: #7c5e2e;   /* 5,4:1 — sustituye #B8935A (2,1:1) */
-  --cat-otros: #5a4a3c;      /* 6,4:1 */
+  /* ---- Tinta sobre el rail ---- */
+  --on-rail: #f5f1ea;   /* 15,9:1 */
+  --on-rail-2: #b9ae9d; /* 8,2:1 */
 
-  /* Estado */
-  --danger: #8f2020;
-  --success: #2f5c2f;
+  /* ---- Acento: corteza de pan ----
+     El ambar vivo solo vale para relleno, icono, borde grueso y texto grande:
+     sobre claro se queda en 3,4:1. Para texto normal existe la version oscura. */
+  --amber: #c8791b;
+  --amber-text: #9c5e15; /* 5,2:1 */
+  --amber-deep: #a35f10;
+  --amber-soft: #f7e9d3;
+  --amber-on-rail: #e9a951; /* 8,7:1 sobre el rail */
 
-  /* Foco: par claro/oscuro, ambos muy por encima de 3:1 */
-  --focus-on-light: #241811;
-  --focus-on-dark: #f0e3cb;
+  /* ---- Categorías ----
+     Las tres llegan a AAA. Galletas se desplaza a oliva porque en su tono
+     dorado original quedaba a 14 grados de Panaderia, y ese salto desaparece
+     en deuteranopia y protanopia: las dos se percibian como el mismo marron. */
+  --cat-pasteleria: #9b294a; /* 7,5:1 */
+  --cat-panaderia: #7b4911;  /* 7,5:1 */
+  --cat-galletas: #495625;   /* 7,9:1 */
+  --cat-otros: #4f473e;
 
-  /* Tipografía: serif del sistema, sin ninguna petición externa.
-     Georgia está en Windows, macOS y Android; el resto son respaldos. */
-  --font-body: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  /* ---- Estado ---- */
+  --danger: #a31d1d;  /* 7,6:1 */
+  --danger-soft: #fbeaea;
+  --ok: #296038;      /* 7,4:1 */
+  --ok-soft: #e8f2ea;
+
+  /* ---- Líneas ----
+     La suave solo para separaciones decorativas; la fuerte cuando el borde es
+     la unica señal de un control, donde hace falta llegar a 3:1. */
+  --line: #e4dfd6;
+  --line-strong: #7c7770; /* 4,3:1 */
+
+  /* ---- Foco: par claro/oscuro ---- */
+  --focus: #16120f;
+  --focus-on-dark: #f5f1ea;
+
+  /* ---- Tipografía ---- */
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-num: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
 
-  /* Escala. Los mínimos son pisos duros de accesibilidad: 0,75rem para datos
-     y 0,875rem para el cuerpo. El prototipo bajaba hasta 10px. */
+  /* Escala. El piso es 0,8125rem (13px): se lee de pie y a distancia. */
+  --text-2xs: 0.6875rem;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-base: 0.9375rem;
-  --text-md: 1.0625rem;
-  --text-lg: clamp(1.125rem, 1rem + 0.6vw, 1.375rem);
-  --text-display: clamp(1.5rem, 1.1rem + 1.6vw, 2.125rem);
-  --text-cover: clamp(2.5rem, 1rem + 7vw, 5rem);
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: clamp(1.5rem, 1.2rem + 1.4vw, 2.125rem);
+  --text-3xl: clamp(2rem, 1.4rem + 2.8vw, 3.25rem);
 
-  /* Ritmo */
+  /* La cantidad es el dato que se mira mientras se pesa: va por encima del
+     nombre del ingrediente, no al mismo peso visual. */
+  --text-ingredient: 1.0625rem;
+  --text-qty: 1.375rem;
+
+  /* Modo producción: se lee de pie, junto a la báscula, a un brazo de
+     distancia. Ahí los tamaños suben de escalón. */
+  --text-prod-name: 1.75rem;
+  --text-prod-qty: 2.5rem;
+
+  /* ---- Ritmo ---- */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -71,33 +107,33 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
   --space-7: 3rem;
+  --space-8: 4rem;
 
-  /* Objetivos táctiles mínimos (WCAG 2.5.8) */
-  --tap-min: 24px;
-  --tap-comfortable: 44px;
+  /* ---- Geometría ---- */
+  --sidebar-w: 21rem;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 10px;
 
-  /* Movimiento */
-  --dur-fast: 160ms;
-  --dur-normal: 320ms;
-  --dur-open: 420ms;
-  --dur-shut: 620ms;
-  --dur-turn: 780ms;
-  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
-  --ease-page: cubic-bezier(0.3, 0.02, 0.22, 1);
+  /* Objetivos táctiles: por encima del mínimo de la norma, porque se toca con
+     las manos ocupadas y a veces con guante. */
+  --tap-min: 2.25rem;
+  --tap-row: 2.75rem;
 
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --shadow-card: 0 20px 60px -20px rgba(42, 29, 20, 0.25);
-  --shadow-window: 0 44px 90px -22px rgba(0, 0, 0, 0.72);
+  /* ---- Elevación ---- */
+  --shadow-sm: 0 1px 2px rgba(22, 18, 15, 0.06);
+  --shadow: 0 4px 16px -4px rgba(22, 18, 15, 0.12);
+  --shadow-lg: 0 24px 60px -16px rgba(22, 18, 15, 0.32);
+
+  /* ---- Movimiento: solo funcional ---- */
+  --dur-fast: 110ms;
+  --dur: 180ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
-/* Quien pide menos movimiento no recibe ninguna coreografía. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-fast: 0ms;
-    --dur-normal: 0ms;
-    --dur-open: 0ms;
-    --dur-shut: 0ms;
-    --dur-turn: 0ms;
+    --dur: 0ms;
   }
 }

@@ -13,10 +13,8 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-
-const CACHE_VERSION = 'zahavi-v1';
+const CACHE_VERSION = 'zahavi-v3';
 const DATA_URL = 'data/recipes.json';
-
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
   './',
@@ -25,7 +23,8 @@ const SHELL = [
   './assets/favicon.svg',
   './assets/css/tokens.css',
   './assets/css/base.css',
-  './assets/css/book.css',
+  './assets/css/layout.css',
+  './assets/css/sheet.css',
   './assets/css/views.css',
   './assets/css/dialogs.css',
   './assets/css/print.css',
@@ -43,16 +42,16 @@ const SHELL = [
   './src/views/window.js',
   './src/views/login.js',
   './src/views/header.js',
-  './src/views/book.js',
-  './src/views/index-view.js',
+  
+  './src/views/sidebar.js',
   './src/views/detail.js',
   './src/views/editor.js',
   './src/views/settings.js',
   './src/views/confirm.js',
   './src/views/print.js',
+  './src/views/production.js',
   './data/recipes.json',
 ];
-
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
@@ -63,7 +62,6 @@ self.addEventListener('install', (event) => {
       .then(() => self.skipWaiting()),
   );
 });
-
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
@@ -72,22 +70,30 @@ self.addEventListener('activate', (event) => {
       .then(() => self.clients.claim()),
   );
 });
-
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
-
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-
   if (url.pathname.endsWith(DATA_URL) || url.pathname.endsWith('/recipes.json')) {
     event.respondWith(networkFirst(request));
     return;
   }
-
+  // El documento y el codigo van por red primero: si se publica una version
+  // nueva del sitio debe verse en la siguiente carga. Con cache primero, un
+  // cambio de CSS o de vista no llegaba nunca al dispositivo.
+  if (
+    request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.js')
+  ) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
   event.respondWith(cacheFirst(request));
 });
-
 /**
  * Devuelve la copia guardada y, en paralelo, refresca la caché para la próxima vez.
  *
@@ -119,7 +125,6 @@ async function cacheFirst(request) {
     });
   }
 }
-
 /**
  * Intenta la red primero para detectar una publicación nueva; si falla, sirve
  * la última copia guardada.
@@ -141,7 +146,6 @@ async function networkFirst(request) {
     throw new Error('sin red y sin copia de las recetas');
   }
 }
-
 function refresh(request) {
   fetch(request)
     .then((response) => {

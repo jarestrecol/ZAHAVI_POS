@@ -40,7 +40,7 @@ export function openConfirmDelete(options) {
       el('div', { class: 'win__actions' }, [
         el('button', {
           type: 'button',
-          class: 'btn btn--ghost',
+          class: 'btn btn--quiet',
           text: 'Cancelar',
           on: { click: options.onCancel },
         }),

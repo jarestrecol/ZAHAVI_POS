@@ -31,7 +31,7 @@
   }
 
   .sheet {
-    font-family: var(--font-body);
+    font-family: var(--font-ui);
     font-size: 10pt;
     line-height: 1.45;
     color: #000;

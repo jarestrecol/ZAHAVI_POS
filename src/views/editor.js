@@ -229,7 +229,7 @@ export function openEditor(options) {
           el('h3', { class: 'section-label', text: 'Ingredientes' }),
           el('button', {
             type: 'button',
-            class: 'btn btn--ghost',
+            class: 'btn btn--quiet',
             text: '+ Componente',
             on: {
               click: () => {
@@ -289,7 +289,7 @@ export function openEditor(options) {
       el('div', { class: 'win__actions' }, [
         el('button', {
           type: 'button',
-          class: 'btn btn--ghost',
+          class: 'btn btn--quiet',
           text: 'Cancelar',
           on: { click: options.onCancel },
         }),

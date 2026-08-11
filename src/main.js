@@ -6,28 +6,22 @@
  */
 
 import { el, clear } from './lib/dom.js';
-import { announce, setInert, prefersReducedMotion } from './lib/a11y.js';
+import { announce, setInert } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter, ALL_CATEGORIES } from './core/router.js';
-import { ensurePassword, isSignedIn, signOut, isUsingDefaultPassword } from './core/auth.js';
+import { ensurePassword, isSignedIn, isUsingDefaultPassword } from './core/auth.js';
 import { emptyRecipe } from './core/schema.js';
+import { getEditKey, setEditKey } from './core/remote.js';
 import { renderLogin } from './views/login.js';
-import { renderHeader, renderPendingBadge } from './views/header.js';
-import { renderClosedBook, renderBookShell } from './views/book.js';
-import { renderIndex } from './views/index-view.js';
-import { renderDetail } from './views/detail.js';
+import { renderHeader, renderBadges, SEARCH_ID } from './views/header.js';
+import { renderSidebar } from './views/sidebar.js';
+import { renderDetail, renderPlaceholder } from './views/detail.js';
 import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
 import { openConfirmDelete } from './views/confirm.js';
+import { openProduction } from './views/production.js';
 import { renderRecipeSheet, renderIndexSheet } from './views/print.js';
-
-/** Duracion de la apertura y del cierre del libro, en milisegundos. */
-const OPEN_MS = 420;
-const SHUT_MS = 620;
-
-/** Duracion del giro de hoja y bloqueo entre giros consecutivos. */
-const TURN_MS = 780;
 
 const app = document.getElementById('app');
 const printRoot = document.getElementById('print-root');
@@ -35,17 +29,8 @@ const printRoot = document.getElementById('print-root');
 /** Dialogo abierto en este momento, si lo hay. */
 let openDialog = null;
 
-/**
- * Identidad del dialogo abierto, del tipo "edit:R012". Sirve para no
- * reconstruirlo en cada render: si se recreara, el editor perderia lo escrito y
- * el foco cada vez que cambiase cualquier otra cosa del estado.
- * @type {string|null}
- */
+/** Identidad del dialogo abierto, para no reconstruirlo en cada render. */
 let openDialogKey = null;
-
-/** Temporizadores de las animaciones del libro. */
-let bookTimer = null;
-let turnTimer = null;
 
 /** Indica si sigue vigente la contrasena de fabrica, para mostrar la pista. */
 let usingDefaultPassword = false;
@@ -55,27 +40,26 @@ boot();
 async function boot() {
   await ensurePassword();
   usingDefaultPassword = await isUsingDefaultPassword();
-  setState({ authed: isSignedIn() });
+  setState({ authed: isSignedIn(), online: navigator.onLine !== false });
 
   const loaded = await repo.hydrate();
-  setState({
-    ready: true,
-    recipes: loaded.recipes,
-    ingredientes: loaded.ingredientes,
-  });
+  setState({ ready: true, recipes: loaded.recipes, ingredientes: loaded.ingredientes });
   if (loaded.warning) notify(loaded.warning, 'info');
 
   subscribe(render);
-  onRouteChange(handleRouteChange);
+  onRouteChange(render);
   startRouter();
   render();
+
+  window.addEventListener('online', () => setState({ online: true }));
+  window.addEventListener('offline', () => setState({ online: false }));
+  document.addEventListener('keydown', handleShortcuts);
   registerServiceWorker();
 }
 
 /**
  * Registra el service worker para que el recetario abra al instante y siga
- * funcionando sin señal. Se hace despues del primer render: si falla, la
- * aplicacion ya esta en pantalla y no pasa nada.
+ * funcionando sin señal. Se hace despues del primer render.
  */
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
@@ -85,62 +69,64 @@ function registerServiceWorker() {
   });
 }
 
-function handleRouteChange(route, previous) {
-  // Cambiar de vista mientras el libro esta cerrado lo abre solo.
-  if (getState().authed && getState().book === 'closed' && route.name !== 'index') {
-    openBook();
+/**
+ * Atajos de teclado. Pocos y para lo que de verdad se repite: buscar, moverse
+ * por la lista y abrir la receta en la que se esta.
+ *
+ * @param {KeyboardEvent} event
+ */
+function handleShortcuts(event) {
+  const state = getState();
+  if (!state.ready || !state.authed) return;
+  if (openDialog || state.production) return;
+
+  const target = event.target;
+  const typing =
+    target instanceof HTMLElement &&
+    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+
+  if (event.key === '/' && !typing) {
+    event.preventDefault();
+    const field = document.getElementById(SEARCH_ID);
+    if (field) field.focus();
+    return;
   }
-  const direction = turnDirection(route, previous);
-  if (direction && !prefersReducedMotion()) {
-    startTurn(direction);
-  } else {
-    render();
+
+  if (event.key === 'Escape' && typing && target.id === SEARCH_ID) {
+    target.blur();
+    navigate({ name: 'index', id: null, query: '' }, { replace: true });
+    return;
+  }
+
+  if (typing) return;
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    moveSelection(event.key === 'ArrowDown' ? 1 : -1);
+    return;
+  }
+
+  const route = getRoute();
+  if ((event.key === 'e' || event.key === 'E') && route.name === 'detail') {
+    event.preventDefault();
+    navigate({ name: 'edit', id: route.id });
   }
 }
 
 /**
- * Sentido del giro de hoja: avanzar al abrir una receta o al bajar de categoria,
- * retroceder al volver al indice.
+ * Mueve la seleccion por la lista sin usar el raton.
+ *
+ * @param {number} delta
  */
-function turnDirection(route, previous) {
-  if (!previous) return null;
-  if (route.name === previous.name && route.id === previous.id && route.category === previous.category) {
-    return null;
-  }
-  if (route.name === 'detail' && previous.name === 'index') return 'fwd';
-  if (route.name === 'index' && previous.name === 'detail') return 'back';
-  if (route.category !== previous.category) {
-    return route.category === ALL_CATEGORIES ? 'back' : 'fwd';
-  }
-  return null;
-}
-
-function startTurn(direction) {
-  clearTimeout(turnTimer);
-  setState({ turning: direction });
-  turnTimer = setTimeout(() => setState({ turning: null }), TURN_MS);
-}
-
-function openBook() {
-  if (getState().book !== 'closed') return;
-  clearTimeout(bookTimer);
-  if (prefersReducedMotion()) {
-    setState({ book: 'open' });
-    return;
-  }
-  setState({ book: 'opening' });
-  bookTimer = setTimeout(() => setState({ book: 'open' }), OPEN_MS);
-}
-
-function closeBook() {
-  if (getState().book !== 'open') return;
-  clearTimeout(bookTimer);
-  if (prefersReducedMotion()) {
-    setState({ book: 'closed' });
-    return;
-  }
-  setState({ book: 'shutting' });
-  bookTimer = setTimeout(() => setState({ book: 'closed' }), SHUT_MS);
+function moveSelection(delta) {
+  const links = Array.from(document.querySelectorAll('.recipe-link'));
+  if (links.length === 0) return;
+  const activeIndex = links.findIndex((link) => link.classList.contains('is-active'));
+  const nextIndex = Math.min(links.length - 1, Math.max(0, activeIndex + delta));
+  const next = links[activeIndex === -1 ? 0 : nextIndex];
+  if (!next) return;
+  next.click();
+  next.scrollIntoView({ block: 'nearest' });
 }
 
 function render() {
@@ -150,7 +136,7 @@ function render() {
   clear(app);
 
   if (!state.ready) {
-    app.appendChild(el('p', { class: 'booting', text: 'Cargando recetario…' }));
+    app.appendChild(renderSkeleton());
     return;
   }
 
@@ -161,62 +147,67 @@ function render() {
     return;
   }
 
-  const screen = el('div', { class: 'screen' });
-  const badge = renderPendingBadge(repo.localChanges(), () => setState({ settingsOpen: true }));
-  if (badge) screen.appendChild(badge);
+  const recipe = route.name === 'detail' ? repo.findById(route.id) : null;
+  const canEdit = true;
 
-  if (state.book === 'open' || state.book === 'shutting') {
-    screen.appendChild(
-      renderHeader({
+  app.dataset.view = recipe ? 'detail' : 'index';
+
+  for (const badge of renderBadges({
+    changes: repo.localChanges(),
+    online: state.online,
+    onOpenSettings: () => setState({ settingsOpen: true }),
+  })) {
+    app.appendChild(badge);
+  }
+
+  const shell = el('div', { class: 'app' }, [
+    renderHeader({
+      query: route.query,
+      canEdit,
+      onNewRecipe: () => navigate({ name: 'new', id: null }),
+      onSettings: () => setState({ settingsOpen: true }),
+    }),
+    el('div', { class: 'workspace' }, [
+      renderSidebar({
+        recipes: state.recipes,
         query: route.query,
-        showBack: route.name !== 'index',
-        onCloseBook: closeBook,
-        onNewRecipe: () => navigate({ name: 'new', id: null }),
-        onSettings: () => setState({ settingsOpen: true }),
-        onSignOut: () => {
-          signOut();
-          setState({ authed: false, book: 'closed', settingsOpen: false, draft: null });
-          navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES }, { replace: true });
-        },
+        category: route.category,
+        selectedId: recipe ? recipe.id : null,
       }),
-    );
-    screen.appendChild(
-      renderBookShell({
-        content: renderPage(state, route),
-        turning: state.turning,
-        shutting: state.book === 'shutting',
-      }),
-    );
-  }
+      el('div', { class: 'panel' }, [
+        recipe
+          ? renderDetail({ recipe, canEdit })
+          : renderPlaceholder({
+              count: state.recipes.length,
+              withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
+            }),
+      ]),
+    ]),
+  ]);
 
-  if (state.book !== 'open') {
-    screen.appendChild(
-      renderClosedBook({
-        state: state.book === 'open' ? 'closed' : state.book,
-        onOpen: openBook,
-      }),
-    );
-  }
+  app.appendChild(shell);
+  if (state.notice) app.appendChild(renderNotice(state));
 
-  if (state.notice) screen.appendChild(renderNotice(state));
-
-  app.appendChild(screen);
-  renderDialogs(screen);
-  renderPrint(state, route);
+  renderDialogs(shell);
+  renderPrint(state, route, recipe);
 }
 
-function renderPage(state, route) {
-  if (route.name === 'detail') {
-    const recipe = repo.findById(route.id);
-    if (recipe) return renderDetail({ recipe });
-    return el('p', { class: 'page__empty', text: 'Esa receta ya no existe en este dispositivo.' });
-  }
-  return renderIndex({
-    recipes: state.recipes,
-    query: route.query,
-    category: route.category,
-    selectedId: route.name === 'detail' ? route.id : null,
-  });
+/** Esqueleto de carga: comunica la estructura en lugar de una frase suelta. */
+function renderSkeleton() {
+  const lines = [];
+  for (let i = 0; i < 9; i += 1) lines.push(el('div', { class: 'booting__line' }));
+
+  return el('div', { class: 'booting', attrs: { 'aria-busy': 'true', 'aria-label': 'Cargando recetario' } }, [
+    el('div', { class: 'booting__bar' }),
+    el('div', { class: 'booting__body' }, [
+      el('div', { class: 'booting__side' }, lines),
+      el('div', { class: 'booting__main' }, [
+        el('div', { class: 'booting__line', style: { width: '45%', height: '2rem' } }),
+        el('div', { class: 'booting__line' }),
+        el('div', { class: 'booting__line' }),
+      ]),
+    ]),
+  ]);
 }
 
 function renderNotice(state) {
@@ -233,17 +224,16 @@ function renderNotice(state) {
 }
 
 /**
- * Monta como maximo un dialogo. El fondo queda inerte mientras haya uno abierto.
- * Si el dialogo que toca mostrar es el mismo que ya esta abierto, se deja tal
- * cual: reconstruirlo destruiria el borrador a medio escribir.
+ * Monta como maximo un dialogo. Si el que toca mostrar es el mismo que ya esta
+ * abierto se deja tal cual: reconstruirlo destruiria el borrador a medio escribir.
  */
-function renderDialogs(screen) {
+function renderDialogs(shell) {
   const state = getState();
   const route = getRoute();
   const key = dialogKey(state, route);
 
   if (key !== null && key === openDialogKey) {
-    setInert(screen, true);
+    setInert(shell, true);
     return;
   }
 
@@ -253,7 +243,14 @@ function renderDialogs(screen) {
     openDialogKey = null;
   }
 
-  if (state.confirmDelete) {
+  if (state.production) {
+    const recipe = repo.findById(state.production);
+    if (recipe) {
+      openDialog = openProduction({ recipe, onClose: () => setState({ production: null }) });
+    } else {
+      setState({ production: null });
+    }
+  } else if (state.confirmDelete) {
     const recipe = repo.findById(state.confirmDelete);
     if (recipe) {
       openDialog = openConfirmDelete({
@@ -267,6 +264,7 @@ function renderDialogs(screen) {
             return;
           }
           setState({ recipes: repo.findAll(), confirmDelete: null });
+          notify('Receta eliminada.', 'success');
           announce('Receta eliminada.');
           navigate({ name: 'index', id: null });
         },
@@ -277,9 +275,22 @@ function renderDialogs(screen) {
   } else if (state.settingsOpen) {
     openDialog = openSettings({
       recipeCount: state.recipes.length,
+      withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
       revision: repo.publishedRevision(),
       changes: repo.localChanges(),
       getPublishableFile: repo.toPublishableFile,
+      canPublish: repo.canPublishToAll(),
+      editKey: getEditKey(),
+      onPublish: async (password) => {
+        const result = await repo.publishToAll({ password, author: 'recetario' });
+        if (result.ok) {
+          setEditKey(password);
+          setState({ recipes: repo.findAll() });
+          notify(`Publicado para todas las sedes: ${result.value.count} recetas.`, 'success');
+          announce('Recetario publicado.');
+        }
+        return result;
+      },
       onDiscard: () => {
         const result = repo.discardLocalChanges();
         setState({ recipes: repo.findAll(), ingredientes: repo.allIngredients(), settingsOpen: false });
@@ -300,8 +311,6 @@ function renderDialogs(screen) {
       },
       onClose: () => {
         setState({ settingsOpen: false });
-        // La contrasena pudo cambiar dentro del dialogo: la pista del login
-        // solo debe aparecer mientras siga vigente la de fabrica.
         isUsingDefaultPassword().then((isDefault) => {
           usingDefaultPassword = isDefault;
         });
@@ -316,7 +325,7 @@ function renderDialogs(screen) {
       openDialog = openEditor({
         draft: source,
         isNew,
-        ingredientes: state.ingredientes,
+        ingredientes: getState().ingredientes,
         onCancel: () => navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id }),
         onSave: (recipe) => {
           const result = repo.save(recipe);
@@ -325,6 +334,7 @@ function renderDialogs(screen) {
             return;
           }
           setState({ recipes: repo.findAll() });
+          notify('Receta guardada en este equipo.', 'success');
           announce('Receta guardada.');
           navigate({ name: 'detail', id: recipe.id });
         },
@@ -333,7 +343,7 @@ function renderDialogs(screen) {
   }
 
   openDialogKey = openDialog ? key : null;
-  setInert(screen, Boolean(openDialog));
+  setInert(shell, Boolean(openDialog));
   if (openDialog) document.body.appendChild(openDialog.node);
 }
 
@@ -345,6 +355,7 @@ function renderDialogs(screen) {
  * @returns {string|null} null cuando no debe haber ningun dialogo
  */
 function dialogKey(state, route) {
+  if (state.production) return 'prod:' + state.production;
   if (state.confirmDelete) return 'delete:' + state.confirmDelete;
   if (state.settingsOpen) return 'settings';
   if (route.name === 'new') return 'new';
@@ -352,9 +363,8 @@ function dialogKey(state, route) {
   return null;
 }
 
-function renderPrint(state, route) {
+function renderPrint(state, route, recipe) {
   clear(printRoot);
-  const recipe = route.name === 'detail' ? repo.findById(route.id) : null;
   printRoot.appendChild(
     recipe
       ? renderRecipeSheet(recipe)

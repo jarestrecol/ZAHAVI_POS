@@ -1,87 +1,128 @@
 /**
- * Detalle de receta: ingredientes a la izquierda, metodo a la derecha.
+ * Ficha de receta.
  *
- * El tamano de letra lo resuelve CSS con `clamp()` y unidades de contenedor. Si
- * una receta muy larga no cabe, su columna se desplaza; antes se re-renderizaba
- * hasta siete veces intentando encogerla.
+ * El orden de la pantalla sigue el orden del trabajo: primero se pesa todo,
+ * despues se ejecuta. Por eso los ingredientes ocupan el ancho completo y el
+ * metodo va debajo, en lugar de repartir la pantalla en dos mitades donde la
+ * columna util queda estrecha y la otra vacia.
+ *
+ * La cantidad es el elemento mayor de cada linea: quien pesa ya sabe que
+ * ingrediente sigue, lo que necesita reconocer de un vistazo es la cifra.
  */
 
 import { el } from '../lib/dom.js';
 import { titleCase, splitName, formatQty } from '../lib/format.js';
 import { navigate } from '../core/router.js';
 import { setState } from '../core/store.js';
+import { countItems } from '../core/search.js';
+
+/** A partir de cuantos ingredientes conviene repartir en columnas. */
+const TWO_COLUMNS_FROM = 9;
+const THREE_COLUMNS_FROM = 24;
+
+/** Unidades de volumen: se marcan aparte porque confundirlas con peso es el error clasico. */
+const VOLUME_UNITS = new Set(['ML', 'L', 'CC']);
 
 /**
- * @param {{recipe: object}} params
+ * @param {{recipe: object, canEdit: boolean}} params
  * @returns {HTMLElement}
  */
 export function renderDetail(params) {
   const recipe = params.recipe;
   const { base, rinde } = splitName(recipe.nombre);
+  const total = countItems(recipe);
 
-  return el('article', { class: 'page page--detail', attrs: { 'aria-labelledby': 'recipe-title' } }, [
-    el('header', { class: 'recipe-head' }, [
-      el('div', { class: 'recipe-head__text' }, [
-        el('p', {
-          class: 'eyebrow',
-          text: (recipe.categoria || '—').toLowerCase() + '  ·  ' + recipe.id,
-        }),
-        el('h2', { class: 'recipe-title', id: 'recipe-title' }, [
-          titleCase(base),
-          // El espacio evita que un lector de pantalla lea "Granderinde 1 und".
-          rinde ? ' ' : null,
-          rinde ? el('span', { class: 'recipe-title__yield', text: 'rinde ' + rinde.toLowerCase() }) : null,
+  return el(
+    'article',
+    {
+      class: 'sheet-view',
+      id: 'contenido',
+      attrs: { 'aria-labelledby': 'recipe-title', 'data-category': recipe.categoria },
+    },
+    [
+      el('header', { class: 'sheet-head' }, [
+        el('div', { class: 'sheet-head__main' }, [
+          el('p', { class: 'sheet-head__eyebrow' }, [
+            el('span', { class: 'sheet-head__code', text: recipe.id }),
+            el('span', { class: 'sheet-head__cat', text: (recipe.categoria || 'otros').toLowerCase() }),
+          ]),
+          el('h1', { class: 'sheet-head__title', id: 'recipe-title', text: titleCase(base) }),
+        ]),
+        el('div', { class: 'sheet-head__actions no-print' }, [
+          el('button', {
+            type: 'button',
+            class: 'btn btn--quiet sheet-head__back',
+            text: '← Recetas',
+            on: { click: () => navigate({ name: 'index', id: null }) },
+          }),
+          el('button', {
+            type: 'button',
+            class: 'btn btn--primary',
+            text: 'Pesar',
+            attrs: { 'aria-label': 'Abrir modo producción para pesar' },
+            on: { click: () => setState({ production: recipe.id }) },
+          }),
+          el('button', {
+            type: 'button',
+            class: 'btn btn--quiet',
+            text: 'Imprimir',
+            on: { click: () => window.print() },
+          }),
+          params.canEdit
+            ? el('button', {
+                type: 'button',
+                class: 'btn btn--quiet',
+                text: 'Editar',
+                on: { click: () => navigate({ name: 'edit', id: recipe.id }) },
+              })
+            : null,
+          params.canEdit
+            ? el('button', {
+                type: 'button',
+                class: 'btn btn--quiet btn--danger',
+                text: 'Eliminar',
+                on: { click: () => setState({ confirmDelete: recipe.id }) },
+              })
+            : null,
         ]),
       ]),
-      el('div', { class: 'recipe-head__actions no-print' }, [
-        el('button', {
-          type: 'button',
-          class: 'btn btn--ghost',
-          text: 'Imprimir',
-          on: { click: () => window.print() },
-        }),
-        el('button', {
-          type: 'button',
-          class: 'btn btn--ghost',
-          text: 'Editar',
-          on: { click: () => navigate({ name: 'edit', id: recipe.id }) },
-        }),
-        el('button', {
-          type: 'button',
-          class: 'btn btn--ghost btn--danger',
-          text: 'Eliminar',
-          on: { click: () => setState({ confirmDelete: recipe.id }) },
-        }),
+
+      // Ficha tecnica: los datos que deciden si esta receta sirve para el pedido.
+      el('dl', { class: 'facts' }, [
+        ...(rinde ? factItem('Rinde', rinde.toLowerCase(), 'facts__value--seal') : []),
+        ...factItem('Componentes', String(recipe.componentes.length)),
+        ...factItem('Ingredientes', String(total)),
       ]),
-    ]),
-    el('div', { class: 'spread' }, [renderIngredients(recipe), renderMethod(recipe)]),
-  ]);
+
+      renderIngredients(recipe, total),
+      renderMethod(recipe, params.canEdit),
+    ],
+  );
 }
 
-function renderIngredients(recipe) {
-  const multiple = recipe.componentes.length > 1;
+function factItem(label, value, extraClass) {
+  return [
+    el('dt', { class: 'facts__label', text: label }),
+    el('dd', { class: 'facts__value' + (extraClass ? ' ' + extraClass : ''), text: value }),
+  ];
+}
 
-  return el('section', { class: 'spread__page spread__page--left' }, [
-    el('h3', { class: 'section-label', text: 'Ingredientes' }),
+function renderIngredients(recipe, total) {
+  const multiple = recipe.componentes.length > 1;
+  const columns = total >= THREE_COLUMNS_FROM ? 3 : total >= TWO_COLUMNS_FROM ? 2 : 1;
+
+  return el('section', { class: 'block' }, [
+    el('h2', { class: 'block__title', text: 'Ingredientes' }),
     el(
       'div',
-      { class: 'ingredients' + (multiple ? '' : ' ingredients--single') },
+      { class: 'components components--cols-' + columns },
       recipe.componentes.map((component) =>
-        el('div', { class: 'component' }, [
-          multiple ? el('h4', { class: 'component__name', text: titleCase(component.nombre) }) : null,
+        el('section', { class: 'component' }, [
+          multiple ? el('h3', { class: 'component__name', text: titleCase(component.nombre) }) : null,
           el(
             'ul',
-            { class: 'component__items' },
-            component.items.map((item) =>
-              el('li', { class: 'item' }, [
-                el('span', { class: 'item__name', text: titleCase(item.ingrediente) }),
-                el('span', { class: 'item__leader', attrs: { 'aria-hidden': 'true' } }),
-                el('span', { class: 'item__qty' }, [
-                  formatQty(item.cantidad),
-                  el('span', { class: 'item__unit', text: ' ' + (item.unidad || '').toLowerCase() }),
-                ]),
-              ]),
-            ),
+            { class: 'items' },
+            component.items.map((item) => renderItem(item)),
           ),
         ]),
       ),
@@ -89,18 +130,68 @@ function renderIngredients(recipe) {
   ]);
 }
 
-function renderMethod(recipe) {
+function renderItem(item) {
+  const unit = (item.unidad || '').toUpperCase();
+  const isVolume = VOLUME_UNITS.has(unit);
+
+  return el('li', { class: 'item' + (isVolume ? ' item--volume' : '') }, [
+    el('span', { class: 'item__name', text: titleCase(item.ingrediente) }),
+    el('span', { class: 'item__qty' }, [
+      el('span', { class: 'item__number', text: formatQty(item.cantidad) }),
+      el('span', { class: 'item__unit', text: unit.toLowerCase() }),
+    ]),
+  ]);
+}
+
+function renderMethod(recipe, canEdit) {
   const hasMethod = Boolean(recipe.metodo && recipe.metodo.trim());
 
-  return el('section', { class: 'spread__page spread__page--right' }, [
-    el('h3', { class: 'section-label', text: 'Método de preparación' }),
-    hasMethod
-      ? // white-space: pre-wrap conserva los saltos de linea sin construir marcado.
-        el('div', { class: 'method', text: recipe.metodo })
-      : el('p', { class: 'method method--empty' }, [
-          'Página en blanco. Usa ',
-          el('em', { text: 'Editar' }),
-          ' para escribir el método de preparación de esta receta.',
+  if (hasMethod) {
+    return el('section', { class: 'block' }, [
+      el('h2', { class: 'block__title', text: 'Método de preparación' }),
+      // white-space: pre-wrap conserva los saltos de linea sin construir marcado.
+      el('div', { class: 'method', text: recipe.metodo }),
+    ]);
+  }
+
+  return el('section', { class: 'block' }, [
+    el('h2', { class: 'block__title', text: 'Método de preparación' }),
+    el('div', { class: 'method-empty' }, [
+      el('p', { class: 'method-empty__text', text: 'Aún no hay método para esta receta.' }),
+      canEdit
+        ? el('button', {
+            type: 'button',
+            class: 'btn btn--primary no-print',
+            text: 'Escribir método',
+            on: { click: () => navigate({ name: 'edit', id: recipe.id }) },
+          })
+        : null,
+    ]),
+  ]);
+}
+
+/**
+ * Panel inicial, cuando todavia no se abrio ninguna receta.
+ *
+ * @param {{count: number, withMethod: number}} params
+ * @returns {HTMLElement}
+ */
+export function renderPlaceholder(params) {
+  return el('div', { class: 'welcome', id: 'contenido' }, [
+    el('div', { class: 'welcome__inner' }, [
+      el('p', { class: 'welcome__eyebrow', text: 'panadería · pastelería' }),
+      el('h1', { class: 'welcome__title', text: 'Recetario Zahavi' }),
+      el('p', { class: 'welcome__lead', text: 'Elige una receta del listado o busca por nombre o ingrediente.' }),
+      el('dl', { class: 'welcome__stats' }, [
+        el('div', { class: 'welcome__stat' }, [
+          el('dt', { text: 'Recetas' }),
+          el('dd', { text: String(params.count) }),
         ]),
+        el('div', { class: 'welcome__stat' }, [
+          el('dt', { text: 'Con método' }),
+          el('dd', { text: String(params.withMethod) }),
+        ]),
+      ]),
+    ]),
   ]);
 }
