@@ -138,10 +138,16 @@ button {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
+/* El borde ambar por si solo no basta como indicador de foco: sobre blanco
+   da 2,45:1, por debajo del 3:1 que exige la norma para componentes de
+   interfaz. El contorno de --focus (practicamente negro) es el indicador de
+   verdad; el borde y el resplandor ambar quedan como acento de marca
+   encima, no como el unico aviso. */
 .field:focus {
   border-color: var(--amber);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
   box-shadow: var(--focus-glow);
-  outline: none;
 }
 
 .field::placeholder {

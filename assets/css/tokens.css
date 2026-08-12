@@ -240,7 +240,9 @@
     --amber-soft: #2f2214;
     --amber-on-rail: #f9a94a;
 
-    --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 55%, var(--brand-deep) 100%);
+    /* Solo hasta --brand, no hasta --brand-deep: el tramo final oscuro bajaba
+       el contraste del texto oscuro por debajo de 4,5:1 en botones y chips. */
+    --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 100%);
     --brand-gradient-soft: linear-gradient(135deg, rgba(246, 138, 30, 0.22) 0%, rgba(252, 224, 12, 0.08) 100%);
 
     /* Separadas por luminancia ademas de por tono: en deuteranopia el matiz se
@@ -310,7 +312,9 @@
   --amber-soft: #2f2214;
   --amber-on-rail: #f9a94a;
 
-  --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  /* Solo hasta --brand, no hasta --brand-deep: el tramo final oscuro bajaba
+     el contraste del texto oscuro por debajo de 4,5:1 en botones y chips. */
+  --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 100%);
   --brand-gradient-soft: linear-gradient(135deg, rgba(246, 138, 30, 0.22) 0%, rgba(252, 224, 12, 0.08) 100%);
 
   --cat-pasteleria: #e689a4;

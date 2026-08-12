@@ -47,6 +47,47 @@
     display: none;
   }
 
+  /* Abrir una receta se siente como una pantalla nueva que entra, no como un
+     contenido que aparece de golpe: la ficha se nombra para la View
+     Transitions API (ya integrada en `render()`, main.js) y se le da una
+     entrada y salida propias en vez del cruce generico de toda la pagina.
+     Sin soporte de la API esto no hace nada y la app funciona igual; con
+     movimiento reducido, `--dur-slow` cae a 0ms (tokens.css) y tampoco se
+     percibe. */
+  .panel {
+    view-transition-name: mobile-panel;
+  }
+
+  @keyframes mobile-panel-enter {
+    from {
+      transform: translateX(28px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes mobile-panel-exit {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(28px);
+      opacity: 0;
+    }
+  }
+
+  ::view-transition-new(mobile-panel) {
+    animation: mobile-panel-enter var(--dur-slow) var(--ease) both;
+  }
+
+  ::view-transition-old(mobile-panel) {
+    animation: mobile-panel-exit var(--dur-slow) var(--ease) both;
+  }
+
   /* El boton de volver al listado solo tiene sentido aqui. */
   .sheet-head__back {
     display: inline-flex !important;
@@ -171,6 +212,12 @@
   .chip {
     flex-shrink: 0;
     scroll-snap-align: start;
+  }
+
+  /* El conteo sobra cuando el ancho aprieta: cada segmento pierde espacio en
+     la fila deslizable, y el punto de color ya distingue las categorias. */
+  .chip__count {
+    display: none;
   }
 
   /* --- Ficha de receta -------------------------------------------------- */

@@ -21,7 +21,7 @@ let announceTimer = null;
 
 /**
  * Anuncia un mensaje a los lectores de pantalla sin robar el foco.
- * Se usa tras guardar, eliminar o importar, donde el cambio visual no basta.
+ * Se usa tras guardar, eliminar o publicar, donde el cambio visual no basta.
  *
  * @param {string} message
  * @param {'polite'|'assertive'} [priority]

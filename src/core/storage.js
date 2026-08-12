@@ -79,7 +79,7 @@ export function writeJson(key, value) {
     if (isQuotaError(error)) {
       return err(
         'quota_exceeded',
-        'No queda espacio para guardar. Exporta un respaldo y elimina recetas que ya no uses.',
+        'No queda espacio para guardar en este dispositivo. Elimina recetas que ya no uses.',
       );
     }
     return err('storage_write_failed', 'No se pudo guardar en este dispositivo.');

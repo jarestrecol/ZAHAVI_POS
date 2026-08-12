@@ -9,7 +9,7 @@
  *
  *   Lo que alguien edita en su navegador queda como CAMBIO LOCAL: vive en ese
  *   dispositivo y no lo ve nadie mas. Para que llegue a las demas sedes hay que
- *   descargar el archivo actualizado y publicarlo.
+ *   pulsar Publicar en Ajustes, que envia el cambio al servidor.
  *
  * Esta distincion es deliberada y visible en la interfaz. Sin ella, cada sede
  * acabaria con un recetario distinto sin que nadie se diera cuenta.
@@ -351,7 +351,7 @@ export function localChanges() {
   const currentIds = new Set(current.recipes.map((recipe) => recipe.id));
   const removed = published.recipes.filter((recipe) => !currentIds.has(recipe.id)).length;
 
-  // El catalogo tambien cuenta: importar un respaldo con las mismas recetas y
+  // El catalogo tambien cuenta: una copia local con las mismas recetas y
   // distintos ingredientes dejaba "0 cambios" con el boton de publicar activo.
   const catalogChanged =
     JSON.stringify(published.ingredientes) !== JSON.stringify(current.ingredientes) ? 1 : 0;

@@ -7,8 +7,8 @@
 
 import { el } from '../lib/dom.js';
 import { titleCase, splitName, indexLetter } from '../lib/format.js';
-import { filterRecipes, sortRecipes, availableCategories } from '../core/search.js';
-import { navigate } from '../core/router.js';
+import { filterRecipes, sortRecipes, availableCategories, categoryCounts } from '../core/search.js';
+import { navigate, ALL_CATEGORIES } from '../core/router.js';
 
 /**
  * @param {{recipes: Array, query: string, category: string, selectedId: string|null}} params
@@ -17,21 +17,14 @@ import { navigate } from '../core/router.js';
 export function renderSidebar(params) {
   const matches = sortRecipes(filterRecipes(params.recipes, params));
   const categories = availableCategories(params.recipes);
+  const counts = categoryCounts(params.recipes);
   const word = matches.length === 1 ? 'receta' : 'recetas';
 
   return el('nav', { class: 'sidebar', attrs: { 'aria-label': 'Listado de recetas' } }, [
     el(
       'div',
       { class: 'sidebar__filters', attrs: { role: 'group', 'aria-label': 'Filtrar por categoría' } },
-      categories.map((name) =>
-        el('button', {
-          type: 'button',
-          class: 'chip',
-          text: name.toLowerCase(),
-          attrs: { 'aria-pressed': String(name === params.category) },
-          on: { click: () => navigate({ name: 'index', id: null, category: name }) },
-        }),
-      ),
+      categories.map((name) => renderCategoryChip(name, counts[name] || 0, params.category)),
     ),
     el('p', {
       class: 'sidebar__count',
@@ -39,6 +32,35 @@ export function renderSidebar(params) {
       text: `${matches.length} ${word}`,
     }),
     matches.length === 0 ? renderEmpty(params.query) : renderList(matches, params.selectedId),
+  ]);
+}
+
+/**
+ * Un segmento del filtro de categoria: punto de color, nombre y conteo. El
+ * punto se omite en TODAS porque no tiene un color de categoria propio.
+ *
+ * @param {string} name
+ * @param {number} count
+ * @param {string} activeCategory
+ * @returns {HTMLElement}
+ */
+function renderCategoryChip(name, count, activeCategory) {
+  const isAll = name === ALL_CATEGORIES;
+  const word = count === 1 ? 'receta' : 'recetas';
+
+  return el('button', {
+    type: 'button',
+    class: 'chip',
+    attrs: {
+      'aria-pressed': String(name === activeCategory),
+      'data-category': name,
+      'aria-label': `${name.toLowerCase()} (${count} ${word})`,
+    },
+    on: { click: () => navigate({ name: 'index', id: null, category: name }) },
+  }, [
+    isAll ? null : el('span', { class: 'chip__dot', attrs: { 'aria-hidden': 'true' } }),
+    el('span', { class: 'chip__label', attrs: { 'aria-hidden': 'true' }, text: name.toLowerCase() }),
+    el('span', { class: 'chip__count', attrs: { 'aria-hidden': 'true' }, text: String(count) }),
   ]);
 }
 

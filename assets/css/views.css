@@ -55,15 +55,6 @@
   color: var(--ink-3);
 }
 
-.login__rule {
-  display: block;
-  width: 2.5rem;
-  height: 3px;
-  margin: var(--space-4) auto;
-  background: var(--amber);
-  border-radius: 999px;
-}
-
 .login__error:not(:empty) {
   margin-top: var(--space-2);
   font-size: var(--text-sm);

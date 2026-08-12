@@ -297,10 +297,6 @@ function paint() {
   // --- Recetario ---------------------------------------------------------
   const recipe = route.name === 'detail' ? repo.findById(route.id) : null;
 
-  // En pantallas estrechas no caben el listado y la receta a la vez, asi que se
-  // muestra uno u otro. Este atributo es lo que lo decide desde el CSS.
-  app.dataset.view = recipe ? 'detail' : 'index';
-
   // Avisos que van por encima de todo: sin conexion, o cambios sin publicar.
   for (const badge of renderBadges({
     changes: repo.localChanges(),
@@ -310,7 +306,14 @@ function paint() {
     app.appendChild(badge);
   }
 
-  const shell = el('div', { class: 'app' }, [
+  // En pantallas estrechas no caben el listado y la receta a la vez, asi que se
+  // muestra uno u otro. Este atributo es lo que lo decide desde el CSS
+  // (`.app[data-view='detail'] .sidebar`, en responsive.css), y por eso tiene
+  // que ir en el MISMO nodo que lleva `class="app"` (este `shell`), no en el
+  // `#app` de index.html que solo lo envuelve: puesto en el contenedor
+  // equivocado, el selector nunca coincidia y el listado y la ficha se veian
+  // los dos a la vez en movil, apretados dentro de la altura fija de la app.
+  const shell = el('div', { class: 'app', dataset: { view: recipe ? 'detail' : 'index' } }, [
     // Barra superior: marca, buscador y acciones.
     renderHeader({
       query: route.query,

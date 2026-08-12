@@ -1,11 +1,11 @@
 /**
  * Validacion y normalizacion del recetario.
  *
- * Todo dato que entra desde fuera (archivo de respaldo elegido por la persona
- * usuaria, JSON semilla, contenido previo de localStorage escrito por una version
- * anterior) pasa por aqui antes de llegar al estado. La version anterior solo
- * comprobaba Array.isArray, de modo que un respaldo incompleto rompia el render
- * despues de haberse guardado.
+ * Todo dato que entra desde fuera (recetario compartido del servidor, JSON
+ * publicado que viaja con el sitio, contenido previo de localStorage escrito
+ * por una version anterior) pasa por aqui antes de llegar al estado. La
+ * version anterior solo comprobaba Array.isArray, de modo que un respaldo
+ * incompleto rompia el render despues de haberse guardado.
  */
 
 import { ok, err } from './storage.js';

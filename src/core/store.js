@@ -12,10 +12,6 @@
  * @property {boolean} authed sesion iniciada
  * @property {Array} recipes
  * @property {Array} ingredientes
- * @property {'closed'|'opening'|'open'|'shutting'} book
- * @property {'fwd'|'back'|null} turning
- * @property {object|null} draft receta en edicion
- * @property {boolean} draftIsNew
  * @property {string|null} confirmDelete id pendiente de confirmar
  * @property {string|null} production id de la receta abierta en modo produccion
  * @property {boolean} online hay conexion en este momento
@@ -31,10 +27,6 @@ const INITIAL = Object.freeze({
   authed: false,
   recipes: [],
   ingredientes: [],
-  book: 'closed',
-  turning: null,
-  draft: null,
-  draftIsNew: false,
   confirmDelete: null,
   production: null,
   online: true,

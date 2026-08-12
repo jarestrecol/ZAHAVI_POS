@@ -65,3 +65,18 @@ export function availableCategories(recipes) {
 export function countItems(recipe) {
   return recipe.componentes.reduce((total, component) => total + component.items.length, 0);
 }
+
+/**
+ * Cuenta cuantas recetas hay por categoria. TODAS es el total.
+ *
+ * @param {Array} recipes
+ * @returns {Record<string, number>}
+ */
+export function categoryCounts(recipes) {
+  const counts = { [ALL_CATEGORIES]: recipes.length };
+  for (const recipe of recipes) {
+    if (!recipe.categoria) continue;
+    counts[recipe.categoria] = (counts[recipe.categoria] || 0) + 1;
+  }
+  return counts;
+}

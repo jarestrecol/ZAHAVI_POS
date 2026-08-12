@@ -51,7 +51,10 @@ export default async function handler(request, response) {
   if (request.method === 'GET') {
     return handleGet(response, config.value);
   }
-  if (request.method === 'PUT' || request.method === 'POST') {
+  // Solo PUT: a diferencia de POST, siempre obliga a un preflight de CORS,
+  // asi que un formulario de otro origen no puede alcanzar esta ruta sin que
+  // el navegador lo bloquee antes. No hay ningun cliente real que use POST.
+  if (request.method === 'PUT') {
     return handlePut(request, response, config.value);
   }
 

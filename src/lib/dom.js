@@ -80,20 +80,6 @@ export function replaceChildren(node, children) {
   return node;
 }
 
-/**
- * Registra un listener y devuelve la funcion que lo retira.
- *
- * @param {EventTarget} target
- * @param {string} type
- * @param {EventListener} handler
- * @param {AddEventListenerOptions|boolean} [options]
- * @returns {() => void}
- */
-export function on(target, type, handler, options) {
-  target.addEventListener(type, handler, options);
-  return () => target.removeEventListener(type, handler, options);
-}
-
 function applyProps(node, props) {
   // Las vistas pasan null cuando el elemento no lleva propiedades. El valor por
   // defecto del parametro solo cubre undefined, asi que se normaliza aqui.

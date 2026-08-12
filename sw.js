@@ -42,6 +42,7 @@ const SHELL = [
   './assets/fonts/ibm-plex-mono-400.woff2',
   './assets/fonts/ibm-plex-mono-500.woff2',
   './assets/fonts/ibm-plex-mono-600.woff2',
+  './assets/fonts/ibm-plex-mono-700.woff2',
   './src/theme-init.js',
   './src/main.js',
   './src/app/commands.js',

@@ -29,6 +29,7 @@
  */
 
 import { readJson, writeJson, readText, writeText, removeKey, ok, err } from './storage.js';
+import { setEditKey } from './remote.js';
 
 /** Donde se guarda la lista de usuarios de este equipo. */
 const USERS_KEY = 'zahavi_usuarios_v1';
@@ -289,8 +290,19 @@ export function signIn(name) {
   writeText(SESSION_KEY, String(name).trim());
 }
 
+/**
+ * Cierra la sesion de este equipo y borra tambien la clave de edicion en
+ * cache.
+ *
+ * Sin esto, quien entrara despues heredaba la clave de edicion que dejo
+ * guardada la persona anterior: bastaba con abrir Ajustes para publicar sin
+ * conocerla. La clave de edicion es la unica proteccion real del sistema
+ * (ver la cabecera de este archivo), asi que cerrar sesion tiene que
+ * revocarla igual que revoca el acceso a la interfaz.
+ */
 export function signOut() {
   removeKey(SESSION_KEY);
+  setEditKey(null);
 }
 
 /**
