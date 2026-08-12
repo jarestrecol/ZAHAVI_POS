@@ -116,12 +116,15 @@
     padding: var(--space-2) var(--space-3);
   }
 
-  .topbar__logo {
-    height: 1.5rem;
+  .topbar__wordmark {
+    font-size: 1.0625rem;
+    letter-spacing: 0.16em;
+    margin-right: -0.16em;
   }
 
-  /* "recetario" al lado de la marca sobra en esta anchura. */
-  .topbar__sub {
+  /* El descriptor sobra cuando el ancho aprieta: el nombre ya identifica. */
+  .topbar__sub,
+  .topbar__dot {
     display: none;
   }
 

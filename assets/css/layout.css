@@ -25,35 +25,48 @@
 
 .topbar__brand {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
-  padding: var(--space-1) var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
   text-decoration: none;
   border-radius: var(--radius-sm);
 }
 
-.topbar__logo {
-  display: block;
-  height: 1.75rem;
-  width: auto;
-  border-radius: var(--radius-sm);
+.topbar__brand:hover .topbar__wordmark {
+  color: var(--brand-gold);
 }
 
+/* Marca tipografica: serif con las letras separadas, como en el logo impreso.
+   El tracking amplio es lo que le da el aire de la marca sin necesidad de la
+   caja naranja, que sobre la barra oscura quedaba como un parche. */
 .topbar__wordmark {
   font-family: var(--font-display);
-  font-size: var(--text-xl);
+  font-size: 1.25rem;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.22em;
+  /* El tracking anade aire tambien despues de la ultima letra: se compensa
+     para que el punto no quede demasiado lejos. */
+  margin-right: -0.22em;
   color: var(--on-rail);
+}
+
+/* El punto dorado recoge el amarillo del icono de la marca y separa el nombre
+   del descriptor sin necesidad de una barra ni un guion. */
+.topbar__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-gold);
+  flex-shrink: 0;
 }
 
 .topbar__sub {
   font-size: var(--text-2xs);
   font-weight: 600;
-  letter-spacing: 0.2em;
+  letter-spacing: var(--track-loose);
   text-transform: uppercase;
-  color: var(--amber-on-rail);
+  color: var(--on-rail-2);
 }
 
 .topbar__spacer {

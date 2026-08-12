@@ -58,14 +58,13 @@ export function renderHeader(options) {
   }
 
   return el('header', { class: 'topbar no-print' }, [
+    // La marca en la barra va en tipografia, no como imagen: el logo completo
+    // es un bloque naranja con su propio fondo, y sobre la barra oscura quedaba
+    // como un recorte pegado encima. El logo entero se reserva para la entrada y
+    // la bienvenida, donde si funciona como pieza de marca.
     el('a', { class: 'topbar__brand', href: '#/', attrs: { 'aria-label': 'Zahavi, recetario' } }, [
-      el('img', {
-        class: 'topbar__logo',
-        src: './assets/logo-zahavi.png',
-        alt: 'Zahavi',
-        width: 254,
-        height: 78,
-      }),
+      el('span', { class: 'topbar__wordmark', text: 'ZAHAVI' }),
+      el('span', { class: 'topbar__dot', attrs: { 'aria-hidden': 'true' } }),
       el('span', { class: 'topbar__sub', text: 'recetario' }),
     ]),
 
