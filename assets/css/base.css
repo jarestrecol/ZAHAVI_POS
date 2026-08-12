@@ -6,6 +6,14 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Transicion de color suave al cambiar de tema con el interruptor: sin
+     esto el cambio es un salto seco. Las superficies con su propia
+     transicion (botones, campos) ya la traen; esto cubre el fondo y el
+     texto de base, que no tienen selector propio. */
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
 html,
 body {
   margin: 0;
@@ -24,6 +32,18 @@ body {
 
 body.is-modal-open {
   overflow: hidden;
+}
+
+/* ---- Transiciones de vista ----
+   Progresivas: si el navegador no conoce la View Transitions API, la
+   aplicacion funciona exactamente igual, solo sin el cruce animado entre una
+   pantalla y la siguiente. `main.js` llama a `document.startViewTransition`
+   cuando existe y a la funcion de pintado directamente cuando no. La duracion
+   sale de `--dur-slow`, que la media query de movimiento reducido ya deja en
+   0ms en tokens.css: esta regla no necesita su propia comprobacion aparte. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-slow);
 }
 
 h1,
@@ -120,7 +140,7 @@ button {
 
 .field:focus {
   border-color: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-soft);
+  box-shadow: var(--focus-glow);
   outline: none;
 }
 
@@ -205,13 +225,24 @@ button {
   background: var(--surface-card);
   color: var(--ink-2);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
+    color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
+/* Levantamiento sutil al pasar el cursor y una pequeña compresion al pulsar:
+   es la diferencia entre "una caja que cambia de color" y "un boton que
+   responde al tacto". `translateY` y `scale` van por el compositor, asi que
+   no cuestan calculo de layout. */
 .btn:hover {
   background: var(--surface-hover);
   border-color: var(--ink-4);
   color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
 }
 
 .btn--primary {
@@ -230,15 +261,16 @@ button {
    2,45:1 y falla. El logo si usa blanco, pero un logotipo esta exento de la
    norma y un boton no. */
 .btn--accent {
-  background: var(--amber);
+  background: var(--brand-gradient);
   color: var(--brand-ink);
   border-color: var(--amber-deep);
   font-weight: 700;
 }
 
 .btn--accent:hover {
-  background: #ffa347;
+  background: var(--brand-gradient);
   color: var(--brand-ink);
+  box-shadow: var(--shadow-glow);
 }
 
 .btn--quiet {

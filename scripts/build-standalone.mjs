@@ -13,7 +13,7 @@
  * Sin dependencias. Se ejecuta con:  node scripts/build-standalone.mjs
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,7 +22,7 @@ const outDir = join(root, 'dist');
 const outFile = join(outDir, 'Zahavi-Recetario-offline.html');
 
 /** Hojas de estilo, en el mismo orden que declara index.html. */
-const STYLES = ['tokens', 'base', 'layout', 'sheet', 'views', 'dialogs', 'print', 'responsive'];
+const STYLES = ['fonts', 'tokens', 'base', 'layout', 'sheet', 'views', 'dialogs', 'print', 'responsive'];
 
 /** Modulos en orden de dependencia: cada uno solo usa lo definido antes. */
 const MODULES = [
@@ -37,6 +37,7 @@ const MODULES = [
   'core/store.js',
   'core/repository.js',
   'core/users.js',
+  'core/theme.js',
   'views/window.js',
   'views/login.js',
   'views/header.js',
@@ -132,13 +133,28 @@ function wrapModule(file, source) {
   return `__define('${moduleKey(file)}', function () {\n${body}\nreturn { ${returned} };\n});`;
 }
 
-const css = STYLES.map((name) => readFileSync(join(root, 'assets/css', `${name}.css`), 'utf8')).join('\n');
+let css = STYLES.map((name) => readFileSync(join(root, 'assets/css', `${name}.css`), 'utf8')).join('\n');
 const seed = readFileSync(join(root, 'data/recipes.json'), 'utf8');
 
 // El logo se incrusta como data URI: en un archivo suelto no hay ruta desde la
 // que cargarlo.
 const logoData =
   'data:image/png;base64,' + readFileSync(join(root, 'assets/logo-zahavi.png')).toString('base64');
+
+// Las tipografias tambien: fonts.css las referencia con rutas relativas
+// ('../fonts/archivo.woff2'), que no existen en un HTML suelto. Cada
+// referencia se cambia por su contenido en base64, igual que el logo.
+for (const file of readdirSync(join(root, 'assets/fonts'))) {
+  if (!file.endsWith('.woff2')) continue;
+  const data = readFileSync(join(root, 'assets/fonts', file)).toString('base64');
+  css = css.split(`../fonts/${file}`).join(`data:font/woff2;base64,${data}`);
+}
+
+// El script que aplica el tema guardado tiene que ejecutarse antes que el
+// resto del arranque, para evitar el destello del tema equivocado (ver
+// src/theme-init.js, del que este es un duplicado literal para el archivo
+// suelto).
+const themeInit = readFileSync(join(root, 'src/theme-init.js'), 'utf8');
 
 const wrapped = MODULES.map((file) => {
   // La ruta del logo se cambia por el data URI: en un archivo suelto no hay
@@ -186,7 +202,10 @@ const html = `<!doctype html>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Zahavi · Recetario</title>
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+${themeInit}
+    </script>
     <style>
 ${css}
     </style>

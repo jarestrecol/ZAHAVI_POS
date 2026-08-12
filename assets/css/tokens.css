@@ -6,19 +6,25 @@
  * pero sobre blanco se queda en 2,3:1, así que solo se usa como relleno, borde e
  * icono; para texto existe una versión oscurecida que conserva el matiz.
  *
- * Dirección: obrador, no libro de cocina. Superficie clara de trabajo, estructura
- * oscura que enmarca y el naranja de la marca como único acento. El elemento que
- * manda en pantalla son las cantidades, tratadas como lectura de báscula.
+ * Dirección: obrador de producción, no libro de cocina ni panel de oficina.
+ * Superficie clara de trabajo, estructura oscura que enmarca, profundidad real
+ * con capas y vidrio esmerilado, y el naranja de marca como acento con
+ * degradado propio. El elemento que manda en pantalla son las cantidades,
+ * tratadas como lectura de báscula.
  *
- * Tres tipografías con papeles distintos, todas del sistema para que no haya
- * ninguna petición de red ni salto de maquetación al cargar:
- *   - interfaz en sans: es lo que convierte esto en un sistema y no en un libro
- *   - display serif para la marca y el nombre de la receta
- *   - monoespaciada tabular para las cifras, que deben alinearse siempre
+ * Tres tipografías con papeles distintos, auto-hospedadas (ver fonts.css) para
+ * que no haya ninguna petición de red en tiempo de ejecución:
+ *   - Plus Jakarta Sans  interfaz: es lo que convierte esto en un sistema y no
+ *                        en un libro de cocina
+ *   - Lora                display serif para la marca y el nombre de la receta
+ *   - IBM Plex Mono       monoespaciada tabular para las cifras, que deben
+ *                        alinearse siempre
  *
- * El modo oscuro no es cosmético: las panaderías arrancan a las tres o cuatro de
- * la madrugada y una pantalla blanca a brillo alto en un obrador a oscuras
- * deslumbra.
+ * El modo oscuro no es cosmético: las panaderías arrancan a las tres o cuatro
+ * de la madrugada y una pantalla blanca a brillo alto en un obrador a oscuras
+ * deslumbra. Además del automático por sistema operativo, hay un interruptor
+ * explícito en la barra superior (ver core/theme.js): `data-theme` en <html>
+ * gana siempre sobre la preferencia del sistema.
  */
 
 :root {
@@ -30,16 +36,26 @@
   --brand-gold: #fce00c;
   --brand-ink: #16120f;
 
+  /* Degradado de marca: naranja a dorado, 135°. Reservado para momentos de
+     mayor peso (bienvenida, entrada, barra de progreso) y nunca para texto de
+     lectura continua, donde un color plano sigue siendo más legible. */
+  --brand-gradient: linear-gradient(135deg, var(--brand) 0%, #ff9f3d 45%, var(--brand-gold) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(246, 138, 30, 0.14) 0%, rgba(252, 224, 12, 0.1) 100%);
+
   /* ---- Superficies ---- */
   --surface: #fbfaf9;
   --surface-card: #ffffff;
   --surface-sunk: #f4f1ec;
   --surface-hover: #fdf2e3;
+  --surface-raised: #ffffff;
 
   /* Estructura oscura: barra superior y diálogos */
   --rail: #1a1714;
   --rail-2: #262019;
   --rail-line: #3a3128;
+  /* Version semitransparente del rail para el vidrio esmerilado de la barra:
+     deja pasar el color del panel de detras mientras conserva legibilidad. */
+  --rail-glass: rgba(26, 23, 20, 0.78);
 
   /* ---- Tinta sobre claro ----
      El texto de lectura llega a AAA porque se lee de pie y con reflejo. */
@@ -81,24 +97,39 @@
   --line-strong: #7c7770;
 
   /* Halo cálido de marca en las pantallas de entrada y bienvenida. */
-  --glow: rgba(246, 138, 30, 0.1);
+  --glow: rgba(246, 138, 30, 0.14);
+
+  /* Textura de puntos, muy sutil, para dar atmósfera a las pantallas de mayor
+     peso sin distraer de los datos. Un solo punto de 1px repetido: nada que
+     pese ni que dependa de una imagen. */
+  --texture-dot: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
 
   /* ---- Foco ---- */
   --focus: #16120f;
   --focus-on-dark: #f5f1ea;
+  /* Halo de foco a juego con la marca: mas visible que un contorno solo,
+     util para quien navega solo con teclado en un obrador con poca luz. */
+  --focus-glow: 0 0 0 4px rgba(246, 138, 30, 0.25);
 
   /* Color de la cifra de cantidad. En claro el dorado no sirve (1,3:1), asi que
      se usa el naranja profundo para mantener la misma familia cromatica. */
   --qty-color: var(--ink);
 
-  /* ---- Elevación ---- */
-  --shadow: 0 4px 16px -4px rgba(22, 18, 15, 0.12);
-  --shadow-lg: 0 24px 60px -16px rgba(22, 18, 15, 0.32);
+  /* ---- Elevación ----
+     Sombra de dos capas: una de contacto, corta y mas opaca, y otra ambiental,
+     larga y muy suave. Es lo que separa "una caja con borde" de "una tarjeta
+     que flota", y es barato: solo box-shadow, sin filtros. */
+  --shadow-xs: 0 1px 2px -1px rgba(22, 18, 15, 0.08);
+  --shadow: 0 2px 4px -2px rgba(22, 18, 15, 0.10), 0 10px 24px -12px rgba(22, 18, 15, 0.18);
+  --shadow-lg: 0 8px 12px -6px rgba(22, 18, 15, 0.14), 0 32px 64px -20px rgba(22, 18, 15, 0.34);
+  --shadow-glow: 0 0 0 1px rgba(246, 138, 30, 0.16), 0 12px 32px -12px rgba(246, 138, 30, 0.35);
 
-  /* ---- Tipografía ---- */
-  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  --font-num: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
+  /* ---- Tipografía ----
+     El respaldo de sistema se conserva tras cada tipografia propia: cubre el
+     instante antes de que cargue el archivo y cualquier caso donde falle. */
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Lora', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
 
   --text-2xs: 0.6875rem;
   --text-xs: 0.75rem;
@@ -128,11 +159,17 @@
   --space-7: 3rem;
   --space-8: 4rem;
 
-  /* ---- Geometría ---- */
+  /* ---- Geometría ----
+     Radios mas generosos que en la version anterior: es lo que mas rapido
+     lee el ojo como "sistema moderno" frente a "formulario de oficina". Se
+     mantiene una escala, no un unico valor, para que un boton pequeño y una
+     ventana grande no compartan la misma curva. */
   --sidebar-w: 21rem;
-  --radius: 6px;
-  --radius-sm: 4px;
-  --radius-lg: 10px;
+  --radius-sm: 0.5rem;
+  --radius: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-pill: 999px;
 
   /* Objetivos táctiles por encima del mínimo de la norma: se tocan con las
      manos ocupadas y a veces con guante. */
@@ -148,30 +185,44 @@
   --track-label: 0.14em;
   --track-loose: 0.2em;
 
-  /* ---- Movimiento: solo funcional ---- */
+  /* ---- Movimiento ----
+     `--ease` es funcional: entradas y salidas de elementos que ya existian.
+     `--ease-spring` es expresivo, con un pequeño rebote, y se reserva para lo
+     que aparece por primera vez (dialogos, notificaciones): comunica "esto es
+     nuevo" sin necesidad de texto. Los tres duran cero si hay movimiento
+     reducido, ver mas abajo. */
   --dur-fast: 110ms;
   --dur: 180ms;
+  --dur-slow: 320ms;
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /*
- * Modo oscuro. No es una inversión: el fondo no es negro puro, porque en un
- * obrador a oscuras el texto blanco sobre negro absoluto produce halo. Las
- * categorías se aclaran para mantener el contraste sobre fondo oscuro sin
- * perder la separación de tono entre ellas.
+ * Variables del modo oscuro. Se definen una sola vez aqui y se aplican en dos
+ * sitios: automatico por preferencia del sistema, y explicito cuando alguien
+ * usa el interruptor de la barra superior. CSS no tiene mixins sin un
+ * preprocesador, y este proyecto no usa ninguno a proposito (cero dependencias,
+ * cero paso de compilacion), asi que el bloque se repite literalmente en vez
+ * de generarse: es el precio de mantener el sitio en HTML y CSS planos.
  */
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  /* `:not([data-theme="light"])` deja que el interruptor fuerce claro incluso
+     con el sistema operativo en oscuro. */
+  :root:not([data-theme='light']) {
     color-scheme: dark;
 
     --surface: #16130f;
     --surface-card: #1e1a15;
     --surface-sunk: #14110d;
     --surface-hover: #2a231b;
+    --surface-raised: #241f18;
 
     --rail: #100e0b;
     --rail-2: #1e1a15;
     --rail-line: #332b22;
+    --rail-glass: rgba(16, 14, 11, 0.82);
 
     --ink: #f6f1e8;
     --ink-2: #ded5c6;
@@ -188,6 +239,9 @@
     --amber-deep: #f68a1e;
     --amber-soft: #2f2214;
     --amber-on-rail: #f9a94a;
+
+    --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 55%, var(--brand-deep) 100%);
+    --brand-gradient-soft: linear-gradient(135deg, rgba(246, 138, 30, 0.22) 0%, rgba(252, 224, 12, 0.08) 100%);
 
     /* Separadas por luminancia ademas de por tono: en deuteranopia el matiz se
        pierde, pero el orden de claridad se sigue percibiendo. */
@@ -212,21 +266,92 @@
     --line-strong: #8a8172;
 
     /* Sobre fondo oscuro el mismo 10% no se percibe: hace falta más presencia. */
-    --glow: rgba(246, 138, 30, 0.18);
+    --glow: rgba(246, 138, 30, 0.22);
 
     --focus: #f6f1e8;
     --focus-on-dark: #f6f1e8;
+    --focus-glow: 0 0 0 4px rgba(249, 169, 74, 0.3);
 
     /* Sobre fondo oscuro las sombras no separan: la elevación la dan las
-       superficies más claras y los bordes. */
-    --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 24px 60px -16px rgba(0, 0, 0, 0.7);
+       superficies más claras y los bordes. Se mantiene una sombra de contacto
+       fina para que los dialogos no queden pegados al fondo. */
+    --shadow-xs: 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+    --shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.45), 0 16px 32px -16px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 8px 16px -8px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.75);
+    --shadow-glow: 0 0 0 1px rgba(249, 169, 74, 0.22), 0 16px 40px -14px rgba(249, 169, 74, 0.4);
   }
 }
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface: #16130f;
+  --surface-card: #1e1a15;
+  --surface-sunk: #14110d;
+  --surface-hover: #2a231b;
+  --surface-raised: #241f18;
+
+  --rail: #100e0b;
+  --rail-2: #1e1a15;
+  --rail-line: #332b22;
+  --rail-glass: rgba(16, 14, 11, 0.82);
+
+  --ink: #f6f1e8;
+  --ink-2: #ded5c6;
+  --ink-3: #b8ad9b;
+  --ink-4: #968c7c;
+
+  --on-rail: #f6f1e8;
+  --on-rail-2: #b8ad9b;
+
+  --amber: var(--brand);
+  --amber-text: #f9a94a;
+  --amber-deep: #f68a1e;
+  --amber-soft: #2f2214;
+  --amber-on-rail: #f9a94a;
+
+  --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(246, 138, 30, 0.22) 0%, rgba(252, 224, 12, 0.08) 100%);
+
+  --cat-pasteleria: #e689a4;
+  --cat-panaderia: #b87a35;
+  --cat-galletas: #a7c653;
+  --cat-otros: #b0a696;
+
+  --danger: #eb7070;
+  --danger-soft: #2c1616;
+  --ok: #53c672;
+  --ok-soft: #16261a;
+
+  --qty-color: var(--brand-gold);
+
+  --line: #2e2820;
+  --line-strong: #8a8172;
+
+  --glow: rgba(246, 138, 30, 0.22);
+
+  --focus: #f6f1e8;
+  --focus-on-dark: #f6f1e8;
+  --focus-glow: 0 0 0 4px rgba(249, 169, 74, 0.3);
+
+  --shadow-xs: 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.45), 0 16px 32px -16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 16px -8px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.75);
+  --shadow-glow: 0 0 0 1px rgba(249, 169, 74, 0.22), 0 16px 40px -14px rgba(249, 169, 74, 0.4);
+}
+
+/* El interruptor fuerza claro incluso con el sistema operativo en oscuro: sin
+   esta regla, `:root[data-theme="light"]` no bastaria para ganarle a la media
+   query de arriba, porque ambas tendrian el mismo peso y ganaria la que
+   aparece despues en el archivo. Declararla vacia con mayor especificidad no
+   es necesario: basta con que las variables de `:root` de la cabecera del
+   archivo ya sean las claras, y el selector `:not([data-theme="light"])` de
+   la media query se encarga de cederle el paso. */
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-fast: 0ms;
     --dur: 0ms;
+    --dur-slow: 0ms;
   }
 }

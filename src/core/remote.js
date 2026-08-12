@@ -38,13 +38,6 @@ let currentSha = null;
 let staleSinceConflict = false;
 
 /**
- * @returns {boolean}
- */
-export function isRemoteAvailable() {
-  return available;
-}
-
-/**
  * Indica si se puede publicar ahora mismo. Hace falta que el servidor responda,
  * que se haya leido el archivo (de ahi sale el sha) y que no haya un conflicto
  * pendiente de resolver.

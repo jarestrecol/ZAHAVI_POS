@@ -32,8 +32,10 @@ import {
   removeUser,
   listUsers,
   currentUser,
+  signOut,
   MIN_PASSWORD_LENGTH,
 } from '../core/users.js';
+import { setState } from '../core/store.js';
 import { createWindow } from './window.js';
 
 /**
@@ -66,6 +68,20 @@ export function openSettings(options) {
     footer: [
       el('p', { class: 'win__hint', text: `Sesión de ${currentUser()} en este equipo.` }),
       el('div', { class: 'win__actions' }, [
+        el('button', {
+          type: 'button',
+          class: 'btn btn--quiet',
+          text: 'Cerrar sesión',
+          on: {
+            click: () => {
+              signOut();
+              // La sesion es de este dispositivo: cerrarla no toca ni las
+              // recetas ni los cambios sin publicar, solo saca a la persona
+              // hasta que alguien vuelva a entrar con su usuario y clave.
+              setState({ authed: false, settingsOpen: false });
+            },
+          },
+        }),
         el('button', {
           type: 'button',
           class: 'btn btn--primary',

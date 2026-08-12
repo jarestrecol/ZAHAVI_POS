@@ -1,0 +1,108 @@
+/*
+ * Tipografías auto-hospedadas.
+ *
+ * Plus Jakarta Sans, Lora e IBM Plex Mono, licencia SIL Open Font License:
+ * de uso y redistribución libres. Los archivos viven en assets/fonts/ y no hay
+ * ninguna petición a Google ni a ningún otro origen en tiempo de ejecución,
+ * así que la política `connect-src 'self'` y el arranque sin conexión de la
+ * cocina siguen intactos. Solo se trajo el subconjunto "latin": cubre todo el
+ * español (á é í ó ú ñ ü ¿ ¡) y pesa una fracción de la fuente completa.
+ *
+ * Tres papeles, igual que antes de auto-hospedar nada:
+ *   - Plus Jakarta Sans  interfaz: botones, listado, formularios
+ *   - Lora                marca y titulares: nombre de la receta, bienvenida
+ *   - IBM Plex Mono       cifras: cantidades, códigos, fechas de publicación
+ *
+ * `font-display: swap` evita el texto invisible mientras carga el archivo: se
+ * ve al instante con la tipografía del sistema y cambia sin salto de maqueta
+ * en cuanto el archivo llega (los tres son "font-metric compatible" con sus
+ * alternativas de sistema en el orden declarado en tokens.css).
+ */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/plus-jakarta-sans-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/plus-jakarta-sans-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/plus-jakarta-sans-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/plus-jakarta-sans-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('../fonts/plus-jakarta-sans-800.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/lora-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/lora-500i.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/lora-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-mono-600.woff2') format('woff2');
+}

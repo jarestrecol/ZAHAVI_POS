@@ -20,13 +20,17 @@ Producción, costos y escalado quedan para fases siguientes.
 - **Impresión A4** de la ficha o del índice completo.
 - **Borrado en tres pasos**, con el nombre escrito a mano para confirmar.
 - **Sin conexión**: el recetario abre igual y sigue consultándose.
-- **Modo oscuro** automático, para las jornadas que empiezan de madrugada.
+- **Modo oscuro**, automático por el sistema operativo o a mano con el
+  interruptor de la barra superior. La elección a mano gana siempre y se
+  recuerda en este dispositivo.
 
 ### Quién entra y qué puede hacer
 
 Cada persona entra con **su nombre y su clave**, no con una contraseña
 compartida. Así, cuando alguien deja de trabajar en la panadería se le quita su
-acceso sin obligar al resto a cambiar nada.
+acceso sin obligar al resto a cambiar nada. **Ajustes → Cerrar sesión** deja el
+equipo listo para que entre la siguiente persona sin tocar nada más: no borra
+recetas ni cambios sin publicar, solo saca a quien tenía la sesión abierta.
 
 Los usuarios se dan de alta desde **Ajustes → Quién puede entrar**, y son **de
 cada equipo**: crear un usuario en la panadería no lo crea en la casa de
@@ -55,7 +59,7 @@ Hay dos niveles distintos, que no conviene confundir:
 
 | Tamaño | Comportamiento |
 |---|---|
-| **Celular** (< 768 px) | Listado y receta se turnan. Las acciones de la receta pasan a una barra fija abajo, al alcance del pulgar. Los diálogos ocupan la pantalla completa. Filtros deslizables en horizontal. |
+| **Celular** (< 768 px) | Listado y receta se turnan. Las acciones de la receta pasan a una barra flotante abajo, al alcance del pulgar. Los diálogos suben desde el borde inferior como una hoja, en vez de aparecer centrados. Filtros deslizables en horizontal, con encaje al soltar. |
 | **Tablet** (768 – 991 px) | Listado a dos columnas para recorrerlo en la mitad de desplazamiento. Ingredientes a dos columnas. |
 | **Escritorio** (≥ 992 px) | Listado y receta a la vez. |
 
@@ -177,9 +181,9 @@ node scripts/verificar.mjs
 ```
 
 ```
-Sintaxis de los modulos…        ok (27 archivos)
-Resolucion de importaciones…    ok (24 modulos)
-Coherencia del CSS…             ok (199 clases)
+Sintaxis de los modulos…        ok (29 archivos)
+Resolucion de importaciones…    ok (26 modulos)
+Coherencia del CSS…             ok (201 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, 187 componentes, 1282 items)
@@ -216,8 +220,9 @@ api/
   _schema.js            Validación del servidor (rechaza lo dudoso)
 
 assets/css/
-  tokens.css            Colores, tipografías, ritmo. Nace del logo de la marca
-  base.css              Reset, campos y botones
+  fonts.css              Declaraciones @font-face de las tipografías propias
+  tokens.css            Colores, tipografías, ritmo, radios, sombras, tema
+  base.css              Reset, campos, botones y transiciones de vista
   layout.css            Barra, listado y estructura
   sheet.css             Ficha de receta y modo Pesar
   views.css             Entrada, avisos y estados
@@ -225,12 +230,15 @@ assets/css/
   print.css             Hojas A4
   responsive.css        Todos los ajustes por tamaño de pantalla
 
+assets/fonts/            Plus Jakarta Sans, Lora e IBM Plex Mono (OFL),
+                        auto-hospedadas: cero peticiones a Google en uso
+
 src/
+  theme-init.js          Aplica el tema guardado antes del primer pintado
   lib/                  dom (DOM sin innerHTML) · format · a11y
-  core/                 storage · schema · repository · remote
+  core/                 storage · schema · repository · remote · theme
                         users · store · router · search
-  app/commands.js       Casos de uso: guardar, eliminar, publicar,
-                        descartar, importar
+  app/commands.js       Casos de uso: guardar, eliminar, publicar, descartar
   views/                login · header · sidebar · detail · production
                         editor · settings · confirm · window · skeleton · print
   main.js               Arranque y orquestación
@@ -239,8 +247,9 @@ scripts/                Verificación, pruebas y empaquetador offline
 data/recipes.json       Recetario publicado
 ```
 
-Sin dependencias, sin compilación, sin `node_modules`. Tipografías del sistema:
-ninguna petición externa.
+Sin dependencias, sin compilación, sin `node_modules`. Las tipografías viven en
+el propio repositorio (licencia SIL Open Font License): ninguna petición
+externa, tampoco a Google Fonts.
 
 ### Cómo está organizado el código
 
@@ -270,17 +279,28 @@ Dos reglas más que conviene respetar al tocar el código:
 ## Diseño
 
 Dirección de obrador, no de libro de cocina: superficie clara de trabajo,
-estructura oscura que enmarca, y el naranja de la marca como único acento.
+estructura oscura que enmarca, profundidad real con vidrio esmerilado y sombras
+en dos capas, y el naranja de la marca como único acento, ahora con su propio
+degradado para los momentos de mayor peso (bienvenida, entrada, modo Pesar).
 
 La paleta nace del logo real, con los valores tomados del archivo: naranja
 `#F68A1E`, dorado `#FCE00C`, blanco `#FCFCFC`.
 
-Tres tipografías con papeles distintos, todas del sistema para que no haya
-peticiones de red ni saltos de maquetación:
+Tres tipografías con papeles distintos, auto-hospedadas en `assets/fonts/`
+(subconjunto "latin", que cubre todo el español) para que no haya ninguna
+petición de red en tiempo de ejecución:
 
-- **Sans** para la interfaz: es lo que la hace leerse como sistema y no como libro
-- **Serif** para la marca y los títulos de receta
-- **Monoespaciada tabular** para las cifras, que deben alinearse siempre
+- **Plus Jakarta Sans** para la interfaz: es lo que la hace leerse como sistema
+  y no como libro
+- **Lora** para la marca y los títulos de receta
+- **IBM Plex Mono** tabular para las cifras, que deben alinearse siempre
+
+Modo oscuro automático por el sistema operativo, o a mano con el interruptor de
+la barra superior (`src/core/theme.js`); `src/theme-init.js` aplica la elección
+guardada antes del primer pintado para que no haya destello del tema
+equivocado. Las transiciones entre pantallas usan la View Transitions API
+cuando el navegador la conoce, con reserva a un cambio directo sin animación
+donde no.
 
 Contrastes verificados contra WCAG 2.2. El texto de lectura llega a AAA porque se
 lee de pie y con posible reflejo. Dos decisiones que conviene conocer antes de
@@ -293,7 +313,9 @@ tocar los colores:
   Panadería y las dos se percibían como el mismo marrón en deuteranopía.
 
 Navegación completa por teclado, foco visible, foco atrapado en los diálogos y
-movimiento reducido respetado.
+movimiento reducido respetado: toda la animación sale de variables CSS
+(`--dur`, `--dur-slow`) que la propia hoja de estilos deja en `0ms` cuando el
+sistema pide menos movimiento, sin ninguna comprobación aparte en JavaScript.
 
 ---
 

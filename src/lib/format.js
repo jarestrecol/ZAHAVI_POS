@@ -102,13 +102,3 @@ export function indexLetter(nombre) {
 export function byName(a, b) {
   return a.nombre.localeCompare(b.nombre, 'es');
 }
-
-/**
- * Fecha en formato AAAA-MM-DD para nombrar archivos de respaldo.
- *
- * @param {Date} [date]
- * @returns {string}
- */
-export function isoDate(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}

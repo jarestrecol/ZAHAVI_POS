@@ -4,9 +4,9 @@
  * =============================================================================
  *
  *  Aqui vive lo que la aplicacion SABE HACER, separado de lo que la aplicacion
- *  PINTA. Son las cinco operaciones que tocan las 121 recetas de la panaderia:
+ *  PINTA. Son las cuatro operaciones que tocan las 121 recetas de la panaderia:
  *
- *      guardar   ·   eliminar   ·   publicar   ·   descartar   ·   importar
+ *      guardar   ·   eliminar   ·   publicar   ·   descartar
  *
  *  Antes estaban escritas dentro de `main.js`, mezcladas con el codigo que
  *  construye la pantalla. Eso tenia dos problemas:

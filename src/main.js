@@ -240,13 +240,30 @@ function moveSelection(delta) {
 /**
  * Pinta la aplicacion entera segun el estado y la direccion actuales.
  *
+ * Envuelve `paint()` con la View Transitions API cuando el navegador la
+ * conoce: el paso de una pantalla a otra hace un cruce suave en vez de un
+ * salto seco, sin que `paint()` sepa nada de esto. Progresivo a proposito:
+ * en un navegador sin soporte, `paint()` se llama igual y la aplicacion
+ * funciona identica, solo sin el cruce animado. La duracion sale de
+ * `--dur-slow`, que cae a 0ms con movimiento reducido (ver tokens.css), asi
+ * que ahi la transicion se vuelve instantanea sin ninguna comprobacion aqui.
+ */
+function render() {
+  if (typeof document.startViewTransition === 'function') {
+    document.startViewTransition(() => paint());
+  } else {
+    paint();
+  }
+}
+
+/**
  * Hay tres pantallas posibles:
  *
  *      cargando   -> esqueleto, mientras se leen las recetas
  *      entrada    -> si nadie ha iniciado sesion en este equipo
  *      recetario  -> lo normal: barra, listado y receta
  */
-function render() {
+function paint() {
   const state = getState();
   const route = getRoute();
 

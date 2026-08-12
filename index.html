@@ -18,7 +18,7 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="color-scheme" content="light dark" />
@@ -28,6 +28,13 @@
          desde una subruta o abierto desde el disco. -->
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="./manifest.webmanifest" />
+
+    <!-- Script clasico, no modulo, antes de cualquier hoja de estilo: aplica
+         el tema guardado a <html> para que el CSS ya lo vea al aplicarse y no
+         haya un destello del tema equivocado. Ver src/theme-init.js. -->
+    <script src="./src/theme-init.js"></script>
+
+    <link rel="stylesheet" href="./assets/css/fonts.css" />
     <link rel="stylesheet" href="./assets/css/tokens.css" />
     <link rel="stylesheet" href="./assets/css/base.css" />
     <link rel="stylesheet" href="./assets/css/layout.css" />

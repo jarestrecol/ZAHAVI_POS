@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v7';
+const CACHE_VERSION = 'zahavi-v8';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -22,6 +22,7 @@ const SHELL = [
   './manifest.webmanifest',
   './assets/favicon.svg',
   './assets/logo-zahavi.png',
+  './assets/css/fonts.css',
   './assets/css/tokens.css',
   './assets/css/base.css',
   './assets/css/layout.css',
@@ -30,6 +31,18 @@ const SHELL = [
   './assets/css/dialogs.css',
   './assets/css/print.css',
   './assets/css/responsive.css',
+  './assets/fonts/plus-jakarta-sans-400.woff2',
+  './assets/fonts/plus-jakarta-sans-500.woff2',
+  './assets/fonts/plus-jakarta-sans-600.woff2',
+  './assets/fonts/plus-jakarta-sans-700.woff2',
+  './assets/fonts/plus-jakarta-sans-800.woff2',
+  './assets/fonts/lora-500.woff2',
+  './assets/fonts/lora-500i.woff2',
+  './assets/fonts/lora-600.woff2',
+  './assets/fonts/ibm-plex-mono-400.woff2',
+  './assets/fonts/ibm-plex-mono-500.woff2',
+  './assets/fonts/ibm-plex-mono-600.woff2',
+  './src/theme-init.js',
   './src/main.js',
   './src/app/commands.js',
   './src/views/skeleton.js',
@@ -40,6 +53,7 @@ const SHELL = [
   './src/core/schema.js',
   './src/core/repository.js',
   './src/core/users.js',
+  './src/core/theme.js',
   './src/core/store.js',
   './src/core/router.js',
   './src/core/remote.js',

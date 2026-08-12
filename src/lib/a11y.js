@@ -112,26 +112,6 @@ export function focusableWithin(container) {
 }
 
 /**
- * Indica si el usuario pidio menos movimiento en su sistema operativo.
- * Se consulta en cada uso porque la preferencia puede cambiar en caliente.
- *
- * @returns {boolean}
- */
-export function prefersReducedMotion() {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-/**
- * Duracion efectiva de una animacion: cero si el usuario pidio menos movimiento.
- *
- * @param {number} ms
- * @returns {number}
- */
-export function motionDuration(ms) {
-  return prefersReducedMotion() ? 0 : ms;
-}
-
-/**
  * Deja una rama del documento fuera del alcance del teclado y de los lectores
  * de pantalla mientras hay un dialogo abierto por encima.
  *

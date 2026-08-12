@@ -28,6 +28,17 @@
   border-bottom: 1px solid var(--line);
 }
 
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .sheet-head {
+    /* Semitransparente solo cuando hay desenfoque real: sin backdrop-filter
+       un fondo a medias dejaria el texto ilegible sobre lo que se desplaza
+       por debajo. */
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
 .sheet-head__main {
   min-width: 0;
   flex: 1 1 20rem;
@@ -49,14 +60,14 @@
 }
 
 .sheet-head__cat {
-  padding: 0.1rem 0.5rem;
+  padding: 0.15rem 0.6rem;
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--surface-card);
   background: var(--cat-otros);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 [data-category='PASTELERÍA'] .sheet-head__cat { background: var(--cat-pasteleria); }
@@ -87,8 +98,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-5);
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-4) var(--space-6);
   background: var(--surface-sunk);
+  background-image: var(--texture-dot);
+  background-size: 18px 18px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -193,8 +206,15 @@
   grid-template-columns: subgrid;
   align-items: baseline;
   gap: var(--space-3);
-  padding: var(--space-2) 0;
+  padding: var(--space-2) var(--space-2);
+  margin: 0 calc(var(--space-2) * -1);
+  border-radius: var(--radius-sm);
   border-bottom: 1px solid var(--line);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.item:hover {
+  background: var(--surface-sunk);
 }
 
 .item:last-child {
@@ -283,7 +303,9 @@
   z-index: 120;
   display: grid;
   grid-template-rows: auto auto 1fr auto auto;
-  background: var(--rail);
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 40%, var(--glow), transparent 70%),
+    var(--rail);
   color: var(--on-rail);
 }
 
@@ -346,8 +368,8 @@
 .prod__bar-fill {
   display: block;
   height: 100%;
-  background: var(--amber-on-rail);
-  transition: width var(--dur) var(--ease);
+  background: var(--brand-gradient);
+  transition: width var(--dur-slow) var(--ease);
 }
 
 .prod__body {
@@ -396,6 +418,9 @@
   letter-spacing: 0.02em;
   color: #fff;
   font-variant-numeric: tabular-nums lining-nums;
+  /* Resplandor apenas perceptible, como una lectura digital de bascula: da
+     peso al numero sin convertirlo en un efecto llamativo. */
+  text-shadow: 0 0 28px rgba(249, 169, 74, 0.35);
 }
 
 .prod__unit {

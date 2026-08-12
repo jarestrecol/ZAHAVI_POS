@@ -2,8 +2,9 @@
  * Barra superior: marca, buscador y acciones.
  */
 
-import { el, svg } from '../lib/dom.js';
+import { el, svg, replaceChildren } from '../lib/dom.js';
 import { navigate, getRoute } from '../core/router.js';
+import { effectiveTheme, toggleTheme } from '../core/theme.js';
 
 /** Espera tras la ultima tecla antes de aplicar la busqueda. */
 const SEARCH_DEBOUNCE_MS = 160;
@@ -89,6 +90,7 @@ export function renderHeader(options) {
     ]),
 
     el('div', { class: 'topbar__actions' }, [
+      renderThemeToggle(),
       options.canEdit
         ? el('button', {
             type: 'button',
@@ -104,6 +106,63 @@ export function renderHeader(options) {
         on: { click: options.onSettings },
       }),
     ]),
+  ]);
+}
+
+/**
+ * Interruptor de tema claro/oscuro.
+ *
+ * No pasa por el estado de la aplicacion ni provoca un repintado completo:
+ * es un ajuste de este dispositivo, no un dato del recetario, asi que se
+ * resuelve aqui mismo cambiando su propio icono. El resto de la pantalla se
+ * actualiza solo, porque todo su color sale de variables CSS.
+ *
+ * @returns {HTMLElement}
+ */
+function renderThemeToggle() {
+  const button = el('button', {
+    type: 'button',
+    class: 'btn-icon theme-toggle',
+    attrs: { 'aria-label': themeToggleLabel(), 'aria-pressed': String(effectiveTheme() === 'dark') },
+    on: {
+      click: () => {
+        toggleTheme();
+        button.setAttribute('aria-label', themeToggleLabel());
+        button.setAttribute('aria-pressed', String(effectiveTheme() === 'dark'));
+        replaceChildren(button, [themeIcon()]);
+      },
+    },
+  });
+  replaceChildren(button, [themeIcon()]);
+  return button;
+}
+
+function themeToggleLabel() {
+  return effectiveTheme() === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+}
+
+/** Sol en tema oscuro (invita a volver a claro), luna en tema claro. */
+function themeIcon() {
+  return effectiveTheme() === 'dark' ? sunIcon() : moonIcon();
+}
+
+function sunIcon() {
+  return svg('svg', { class: 'theme-toggle__icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, [
+    svg('circle', { cx: 12, cy: 12, r: 4.2 }),
+    svg('line', { x1: 12, y1: 2.4, x2: 12, y2: 5 }),
+    svg('line', { x1: 12, y1: 19, x2: 12, y2: 21.6 }),
+    svg('line', { x1: 4.2, y1: 12, x2: 1.6, y2: 12 }),
+    svg('line', { x1: 22.4, y1: 12, x2: 19.8, y2: 12 }),
+    svg('line', { x1: 6.3, y1: 6.3, x2: 4.5, y2: 4.5 }),
+    svg('line', { x1: 19.5, y1: 19.5, x2: 17.7, y2: 17.7 }),
+    svg('line', { x1: 6.3, y1: 17.7, x2: 4.5, y2: 19.5 }),
+    svg('line', { x1: 19.5, y1: 4.5, x2: 17.7, y2: 6.3 }),
+  ]);
+}
+
+function moonIcon() {
+  return svg('svg', { class: 'theme-toggle__icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, [
+    svg('path', { d: 'M20.4 15.3A8.6 8.6 0 118.7 3.6a7 7 0 0011.7 11.7z' }),
   ]);
 }
 

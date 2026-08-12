@@ -134,20 +134,34 @@
     padding-right: var(--space-3);
   }
 
-  /* --- Listado ---------------------------------------------------------- */
+  /* --- Listado ----------------------------------------------------------
+     Cada fila se trata como tarjeta suelta, no como linea de una tabla: mas
+     aire, sombra propia y separacion real entre una receta y la siguiente.
+     Es la diferencia entre "una lista" y "una lista que se ve bien en el
+     bolsillo". */
   .recipe-link {
-    /* Mas aire vertical: se toca con el pulgar y en movimiento. */
     padding: var(--space-3);
+    margin-bottom: var(--space-2);
     font-size: var(--text-md);
+    background: var(--surface-card);
+    border-color: var(--line);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .recipe-link:hover,
+  .recipe-link:active {
+    transform: none;
   }
 
   .sidebar__filters {
     /* Los filtros se desplazan en horizontal en vez de apilarse en tres filas
-       y comerse media pantalla. */
+       y comerse media pantalla. `scroll-snap` los deja encajados en vez de a
+       medio camino cuando el dedo suelta. */
     flex-wrap: nowrap;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
+    scroll-snap-type: x proximity;
   }
 
   .sidebar__filters::-webkit-scrollbar {
@@ -156,6 +170,7 @@
 
   .chip {
     flex-shrink: 0;
+    scroll-snap-align: start;
   }
 
   /* --- Ficha de receta -------------------------------------------------- */
@@ -170,18 +185,30 @@
     font-size: var(--text-xl);
   }
 
-  /* Las acciones de la receta van a una barra fija abajo, donde llega el
-     pulgar sin recolocar la mano. */
+  /* Las acciones de la receta van a una barra flotante abajo, donde llega el
+     pulgar sin recolocar la mano. Flota separada del borde, con sombra
+     propia, en vez de quedar pegada al canto de la pantalla: es lo que la
+     distingue de una barra de formulario. `env(safe-area-inset-bottom)`
+     la separa de la franja del gesto de inicio en iPhone. */
   .sheet-head__actions {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: var(--space-2);
+    right: var(--space-2);
+    bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
     z-index: 90;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2);
     background: var(--surface-card);
-    border-top: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .sheet-head__actions {
+      background: color-mix(in srgb, var(--surface-card) 90%, transparent);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
   }
 
   .sheet-head__actions .btn {
@@ -192,9 +219,9 @@
     padding-right: var(--space-2);
   }
 
-  /* Hueco al final para que la barra fija no tape el ultimo ingrediente. */
+  /* Hueco al final para que la barra flotante no tape el ultimo ingrediente. */
   .sheet-view {
-    padding-bottom: 5rem;
+    padding-bottom: 6rem;
   }
 
   .facts {
@@ -238,17 +265,35 @@
     display: none;
   }
 
-  /* --- Dialogos: a pantalla completa ------------------------------------ */
+  /* --- Dialogos: hoja que sube desde abajo -------------------------------
+     En vez de aparecer centrados con un pequeño rebote, en el celular los
+     dialogos suben desde el borde inferior, como una hoja: es el patron que
+     cualquiera reconoce ya de las aplicaciones del propio telefono, y deja
+     una franja del fondo visible arriba para que quede claro que hay algo
+     debajo. Solo cambia la animacion y la geometria; el contenido es el
+     mismo `win.js` de siempre. */
   .overlay {
     padding: 0;
+    align-items: flex-end;
   }
 
   .win {
     max-width: none;
-    max-height: 100vh;
-    max-height: 100dvh;
-    height: 100%;
-    border-radius: 0;
+    max-height: 94vh;
+    max-height: 94dvh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  @keyframes win-in {
+    from {
+      opacity: 0;
+      transform: translateY(28px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .editor__identity,
@@ -326,8 +371,8 @@
   .notice {
     left: var(--space-2);
     right: var(--space-2);
-    /* Por encima de la barra fija de acciones. */
-    bottom: 4.5rem;
+    /* Por encima de la barra flotante de acciones. */
+    bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
     max-width: none;
     transform: none;
   }

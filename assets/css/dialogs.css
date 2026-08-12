@@ -9,6 +9,15 @@
   justify-content: center;
   padding: 3vh 3vw;
   background: rgba(22, 18, 15, 0.62);
+  animation: overlay-in var(--dur) var(--ease) both;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .overlay {
+    background: rgba(22, 18, 15, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
 }
 
 .win {
@@ -20,6 +29,27 @@
   background: var(--surface-card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+  /* Entra con un pequeño rebote: distingue "esto acaba de aparecer" de
+     "esto ya estaba", que es justo la diferencia entre el editor abriendose
+     y un simple repintado. En movimiento reducido la duracion cae a 0 desde
+     tokens.css y la animacion no se percibe. */
+  animation: win-in var(--dur-slow) var(--ease-spring) both;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes win-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .win--wide {
@@ -78,10 +108,15 @@
   border: 1px solid var(--rail-line);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
 .win__close:hover {
   background: var(--rail-2);
+}
+
+.win__close:active {
+  transform: scale(0.9);
 }
 
 .win__body {
@@ -297,6 +332,11 @@
   min-height: var(--tap-row);
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--line);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.users__item:hover {
+  background: var(--surface-sunk);
 }
 
 .users__item:last-child {
@@ -354,6 +394,7 @@
   background: var(--surface-sunk);
   border-left: 4px solid var(--danger);
   border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .confirm__card-name {

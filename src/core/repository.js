@@ -16,7 +16,7 @@
  */
 
 import { readJson, writeJson, ok, err } from './storage.js';
-import { validateBackup, normalizeRecipe, nextRecipeId, SCHEMA_VERSION } from './schema.js';
+import { validateBackup, nextRecipeId, SCHEMA_VERSION } from './schema.js';
 import { fetchShared, publishShared, canPublish as canPublishRemote, needsReload } from './remote.js';
 
 /** Clave de los cambios locales sin publicar. */
@@ -294,27 +294,6 @@ export function remove(id) {
   }
   dirty = true;
   return ok(undefined);
-}
-
-/**
- * Reemplaza todo el recetario a partir de un respaldo validado.
- *
- * @param {{recipes: Array, ingredientes: Array}} backup
- * @returns {{ok: true, value: number} | {ok: false, code: string, message: string}}
- */
-export function replaceAll(backup) {
-  const previous = current;
-  current = {
-    recipes: backup.recipes.map((recipe, index) => normalizeRecipe(recipe, index)),
-    ingredientes: backup.ingredientes && backup.ingredientes.length ? backup.ingredientes : previous.ingredientes,
-  };
-  const written = persist();
-  if (!written.ok) {
-    current = previous;
-    return written;
-  }
-  dirty = true;
-  return ok(current.recipes.length);
 }
 
 /**
