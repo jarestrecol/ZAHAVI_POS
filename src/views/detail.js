@@ -161,7 +161,7 @@ function renderMethod(recipe, canEdit) {
       canEdit
         ? el('button', {
             type: 'button',
-            class: 'btn btn--primary no-print',
+            class: 'btn btn--quiet no-print',
             text: 'Escribir método',
             on: { click: () => navigate({ name: 'edit', id: recipe.id }) },
           })

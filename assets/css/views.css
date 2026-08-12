@@ -10,7 +10,7 @@
   min-height: 100dvh;
   padding: var(--space-5);
   background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(200, 121, 27, 0.1), transparent 65%),
+    radial-gradient(ellipse 80% 60% at 50% 0%, var(--glow), transparent 65%),
     var(--surface);
 }
 
@@ -30,10 +30,11 @@
 }
 
 /* El logo es la marca real: bloque naranja con el nombre y el descriptor. */
+/* Nunca por encima de su tamaño nativo (254 px). */
 .login__logo {
   display: block;
   width: 100%;
-  max-width: 16rem;
+  max-width: 13rem;
   height: auto;
   margin: 0 auto var(--space-4);
   border-radius: var(--radius);
@@ -166,7 +167,7 @@
   flex-shrink: 0;
   min-width: var(--tap-min);
   min-height: var(--tap-min);
-  font-size: 1.1rem;
+  font-size: var(--icon-glyph);
   line-height: 1;
   color: var(--ink-4);
   background: none;

@@ -364,7 +364,12 @@ function renderDialogs(shell) {
 function dialogKey(state, route) {
   if (state.production) return 'prod:' + state.production;
   if (state.confirmDelete) return 'delete:' + state.confirmDelete;
-  if (state.settingsOpen) return 'settings';
+  // La clave incluye el estado de publicacion: si no, tras publicar el dialogo
+  // seguia mostrando "cambios sin publicar" y el boton seguia activo.
+  if (state.settingsOpen) {
+    const c = repo.localChanges();
+    return `settings:${c.total}:${c.dirty}:${repo.publishedRevision()}`;
+  }
   if (route.name === 'new') return 'new';
   if (route.name === 'edit') return 'edit:' + route.id;
   return null;

@@ -103,9 +103,12 @@ paso('Resolucion de importaciones', () => {
         continue;
       }
       for (const raw of m[1].split(',')) {
-        const name = raw.trim().split(/\s+as\s+/)[0].trim();
-        if (name && !available.has(name)) {
-          problems.push(`${relative(root, file)}: "${name}" no existe en ${m[2]}`);
+        // "algo as alias": lo que debe existir en el destino es el nombre
+        // original; el alias es solo como se llama aqui.
+        const [name] = raw.trim().split(/\s+as\s+/);
+        const original = name.trim();
+        if (original && !available.has(original)) {
+          problems.push(`${relative(root, file)}: "${original}" no existe en ${m[2]}`);
         }
       }
     }

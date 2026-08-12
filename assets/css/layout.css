@@ -37,7 +37,7 @@
   display: block;
   height: 1.75rem;
   width: auto;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .topbar__wordmark {
@@ -83,7 +83,7 @@
   color: var(--on-rail);
   background: rgba(245, 241, 234, 0.08);
   border: 1px solid var(--rail-line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 
@@ -138,7 +138,7 @@
   justify-content: center;
   min-width: var(--tap-min);
   min-height: var(--tap-min);
-  font-size: 1.1rem;
+  font-size: var(--icon-glyph);
   line-height: 1;
   color: var(--on-rail-2);
   background: none;
@@ -326,7 +326,7 @@
   min-height: 100%;
   padding: var(--space-6);
   background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(200, 121, 27, 0.07), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 50% 0%, var(--glow), transparent 70%),
     var(--surface);
 }
 
@@ -343,10 +343,12 @@
   color: var(--amber-text);
 }
 
+/* Nunca por encima de su tamaño nativo (254 px): al ampliarlo se veía suave
+   justo en la primera pantalla que ve un cliente. */
 .welcome__logo {
   display: block;
   width: 100%;
-  max-width: 18rem;
+  max-width: 15rem;
   height: auto;
   margin: 0 auto var(--space-5);
   border-radius: var(--radius);

@@ -70,8 +70,8 @@
   justify-content: center;
   flex-shrink: 0;
   min-width: 2.75rem;
-  min-height: var(--tap-min);
-  font-size: 1.2rem;
+  min-height: var(--tap-row);
+  font-size: var(--icon-glyph);
   line-height: 1;
   color: var(--on-rail);
   background: transparent;

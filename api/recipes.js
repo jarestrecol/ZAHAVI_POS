@@ -100,16 +100,23 @@ async function handlePut(request, response, config) {
     return send(response, 400, { error: validated.error });
   }
 
+  // El sha es obligatorio. Sin el no hay control de concurrencia posible, y un
+  // envio ciego sobrescribiria el recetario de las dos sedes sin comprobar nada.
+  if (typeof body.value.sha !== 'string' || body.value.sha === '') {
+    return send(response, 400, {
+      error: 'Vuelve a cargar el recetario antes de publicar: falta la referencia de la versión.',
+    });
+  }
+
   const current = await fetchFile(config);
   if (!current.ok) {
     return send(response, current.status || 502, { error: current.error });
   }
 
-  if (body.value.sha && body.value.sha !== current.value.sha) {
+  if (body.value.sha !== current.value.sha) {
     return send(response, 409, {
       error:
         'Otro equipo publicó cambios mientras editabas. Vuelve a cargar el recetario y aplica tus cambios sobre la versión nueva.',
-      sha: current.value.sha,
     });
   }
 

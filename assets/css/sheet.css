@@ -138,21 +138,32 @@
 
 /* ---- Componentes e ingredientes ---- */
 
+/* Multicolumna, no cuadrícula.
+   Con `grid` cada celda era un componente entero, y 72 de las 121 recetas tienen
+   uno solo: una receta larga de un componente reservaba dos o tres columnas y
+   volcaba toda la lista en la primera, dejando el resto en blanco. `columns`
+   reparte el contenido con independencia de cuántos bloques haya, que es lo que
+   la hoja de impresión ya venía haciendo bien. */
 .components {
-  display: grid;
-  gap: var(--space-5) var(--space-6);
+  column-gap: var(--space-6);
 }
 
 .components--cols-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-count: 2;
 }
 
 .components--cols-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-count: 3;
 }
 
 .component {
+  /* Un componente no se parte entre dos columnas: sus ingredientes van juntos. */
   break-inside: avoid;
+  margin-bottom: var(--space-5);
+}
+
+.component:last-child {
+  margin-bottom: 0;
 }
 
 .component__name {
@@ -247,21 +258,21 @@
   text-wrap: pretty;
 }
 
+/* Estado sin método: hoy lo están las 121 recetas, así que no puede pesar lo
+   mismo que un método real ni parecer un error. Se queda como una nota discreta
+   con su acción al lado, no como una tarjeta a la par del contenido. */
 .method-empty {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  background: var(--surface-card);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
 }
 
 .method-empty__text {
-  flex: 1 1 16rem;
   font-size: var(--text-base);
-  color: var(--ink-3);
+  font-style: italic;
+  color: var(--ink-4);
 }
 
 /* ---- Modo producción ---- */

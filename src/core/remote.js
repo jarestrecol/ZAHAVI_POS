@@ -6,6 +6,9 @@
  * produccion vean lo mismo. Cuando no existe (archivo local, o servidor
  * estatico sin funciones) todo sigue funcionando contra el archivo publicado y
  * el almacenamiento del equipo.
+ *
+ * Todos los resultados usan la misma forma que el resto del nucleo:
+ * `{ok: true, value}` o `{ok: false, code, message}`.
  */
 
 const ENDPOINT = './api/recipes';
@@ -16,20 +19,48 @@ const KEY_STORAGE = 'zahavi_edit_key';
 /** Milisegundos antes de dar por perdida una peticion. */
 const TIMEOUT_MS = 12000;
 
-/** Indica si el servidor ofrece el recetario compartido. Se descubre al arrancar. */
+/** Indica si el servidor ofrece el recetario compartido. */
 let available = false;
 
 /**
- * sha del archivo que se leyo, necesario para publicar sin pisar a otro equipo.
+ * sha del archivo leido. Sin el no se puede publicar: es lo que permite al
+ * servidor detectar que otro equipo escribio entre medias.
  * @type {string|null}
  */
 let currentSha = null;
+
+/**
+ * Se pone cuando el servidor rechaza por conflicto. Mientras siga en pie no se
+ * puede volver a publicar: hay que recargar y aplicar los cambios sobre la
+ * version nueva. Sin esto, un segundo clic en Publicar borraba el trabajo de la
+ * otra sede.
+ */
+let staleSinceConflict = false;
 
 /**
  * @returns {boolean}
  */
 export function isRemoteAvailable() {
   return available;
+}
+
+/**
+ * Indica si se puede publicar ahora mismo. Hace falta que el servidor responda,
+ * que se haya leido el archivo (de ahi sale el sha) y que no haya un conflicto
+ * pendiente de resolver.
+ *
+ * @returns {boolean}
+ */
+export function canPublish() {
+  return available && currentSha !== null && !staleSinceConflict;
+}
+
+/**
+ * Indica si hay un conflicto que obliga a recargar antes de publicar.
+ * @returns {boolean}
+ */
+export function needsReload() {
+  return staleSinceConflict;
 }
 
 /**
@@ -60,36 +91,46 @@ export function setEditKey(value) {
 /**
  * Lee el recetario compartido.
  *
- * @returns {Promise<{ok: true, value: {recipes: Array, ingredientes: Array, revision: string}} | {ok: false, error: string}>}
+ * @returns {Promise<{ok: true, value: {recipes: Array, ingredientes: Array, revision: string, sha: string}} | {ok: false, code: string, message: string}>}
  */
 export async function fetchShared() {
   try {
     const response = await withTimeout(fetch(ENDPOINT, { cache: 'no-store' }));
+
     if (response.status === 404 || response.status === 405) {
       available = false;
-      return { ok: false, error: 'sin_api' };
+      return { ok: false, code: 'sin_api', message: 'Este sitio no tiene recetario compartido.' };
     }
     if (!response.ok) {
+      // El servidor existe pero no pudo entregar: no hay sha, asi que no se
+      // puede publicar aunque la API responda.
       available = true;
-      return { ok: false, error: 'El servidor no pudo entregar el recetario.' };
+      currentSha = null;
+      return { ok: false, code: 'servidor', message: 'El servidor no pudo entregar el recetario.' };
     }
+
     const data = await response.json();
-    if (!Array.isArray(data.recipes)) {
+    if (!Array.isArray(data.recipes) || typeof data.sha !== 'string') {
       available = true;
-      return { ok: false, error: 'El servidor devolvió un recetario ilegible.' };
+      currentSha = null;
+      return { ok: false, code: 'formato', message: 'El servidor devolvió un recetario ilegible.' };
     }
+
     available = true;
-    currentSha = typeof data.sha === 'string' ? data.sha : null;
+    currentSha = data.sha;
+    staleSinceConflict = false;
+
     return {
       ok: true,
       value: {
         recipes: data.recipes,
         ingredientes: Array.isArray(data.ingredientes) ? data.ingredientes : [],
         revision: typeof data.revision === 'string' ? data.revision : '',
+        sha: data.sha,
       },
     };
   } catch {
-    return { ok: false, error: 'sin_red' };
+    return { ok: false, code: 'sin_red', message: 'Sin conexión con el servidor.' };
   }
 }
 
@@ -97,9 +138,24 @@ export async function fetchShared() {
  * Publica el recetario para todas las sedes.
  *
  * @param {{recipes: Array, ingredientes: Array, password: string, author?: string}} payload
- * @returns {Promise<{ok: true, value: {revision: string, count: number}} | {ok: false, code: string, error: string}>}
+ * @returns {Promise<{ok: true, value: {revision: string, count: number}} | {ok: false, code: string, message: string}>}
  */
 export async function publishShared(payload) {
+  if (currentSha === null) {
+    return {
+      ok: false,
+      code: 'sin_referencia',
+      message: 'Vuelve a cargar el recetario antes de publicar.',
+    };
+  }
+  if (staleSinceConflict) {
+    return {
+      ok: false,
+      code: 'recarga',
+      message: 'Otro equipo publicó cambios. Recarga la página antes de volver a publicar.',
+    };
+  }
+
   try {
     const response = await withTimeout(
       fetch(ENDPOINT, {
@@ -118,20 +174,26 @@ export async function publishShared(payload) {
     const data = await response.json().catch(() => ({}));
 
     if (response.status === 401) {
-      return { ok: false, code: 'clave', error: data.error || 'Clave de edición incorrecta.' };
+      return { ok: false, code: 'clave', message: data.error || 'Clave de edición incorrecta.' };
     }
     if (response.status === 409) {
-      if (typeof data.sha === 'string') currentSha = data.sha;
-      return { ok: false, code: 'conflicto', error: data.error || 'Otro equipo publicó antes.' };
+      // No se adopta el sha del servidor: hacerlo permitia que un segundo clic
+      // publicara encima del trabajo ajeno. Hay que recargar.
+      staleSinceConflict = true;
+      return {
+        ok: false,
+        code: 'conflicto',
+        message: data.error || 'Otro equipo publicó antes. Recarga la página para ver su versión.',
+      };
     }
     if (!response.ok) {
-      return { ok: false, code: 'servidor', error: data.error || 'No se pudo publicar.' };
+      return { ok: false, code: 'servidor', message: data.error || 'No se pudo publicar.' };
     }
 
     if (typeof data.sha === 'string') currentSha = data.sha;
     return { ok: true, value: { revision: data.revision || '', count: data.count || 0 } };
   } catch {
-    return { ok: false, code: 'red', error: 'Sin conexión con el servidor. Inténtalo de nuevo.' };
+    return { ok: false, code: 'red', message: 'Sin conexión con el servidor. Inténtalo de nuevo.' };
   }
 }
 

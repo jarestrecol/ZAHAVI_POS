@@ -11,21 +11,21 @@
 
     <!--
       Sin conexiones externas: no hay CDN, ni tipografías remotas, ni analítica.
-      `connect-src 'self'` permite leer el JSON de recetas del propio sitio.
-      Nota: `frame-ancestors` no tiene efecto declarado en una etiqueta meta,
-      y GitHub Pages no permite cabeceras propias, así que no se puede impedir
-      que el sitio sea incrustado en un marco ajeno.
+      `connect-src 'self'` cubre el JSON de recetas y la función de publicación.
+      Esta política es el respaldo para cuando el sitio se sirve sin cabeceras
+      (archivo local o alojamiento estático). En Vercel manda la de `vercel.json`,
+      que además incluye `frame-ancestors`, imposible de declarar en una meta.
     -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <meta name="color-scheme" content="light" />
-    <meta name="theme-color" content="#241811" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#1a1714" />
 
-    <!-- Todas las rutas son relativas: el sitio vive en una subruta de GitHub
-         Pages y también debe funcionar abierto desde el disco. -->
+    <!-- Todas las rutas son relativas: el sitio debe funcionar igual servido
+         desde una subruta o abierto desde el disco. -->
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./assets/css/tokens.css" />

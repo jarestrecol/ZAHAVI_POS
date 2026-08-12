@@ -101,5 +101,25 @@ const orphans = [...classes].filter((name) => !all.includes('.' + name));
 if (orphans.length) orphans.forEach((name) => fail(`clase sin estilo: .${name}`));
 else console.log(`  ${classes.size} clases aplicadas, todas con estilo`);
 
+// 5. Manifiestos de modulos. Hay dos listas mantenidas a mano, la del service
+//    worker y la del empaquetador offline. Cuando divergen, el fallo solo
+//    aparece sin conexion o en el archivo suelto, que es justo donde nadie mira
+//    hasta que lo necesita. Ya paso una vez con `src/core/remote.js`.
+console.log('\nManifiestos:');
+const modules = walk(join(root, 'src'))
+  .map((file) => file.slice(root.length + 1).replace(/\\/g, '/'))
+  .sort();
+const sw = readFileSync(join(root, 'sw.js'), 'utf8');
+const bundler = readFileSync(join(root, 'scripts/build-standalone.mjs'), 'utf8');
+
+const missingInSw = modules.filter((file) => !sw.includes(file));
+const missingInBundler = modules.filter((file) => !bundler.includes(file.replace(/^src\//, '')));
+
+missingInSw.forEach((file) => fail(`sw.js no lo cachea: ${file}`));
+missingInBundler.forEach((file) => fail(`build-standalone.mjs no lo empaqueta: ${file}`));
+if (!missingInSw.length && !missingInBundler.length) {
+  console.log(`  ${modules.length} modulos presentes en el service worker y en el empaquetador`);
+}
+
 console.log(problems === 0 ? '\nCSS correcto.\n' : `\n${problems} problema(s) en el CSS.\n`);
 process.exit(problems === 0 ? 0 : 1);

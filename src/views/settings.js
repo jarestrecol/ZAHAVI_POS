@@ -220,9 +220,9 @@ function renderPublish(options, message) {
         button.disabled = !options.changes.dirty;
 
         if (!result.ok) {
-          message.textContent = result.error;
+          message.textContent = result.message;
           message.classList.add('is-error');
-          announce(result.error, 'assertive');
+          announce(result.message, 'assertive');
           return;
         }
         message.textContent = `Publicado. ${result.value.count} recetas disponibles en todas las sedes.`;

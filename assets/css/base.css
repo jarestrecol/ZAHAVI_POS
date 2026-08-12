@@ -64,9 +64,12 @@ button {
   border-radius: var(--radius-sm);
 }
 
+/* Solo las superficies que son oscuras en los dos temas llevan el anillo claro.
+   El aviso no: usa surface-card, que en modo claro es blanco, y ahi un anillo
+   claro no se veia. */
 .topbar :focus-visible,
 .prod :focus-visible,
-.notice :focus-visible {
+.win__bar :focus-visible {
   outline-color: var(--focus-on-dark);
 }
 
@@ -286,7 +289,7 @@ button {
   min-width: var(--tap-min);
   min-height: var(--tap-min);
   padding: 0;
-  font-size: 1.15rem;
+  font-size: var(--icon-glyph);
   line-height: 1;
   color: var(--ink-4);
   background: none;

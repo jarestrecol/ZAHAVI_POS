@@ -80,6 +80,9 @@
   --line: #e6e0d6;
   --line-strong: #7c7770;
 
+  /* Halo cálido de marca en las pantallas de entrada y bienvenida. */
+  --glow: rgba(246, 138, 30, 0.1);
+
   /* ---- Foco ---- */
   --focus: #16120f;
   --focus-on-dark: #f5f1ea;
@@ -89,7 +92,6 @@
   --qty-color: var(--ink);
 
   /* ---- Elevación ---- */
-  --shadow-sm: 0 1px 2px rgba(22, 18, 15, 0.06);
   --shadow: 0 4px 16px -4px rgba(22, 18, 15, 0.12);
   --shadow-lg: 0 24px 60px -16px rgba(22, 18, 15, 0.32);
 
@@ -110,7 +112,7 @@
 
   /* La cantidad va por encima del nombre del ingrediente: es lo que se mira. */
   --text-ingredient: 1.0625rem;
-  --text-qty: 1.375rem;
+  --text-qty: var(--text-xl);
 
   /* Modo producción: se lee de pie, junto a la báscula. */
   --text-prod-name: 1.75rem;
@@ -136,6 +138,15 @@
      manos ocupadas y a veces con guante. */
   --tap-min: 2.25rem;
   --tap-row: 2.75rem;
+
+  /* Tamaño único del glifo de cerrar y quitar: antes tenía tres valores
+     distintos para el mismo papel. */
+  --icon-glyph: 1.15rem;
+
+  /* Espaciado de letra de las etiquetas en mayúsculas. Había seis valores
+     sueltos para el mismo patrón visual. */
+  --track-label: 0.14em;
+  --track-loose: 0.2em;
 
   /* ---- Movimiento: solo funcional ---- */
   --dur-fast: 110ms;
@@ -200,12 +211,14 @@
        borde sutil desaparece. */
     --line-strong: #8a8172;
 
+    /* Sobre fondo oscuro el mismo 10% no se percibe: hace falta más presencia. */
+    --glow: rgba(246, 138, 30, 0.18);
+
     --focus: #f6f1e8;
     --focus-on-dark: #f6f1e8;
 
     /* Sobre fondo oscuro las sombras no separan: la elevación la dan las
        superficies más claras y los bordes. */
-    --shadow-sm: none;
     --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 24px 60px -16px rgba(0, 0, 0, 0.7);
   }
