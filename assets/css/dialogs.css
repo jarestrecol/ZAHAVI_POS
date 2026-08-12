@@ -277,21 +277,123 @@
   border-radius: var(--radius-sm);
 }
 
-/* ---- Confirmación ---- */
+/* ---- Usuarios ---- */
+
+.settings__grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.users {
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.users__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-row);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.users__item:last-child {
+  border-bottom: none;
+}
+
+.users__name {
+  flex: 1 1 auto;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.users__tag {
+  padding: 0.05rem 0.45rem;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--surface-card);
+  background: var(--ink-4);
+  border-radius: 999px;
+}
+
+/* ---- Confirmación de borrado ---- */
 
 .confirm {
-  padding: var(--space-6) var(--space-5);
+  padding: var(--space-5);
+}
+
+.confirm__lead {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .confirm__text {
-  font-size: var(--text-md);
+  margin-top: var(--space-3);
+  font-size: var(--text-base);
   line-height: 1.6;
   color: var(--ink-2);
 }
 
 .confirm__hint {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+/* Ficha de lo que se va a perder: se muestra para que nadie borre otra receta
+   por error. */
+.confirm__card {
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius-sm);
+}
+
+.confirm__card-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.confirm__card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.confirm__card-meta span:not(:last-child)::after {
+  content: ' ·';
+  color: var(--ink-4);
+}
+
+.confirm__list {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-5);
+  list-style: disc;
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.confirm__list li {
+  margin-bottom: var(--space-1);
+}
+
+.confirm__progress {
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: 700;
   color: var(--ink-4);
 }
 

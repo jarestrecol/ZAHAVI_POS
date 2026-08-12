@@ -36,7 +36,7 @@ const MODULES = [
   'core/search.js',
   'core/store.js',
   'core/repository.js',
-  'core/auth.js',
+  'core/users.js',
   'views/window.js',
   'views/login.js',
   'views/header.js',

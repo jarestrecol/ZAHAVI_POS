@@ -165,6 +165,10 @@ button {
   color: var(--ink-4);
 }
 
+.label--spaced {
+  margin-top: var(--space-4);
+}
+
 .section-label {
   display: block;
   margin-bottom: var(--space-3);

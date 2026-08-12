@@ -18,8 +18,28 @@ Producción, costos y escalado quedan para fases siguientes.
 - **Modo Pesar**: pantalla completa, un ingrediente a la vez, barra espaciadora
   para dar por pesado y avanzar sin tocar la pantalla.
 - **Impresión A4** de la ficha o del índice completo.
+- **Borrado en tres pasos**, con el nombre escrito a mano para confirmar.
 - **Sin conexión**: el recetario abre igual y sigue consultándose.
 - **Modo oscuro** automático, para las jornadas que empiezan de madrugada.
+
+### Quién entra y qué puede hacer
+
+Cada persona entra con **su nombre y su clave**, no con una contraseña
+compartida. Así, cuando alguien deja de trabajar en la panadería se le quita su
+acceso sin obligar al resto a cambiar nada.
+
+Los usuarios se dan de alta desde **Ajustes → Quién puede entrar**, y son **de
+cada equipo**: crear un usuario en la panadería no lo crea en la casa de
+producción. Hay que darlo de alta en cada aparato donde vaya a entrar.
+
+El acceso inicial es `zahavi` / `zahavi2026`, y conviene cambiarlo el primer día.
+
+Hay dos niveles distintos, que no conviene confundir:
+
+| | Qué protege | Dónde se comprueba |
+|---|---|---|
+| **Clave de usuario** | Entrar a ver el recetario | En el navegador. Es una cortina: quien tenga el enlace ve el contenido igualmente |
+| **Clave de edición** | Publicar para todas las sedes | **En el servidor**. Es la única protección real del sistema |
 
 ### Atajos de teclado
 
@@ -67,6 +87,29 @@ que ven los demás.
 Si el sitio se sirve sin las funciones (alojamiento estático o archivo local),
 todo sigue funcionando contra el archivo publicado y el almacenamiento del
 equipo, y la publicación compartida no aparece.
+
+### No hay descarga ni carga de archivos
+
+El recetario **no se puede exportar a un archivo** desde la interfaz, y tampoco
+se puede cargar uno. Sacar una copia completa de las fórmulas a un archivo suelto
+es justo lo que no debe poder hacerse desde el mostrador.
+
+La copia de seguridad de verdad es **el historial del repositorio**: cada
+publicación queda guardada ahí y se puede recuperar cualquier versión anterior
+desde GitHub.
+
+### Eliminar una receta
+
+Es la única acción que destruye trabajo sin poder deshacerse desde la aplicación,
+así que pasa por tres pasos con contenido distinto:
+
+1. **Qué se va a borrar**, con nombre, código y cuánto contiene.
+2. **Qué consecuencias tiene**, incluida la de las demás sedes.
+3. **Escribir el nombre de la receta** para activar el botón.
+
+Son tres pasos distintos y no cuatro avisos iguales a propósito: encadenar
+ventanas idénticas entrena a pulsar "aceptar" sin leer. Lo que obliga a parar de
+verdad es tener que escribir el nombre.
 
 ---
 
@@ -136,7 +179,7 @@ node scripts/verificar.mjs
 ```
 Sintaxis de los modulos…        ok (27 archivos)
 Resolucion de importaciones…    ok (24 modulos)
-Coherencia del CSS…             ok (186 clases)
+Coherencia del CSS…             ok (199 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, 187 componentes, 1282 items)
@@ -185,7 +228,7 @@ assets/css/
 src/
   lib/                  dom (DOM sin innerHTML) · format · a11y
   core/                 storage · schema · repository · remote
-                        auth · store · router · search
+                        users · store · router · search
   app/commands.js       Casos de uso: guardar, eliminar, publicar,
                         descartar, importar
   views/                login · header · sidebar · detail · production
@@ -253,6 +296,12 @@ Navegación completa por teclado, foco visible, foco atrapado en los diálogos y
 movimiento reducido respetado.
 
 ---
+
+## Categorías
+
+Son tres y no hay más: **pastelería** (66 recetas), **panadería** (34) y
+**galletas** (21). Existía una cuarta, "otros", que no usaba ninguna receta y
+solo ensuciaba el selector del editor; se retiró.
 
 ## Sobre los datos
 

@@ -10,8 +10,20 @@
 
 import { ok, err } from './storage.js';
 
-/** Categorias con tratamiento propio en la interfaz. */
-export const CATEGORIES = Object.freeze(['PASTELERÍA', 'PANADERÍA', 'GALLETAS', 'OTROS']);
+/**
+ * Categorias del recetario.
+ *
+ * Son las tres que usa la panaderia y no hay mas: las 121 recetas se reparten
+ * entre ellas sin excepcion. Antes existia una cuarta, "OTROS", que no usaba
+ * ninguna receta y solo servia para ensuciar el selector del editor.
+ */
+export const CATEGORIES = Object.freeze(['PASTELERÍA', 'PANADERÍA', 'GALLETAS']);
+
+/**
+ * Categoria que se asigna cuando un dato llega sin ella. Se elige pasteleria
+ * por ser la mayoritaria, para que nada quede fuera de los tres filtros.
+ */
+export const DEFAULT_CATEGORY = 'PASTELERÍA';
 
 /** Unidades sugeridas en el editor. El campo admite texto libre. */
 export const UNITS = Object.freeze(['GR', 'ML', 'UND', 'MG', 'CM']);
@@ -72,7 +84,7 @@ function normalizeItem(input) {
 
 function normalizeCategory(value) {
   const clean = cleanText(value).toUpperCase();
-  return clean || 'OTROS';
+  return clean || DEFAULT_CATEGORY;
 }
 
 function cleanText(value) {

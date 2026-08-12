@@ -4,7 +4,7 @@
 
 import { el } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
-import { verifyPassword, signIn, DEFAULT_PASSWORD } from '../core/auth.js';
+import { verifyUser, signIn, DEFAULT_USER, DEFAULT_PASSWORD } from '../core/users.js';
 import { setState, getState } from '../core/store.js';
 
 /**
@@ -12,6 +12,17 @@ import { setState, getState } from '../core/store.js';
  * @returns {HTMLElement}
  */
 export function renderLogin(options) {
+  // Cada persona entra con su nombre: asi se puede quitar el acceso a alguien
+  // sin obligar al resto a cambiar de clave.
+  const user = el('input', {
+    type: 'text',
+    id: 'login-user',
+    class: 'field',
+    autocomplete: 'username',
+    autocapitalize: 'off',
+    attrs: { 'aria-describedby': 'login-error', required: true },
+  });
+
   const input = el('input', {
     type: 'password',
     id: 'login-password',
@@ -29,15 +40,21 @@ export function renderLogin(options) {
 
   const submit = async (event) => {
     event.preventDefault();
-    const valid = await verifyPassword(input.value);
+
+    const valid = await verifyUser(user.value, input.value);
     if (!valid) {
-      error.textContent = 'Contraseña incorrecta.';
-      setState({ loginError: 'Contraseña incorrecta.' });
-      announce('Contraseña incorrecta.', 'assertive');
-      input.select();
+      // El mensaje no distingue si fallo el usuario o la clave: decirlo
+      // ayudaria a quien esta probando nombres.
+      const texto = 'Usuario o clave incorrectos.';
+      error.textContent = texto;
+      setState({ loginError: texto });
+      announce(texto, 'assertive');
+      input.value = '';
+      input.focus();
       return;
     }
-    signIn();
+
+    signIn(user.value.trim());
     setState({ authed: true, loginError: '' });
   };
 
@@ -53,12 +70,19 @@ export function renderLogin(options) {
       el('h1', { class: 'login__wordmark sr-only', id: 'login-title', text: 'Zahavi' }),
       el('p', { class: 'login__tagline', text: 'Recetario de producción' }),
     ]),
-    el('label', { class: 'label', for: 'login-password', text: 'contraseña' }),
+    el('label', { class: 'label', for: 'login-user', text: 'usuario' }),
+    user,
+    el('label', { class: 'label label--spaced', for: 'login-password', text: 'clave' }),
     input,
     error,
     el('button', { type: 'submit', class: 'btn btn--primary btn--block', text: 'Entrar' }),
     options.showDefaultHint
-      ? el('p', { class: 'login__hint' }, ['Contraseña inicial: ', el('code', { text: DEFAULT_PASSWORD })])
+      ? el('p', { class: 'login__hint' }, [
+          'Acceso inicial: ',
+          el('code', { text: DEFAULT_USER }),
+          ' / ',
+          el('code', { text: DEFAULT_PASSWORD }),
+        ])
       : null,
     el('p', {
       class: 'login__disclaimer',
@@ -67,7 +91,7 @@ export function renderLogin(options) {
   ]);
 
   window.requestAnimationFrame(() => {
-    if (input.isConnected) input.focus();
+    if (user.isConnected) user.focus();
   });
 
   return el('main', { class: 'login', id: 'contenido', attrs: { 'aria-labelledby': 'login-title' } }, [form]);

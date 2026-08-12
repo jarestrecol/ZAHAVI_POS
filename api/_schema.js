@@ -137,7 +137,7 @@ function normalizeRecipe(input, index) {
     value: {
       id: text(input.id) || 'R' + String(index + 1).padStart(3, '0'),
       nombre,
-      categoria: text(input.categoria).toUpperCase() || 'OTROS',
+      categoria: text(input.categoria).toUpperCase() || 'PASTELERÍA',
       metodo: text(input.metodo),
       componentes,
     },

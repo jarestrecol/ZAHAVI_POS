@@ -176,34 +176,3 @@ export function discardChanges() {
 
   return result;
 }
-
-// ---------------------------------------------------------------------------
-//  IMPORTAR UN ARCHIVO DE RECETAS
-// ---------------------------------------------------------------------------
-
-/**
- * Reemplaza todo el recetario de este equipo por el contenido de un archivo.
- *
- * Se usa para recuperar una copia. El archivo ya viene validado por
- * `validateBackup` antes de llegar aqui, asi que lo que entra tiene forma
- * correcta; lo que puede fallar todavia es la escritura en el dispositivo.
- *
- * @param {{recipes: Array, ingredientes: Array}} backup respaldo ya validado
- * @returns {{ok: true, value: number} | {ok: false, code: string, message: string}}
- */
-export function importBackup(backup) {
-  const result = repo.replaceAll(backup);
-
-  if (!result.ok) {
-    notify(result.message, 'error');
-    return result;
-  }
-
-  refreshState();
-  setState({ settingsOpen: false });
-  notify(`Se cargaron ${result.value} recetas en este equipo.`, 'success');
-  announce(`Se cargaron ${result.value} recetas.`);
-  navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES });
-
-  return result;
-}

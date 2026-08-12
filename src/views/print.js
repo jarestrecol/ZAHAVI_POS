@@ -11,7 +11,7 @@ import { filterRecipes, sortRecipes, countItems } from '../core/search.js';
 import { ALL_CATEGORIES } from '../core/router.js';
 
 /** Orden de las categorias en el indice impreso. */
-const PRINT_ORDER = ['PASTELERÍA', 'PANADERÍA', 'GALLETAS', 'OTROS'];
+const PRINT_ORDER = ['PASTELERÍA', 'PANADERÍA', 'GALLETAS'];
 
 /** Umbrales de ingredientes para repartir la ficha en 1, 2 o 3 columnas. */
 const TWO_COLUMNS_FROM = 8;
@@ -124,10 +124,10 @@ export function renderIndexSheet(params) {
 function groupByCategory(recipes) {
   const groups = [];
   for (const category of PRINT_ORDER) {
-    const items = recipes.filter((recipe) => (recipe.categoria || 'OTROS') === category);
+    const items = recipes.filter((recipe) => recipe.categoria === category);
     if (items.length) groups.push({ category, items });
   }
-  const rest = recipes.filter((recipe) => !PRINT_ORDER.includes(recipe.categoria || 'OTROS'));
+  const rest = recipes.filter((recipe) => !PRINT_ORDER.includes(recipe.categoria));
   if (rest.length) groups.push({ category: 'OTRAS', items: rest });
   return groups;
 }

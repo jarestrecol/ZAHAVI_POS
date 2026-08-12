@@ -44,7 +44,7 @@ export function renderDetail(params) {
         el('div', { class: 'sheet-head__main' }, [
           el('p', { class: 'sheet-head__eyebrow' }, [
             el('span', { class: 'sheet-head__code', text: recipe.id }),
-            el('span', { class: 'sheet-head__cat', text: (recipe.categoria || 'otros').toLowerCase() }),
+            el('span', { class: 'sheet-head__cat', text: (recipe.categoria || '').toLowerCase() }),
           ]),
           el('h1', { class: 'sheet-head__title', id: 'recipe-title', text: titleCase(base) }),
         ]),

@@ -253,7 +253,8 @@
 
   .editor__identity,
   .editor__panes,
-  .settings__grid {
+  .settings__grid,
+  .settings__grid--3 {
     grid-template-columns: 1fr;
   }
 

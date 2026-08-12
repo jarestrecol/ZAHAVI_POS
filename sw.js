@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v6';
+const CACHE_VERSION = 'zahavi-v7';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -39,7 +39,7 @@ const SHELL = [
   './src/core/storage.js',
   './src/core/schema.js',
   './src/core/repository.js',
-  './src/core/auth.js',
+  './src/core/users.js',
   './src/core/store.js',
   './src/core/router.js',
   './src/core/remote.js',

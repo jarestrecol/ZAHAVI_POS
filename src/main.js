@@ -29,10 +29,10 @@ import { setInert } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
-import { ensurePassword, isSignedIn, isUsingDefaultPassword } from './core/auth.js';
+import { ensureUsers, isSignedIn, isUsingDefaultPassword } from './core/users.js';
 import { emptyRecipe } from './core/schema.js';
 import { getEditKey } from './core/remote.js';
-import { saveRecipe, deleteRecipe, publish, discardChanges, importBackup } from './app/commands.js';
+import { saveRecipe, deleteRecipe, publish, discardChanges } from './app/commands.js';
 import { renderLogin } from './views/login.js';
 import { renderHeader, renderBadges, SEARCH_ID } from './views/header.js';
 import { renderSidebar } from './views/sidebar.js';
@@ -89,8 +89,10 @@ boot();
  * las suscripciones que provocan repintados.
  */
 async function boot() {
-  // La contrasena de fabrica se crea la primera vez que alguien abre la app.
-  await ensurePassword();
+  // El usuario de fabrica se crea la primera vez que alguien abre la app, y se
+  // conserva la contrasena anterior si el equipo venia de la version con clave
+  // unica.
+  await ensureUsers();
   usingDefaultPassword = await isUsingDefaultPassword();
 
   setState({
@@ -466,10 +468,8 @@ function buildSettings(state) {
     canPublish: repo.canPublishToAll(),
     needsReload: repo.needsReloadBeforePublish(),
     editKey: getEditKey(),
-    getPublishableFile: repo.toPublishableFile,
     onPublish: publish,
     onDiscard: discardChanges,
-    onImport: importBackup,
     onClose: () => {
       setState({ settingsOpen: false });
       // La contrasena pudo cambiar dentro del dialogo: la pista de la pantalla
