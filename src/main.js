@@ -271,6 +271,13 @@ function paint() {
   // devolverselo despues y no cortar a alguien a media palabra.
   const searchHadFocus = document.activeElement && document.activeElement.id === SEARCH_ID;
 
+  // El listado tambien se reconstruye entero: es un elemento nuevo para el
+  // navegador, sin memoria de por donde iba desplazado. Sin esto, elegir una
+  // receta que esta mas abajo en la lista (la 27, por ejemplo) devolvia el
+  // listado al principio en cada clic, en vez de quedarse donde estaba.
+  const sidebarList = app.querySelector('.sidebar__list');
+  const sidebarScrollTop = sidebarList ? sidebarList.scrollTop : 0;
+
   clear(app);
 
   // --- Pantalla de carga -------------------------------------------------
@@ -337,6 +344,11 @@ function paint() {
   ]);
 
   app.appendChild(shell);
+
+  // Se devuelve el listado al mismo punto en el que estaba, en vez de dejarlo
+  // arriba del todo por defecto.
+  const newSidebarList = app.querySelector('.sidebar__list');
+  if (newSidebarList) newSidebarList.scrollTop = sidebarScrollTop;
 
   // Aviso flotante de la ultima operacion (guardado, error, publicacion).
   if (state.notice) app.appendChild(renderNotice(state));
