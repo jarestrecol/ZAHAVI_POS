@@ -219,6 +219,12 @@
   width: 70%;
 }
 
+/* La primera linea del panel simula el titulo de la receta. */
+.booting__line--title {
+  width: 45%;
+  height: 2rem;
+}
+
 .booting__main {
   padding: var(--space-6);
 }
@@ -239,12 +245,3 @@
   }
 }
 
-@media (max-width: 62rem) {
-  .booting__body {
-    grid-template-columns: 1fr;
-  }
-
-  .booting__main {
-    display: none;
-  }
-}

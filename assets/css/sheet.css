@@ -453,16 +453,3 @@
   font-size: var(--text-md);
 }
 
-@media (max-width: 62rem) {
-  .components--cols-2,
-  .components--cols-3 {
-    grid-template-columns: 1fr;
-  }
-
-  .sheet-head,
-  .facts,
-  .block {
-    padding-left: var(--space-4);
-    padding-right: var(--space-4);
-  }
-}

@@ -1,82 +1,171 @@
 /**
- * Arranque y orquestacion.
+ * =============================================================================
+ *  ARRANQUE Y ORQUESTACION
+ * =============================================================================
  *
- * Une el enrutador, el estado y las vistas. Es el unico archivo que decide que
- * se pinta; las vistas solo saben construir su propio trozo de DOM.
+ *  Este es el punto de entrada de la aplicacion. Su unico trabajo es decidir
+ *  QUE se pinta y CUANDO. No sabe construir pantallas (eso lo hacen las vistas
+ *  de `src/views/`) ni sabe guardar recetas (eso lo hacen los casos de uso de
+ *  `src/app/commands.js`).
+ *
+ *  RECORRIDO DE UNA CARGA
+ *  ----------------------
+ *      1. `boot()`      prepara la contrasena y carga las recetas
+ *      2. `render()`    pinta segun el estado y la direccion actual
+ *      3. a partir de ahi, cualquier cambio de estado o de direccion
+ *         vuelve a llamar a `render()`
+ *
+ *  POR QUE SE REPINTA TODO
+ *  -----------------------
+ *  Cada render reconstruye el arbol completo. Con 121 recetas eso son unos
+ *  cientos de nodos y el navegador lo resuelve sin esfuerzo, asi que no hace
+ *  falta comparar arboles ni llevar cuentas de que cambio. La unica excepcion
+ *  son los dialogos: reconstruir el editor mientras alguien escribe le borraria
+ *  lo escrito, y por eso llevan un tratamiento especial (ver `renderDialogs`).
  */
 
 import { el, clear } from './lib/dom.js';
-import { announce, setInert } from './lib/a11y.js';
+import { setInert } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
-import { getRoute, navigate, onRouteChange, startRouter, ALL_CATEGORIES } from './core/router.js';
+import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
 import { ensurePassword, isSignedIn, isUsingDefaultPassword } from './core/auth.js';
 import { emptyRecipe } from './core/schema.js';
-import { getEditKey, setEditKey } from './core/remote.js';
+import { getEditKey } from './core/remote.js';
+import { saveRecipe, deleteRecipe, publish, discardChanges, importBackup } from './app/commands.js';
 import { renderLogin } from './views/login.js';
 import { renderHeader, renderBadges, SEARCH_ID } from './views/header.js';
 import { renderSidebar } from './views/sidebar.js';
 import { renderDetail, renderPlaceholder } from './views/detail.js';
+import { renderSkeleton } from './views/skeleton.js';
 import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
 import { openConfirmDelete } from './views/confirm.js';
 import { openProduction } from './views/production.js';
 import { renderRecipeSheet, renderIndexSheet } from './views/print.js';
 
+/** Contenedor donde se pinta la aplicacion. */
 const app = document.getElementById('app');
+
+/** Contenedor aparte para la hoja de impresion, que no se ve en pantalla. */
 const printRoot = document.getElementById('print-root');
 
-/** Dialogo abierto en este momento, si lo hay. */
+/**
+ * Dialogo abierto en este momento, o null si no hay ninguno.
+ * @type {{node: HTMLElement, close: () => void}|null}
+ */
 let openDialog = null;
 
-/** Identidad del dialogo abierto, para no reconstruirlo en cada render. */
+/**
+ * Identidad del dialogo abierto, del tipo "edit:R012".
+ *
+ * Sirve para saber si el dialogo que toca mostrar es el mismo que ya esta
+ * puesto. Si lo es, no se reconstruye: el editor perderia el texto a medio
+ * escribir y el foco.
+ *
+ * @type {string|null}
+ */
 let openDialogKey = null;
 
-/** Indica si sigue vigente la contrasena de fabrica, para mostrar la pista. */
+/**
+ * Indica si sigue vigente la contrasena de fabrica.
+ *
+ * Solo se usa para decidir si la pantalla de entrada muestra la pista. En
+ * cuanto alguien cambia la contrasena, la pista desaparece.
+ */
 let usingDefaultPassword = false;
 
 boot();
 
+/* ===========================================================================
+ *  1. ARRANQUE
+ * ======================================================================== */
+
+/**
+ * Prepara todo y pinta por primera vez.
+ *
+ * El orden importa: primero la contrasena (porque decide si se ve la pantalla
+ * de entrada o el recetario), despues las recetas, y solo entonces se activan
+ * las suscripciones que provocan repintados.
+ */
 async function boot() {
+  // La contrasena de fabrica se crea la primera vez que alguien abre la app.
   await ensurePassword();
   usingDefaultPassword = await isUsingDefaultPassword();
-  setState({ authed: isSignedIn(), online: navigator.onLine !== false });
 
+  setState({
+    authed: isSignedIn(),
+    online: navigator.onLine !== false,
+  });
+
+  // Carga las recetas: primero las del servidor, y si no hay red, la copia
+  // guardada en este equipo.
   const loaded = await repo.hydrate();
-  setState({ ready: true, recipes: loaded.recipes, ingredientes: loaded.ingredientes });
+  setState({
+    ready: true,
+    recipes: loaded.recipes,
+    ingredientes: loaded.ingredientes,
+  });
+
+  // `hydrate` avisa cuando algo no salio como esperaba: sin conexion, sin
+  // recetas, o cambios locales danados que hubo que apartar.
   if (loaded.warning) notify(loaded.warning, 'info');
 
+  // A partir de aqui, cualquier cambio de estado o de direccion repinta.
   subscribe(render);
   onRouteChange(render);
   startRouter();
   render();
 
+  // Estado de la conexion: en una cocina se cae a menudo y conviene decirlo.
   window.addEventListener('online', () => setState({ online: true }));
   window.addEventListener('offline', () => setState({ online: false }));
+
   document.addEventListener('keydown', handleShortcuts);
   registerServiceWorker();
 }
 
 /**
- * Registra el service worker para que el recetario abra al instante y siga
- * funcionando sin señal. Se hace despues del primer render.
+ * Registra el service worker, que es lo que permite abrir el recetario sin
+ * conexion.
+ *
+ * Se hace despues del primer render: si fallara, la aplicacion ya esta en
+ * pantalla y funciona igual mientras haya red.
  */
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
+
+  // Con el archivo abierto desde el disco no hay service worker posible, y
+  // tampoco hace falta: ahi ya esta todo en local.
   if (window.location.protocol === 'file:') return;
+
   navigator.serviceWorker.register('./sw.js').catch(() => {
-    /* sin trabajo sin conexion; la aplicacion funciona igual con red */
+    /* sin funcionamiento sin conexion; con red la aplicacion va igual */
   });
 }
 
+/* ===========================================================================
+ *  2. ATAJOS DE TECLADO
+ * ======================================================================== */
+
 /**
- * Atajos de teclado. Pocos y para lo que de verdad se repite: buscar, moverse
- * por la lista y abrir la receta en la que se esta.
+ * Atajos de teclado.
+ *
+ * Son pocos a proposito: solo lo que de verdad se repite muchas veces al dia.
+ *
+ *      /            ir al buscador
+ *      flechas      recorrer el listado de recetas
+ *      E            editar la receta abierta
+ *      Escape       salir del buscador y limpiar la busqueda
+ *
+ * No se activan mientras se escribe en un campo ni con un dialogo abierto: ahi
+ * las teclas pertenecen a lo que la persona esta haciendo.
  *
  * @param {KeyboardEvent} event
  */
 function handleShortcuts(event) {
   const state = getState();
+
   if (!state.ready || !state.authed) return;
   if (openDialog || state.production) return;
 
@@ -85,6 +174,7 @@ function handleShortcuts(event) {
     target instanceof HTMLElement &&
     (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
 
+  // Barra: al buscador desde cualquier punto.
   if (event.key === '/' && !typing) {
     event.preventDefault();
     const field = document.getElementById(SEARCH_ID);
@@ -92,12 +182,14 @@ function handleShortcuts(event) {
     return;
   }
 
+  // Escape dentro del buscador: soltar el foco y limpiar la busqueda.
   if (event.key === 'Escape' && typing && target.id === SEARCH_ID) {
     target.blur();
     navigate({ name: 'index', id: null, query: '' }, { replace: true });
     return;
   }
 
+  // El resto de atajos no deben interferir con la escritura.
   if (typing) return;
 
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -114,36 +206,61 @@ function handleShortcuts(event) {
 }
 
 /**
- * Mueve la seleccion por la lista sin usar el raton.
+ * Mueve la seleccion por el listado con las flechas.
  *
- * @param {number} delta
+ * Se apoya en los enlaces ya pintados en lugar de recalcular la lista filtrada,
+ * porque asi respeta exactamente lo que la persona esta viendo, incluidos el
+ * filtro de categoria y la busqueda activa.
+ *
+ * @param {number} delta 1 para bajar, -1 para subir
  */
 function moveSelection(delta) {
   const links = Array.from(document.querySelectorAll('.recipe-link'));
   if (links.length === 0) return;
+
   const activeIndex = links.findIndex((link) => link.classList.contains('is-active'));
-  const nextIndex = Math.min(links.length - 1, Math.max(0, activeIndex + delta));
-  const next = links[activeIndex === -1 ? 0 : nextIndex];
+
+  // Si no hay ninguna receta abierta, la primera flecha selecciona la primera.
+  const nextIndex =
+    activeIndex === -1 ? 0 : Math.min(links.length - 1, Math.max(0, activeIndex + delta));
+  const next = links[nextIndex];
   if (!next) return;
-  next.click();
+
+  const id = next.getAttribute('href').replace('#/receta/', '');
+  navigate({ name: 'detail', id: decodeURIComponent(id) });
   next.scrollIntoView({ block: 'nearest' });
 }
 
+/* ===========================================================================
+ *  3. PINTADO
+ * ======================================================================== */
+
+/**
+ * Pinta la aplicacion entera segun el estado y la direccion actuales.
+ *
+ * Hay tres pantallas posibles:
+ *
+ *      cargando   -> esqueleto, mientras se leen las recetas
+ *      entrada    -> si nadie ha iniciado sesion en este equipo
+ *      recetario  -> lo normal: barra, listado y receta
+ */
 function render() {
   const state = getState();
   const route = getRoute();
 
   // El buscador se reconstruye en cada render: se anota si tenia el foco para
-  // devolverselo despues.
+  // devolverselo despues y no cortar a alguien a media palabra.
   const searchHadFocus = document.activeElement && document.activeElement.id === SEARCH_ID;
 
   clear(app);
 
+  // --- Pantalla de carga -------------------------------------------------
   if (!state.ready) {
     app.appendChild(renderSkeleton());
     return;
   }
 
+  // --- Pantalla de entrada -----------------------------------------------
   if (!state.authed) {
     renderDialogs(null);
     app.appendChild(renderLogin({ showDefaultHint: usingDefaultPassword }));
@@ -151,11 +268,14 @@ function render() {
     return;
   }
 
+  // --- Recetario ---------------------------------------------------------
   const recipe = route.name === 'detail' ? repo.findById(route.id) : null;
-  const canEdit = true;
 
+  // En pantallas estrechas no caben el listado y la receta a la vez, asi que se
+  // muestra uno u otro. Este atributo es lo que lo decide desde el CSS.
   app.dataset.view = recipe ? 'detail' : 'index';
 
+  // Avisos que van por encima de todo: sin conexion, o cambios sin publicar.
   for (const badge of renderBadges({
     changes: repo.localChanges(),
     online: state.online,
@@ -165,23 +285,28 @@ function render() {
   }
 
   const shell = el('div', { class: 'app' }, [
+    // Barra superior: marca, buscador y acciones.
     renderHeader({
       query: route.query,
-      canEdit,
+      canEdit: true,
       focusSearch: searchHadFocus,
       onNewRecipe: () => navigate({ name: 'new', id: null }),
       onSettings: () => setState({ settingsOpen: true }),
     }),
+
     el('div', { class: 'workspace' }, [
+      // Izquierda: listado completo, siempre visible en pantallas anchas.
       renderSidebar({
         recipes: state.recipes,
         query: route.query,
         category: route.category,
         selectedId: recipe ? recipe.id : null,
       }),
+
+      // Derecha: la receta abierta, o la bienvenida si no hay ninguna.
       el('div', { class: 'panel' }, [
         recipe
-          ? renderDetail({ recipe, canEdit })
+          ? renderDetail({ recipe, canEdit: true })
           : renderPlaceholder({
               count: state.recipes.length,
               withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
@@ -193,30 +318,20 @@ function render() {
   ]);
 
   app.appendChild(shell);
+
+  // Aviso flotante de la ultima operacion (guardado, error, publicacion).
   if (state.notice) app.appendChild(renderNotice(state));
 
   renderDialogs(shell);
   renderPrint(state, route, recipe);
 }
 
-/** Esqueleto de carga: comunica la estructura en lugar de una frase suelta. */
-function renderSkeleton() {
-  const lines = [];
-  for (let i = 0; i < 9; i += 1) lines.push(el('div', { class: 'booting__line' }));
-
-  return el('div', { class: 'booting', attrs: { 'aria-busy': 'true', 'aria-label': 'Cargando recetario' } }, [
-    el('div', { class: 'booting__bar' }),
-    el('div', { class: 'booting__body' }, [
-      el('div', { class: 'booting__side' }, lines),
-      el('div', { class: 'booting__main' }, [
-        el('div', { class: 'booting__line', style: { width: '45%', height: '2rem' } }),
-        el('div', { class: 'booting__line' }),
-        el('div', { class: 'booting__line' }),
-      ]),
-    ]),
-  ]);
-}
-
+/**
+ * Aviso flotante de la esquina inferior.
+ *
+ * @param {object} state
+ * @returns {HTMLElement}
+ */
 function renderNotice(state) {
   return el('div', { class: 'notice notice--' + state.noticeKind, attrs: { role: 'status' } }, [
     el('span', { text: state.notice }),
@@ -231,123 +346,59 @@ function renderNotice(state) {
 }
 
 /**
- * Monta como maximo un dialogo. Si el que toca mostrar es el mismo que ya esta
- * abierto se deja tal cual: reconstruirlo destruiria el borrador a medio escribir.
+ * Pinta la hoja de impresion, que vive en un contenedor aparte.
+ *
+ * Se genera siempre, aunque no se vea: asi Ctrl+P imprime al instante lo que hay
+ * en pantalla, sin pasos intermedios. Con una receta abierta imprime su ficha;
+ * sin receta abierta, el indice completo con el filtro que este puesto.
+ */
+function renderPrint(state, route, recipe) {
+  clear(printRoot);
+  printRoot.appendChild(
+    recipe
+      ? renderRecipeSheet(recipe)
+      : renderIndexSheet({ recipes: state.recipes, query: route.query, category: route.category }),
+  );
+}
+
+/* ===========================================================================
+ *  4. DIALOGOS
+ * ======================================================================== */
+
+/**
+ * Monta como maximo un dialogo por encima de la aplicacion.
+ *
+ * REGLA IMPORTANTE: si el dialogo que toca mostrar es el mismo que ya esta
+ * puesto, se deja tal cual. Reconstruirlo borraria lo que se este escribiendo en
+ * el editor y sacaria el foco del campo. Por eso existe `dialogKey`.
+ *
+ * Mientras hay un dialogo abierto, el resto de la aplicacion queda inerte: no se
+ * puede tabular hacia ella ni la leen los lectores de pantalla.
+ *
+ * @param {HTMLElement|null} shell la aplicacion que queda por debajo
  */
 function renderDialogs(shell) {
   const state = getState();
   const route = getRoute();
   const key = dialogKey(state, route);
 
+  // Ya esta puesto el que toca: no tocar nada.
   if (key !== null && key === openDialogKey) {
     setInert(shell, true);
     return;
   }
 
+  // Cambio el dialogo (o ya no hace falta ninguno): se cierra el anterior.
   if (openDialog) {
     openDialog.close();
     openDialog = null;
     openDialogKey = null;
   }
 
-  if (state.production) {
-    const recipe = repo.findById(state.production);
-    if (recipe) {
-      openDialog = openProduction({ recipe, onClose: () => setState({ production: null }) });
-    } else {
-      setState({ production: null });
-    }
-  } else if (state.confirmDelete) {
-    const recipe = repo.findById(state.confirmDelete);
-    if (recipe) {
-      openDialog = openConfirmDelete({
-        recipe,
-        onCancel: () => setState({ confirmDelete: null }),
-        onConfirm: () => {
-          const result = repo.remove(recipe.id);
-          if (!result.ok) {
-            notify(result.message, 'error');
-            setState({ confirmDelete: null });
-            return;
-          }
-          setState({ recipes: repo.findAll(), confirmDelete: null });
-          notify('Receta eliminada.', 'success');
-          announce('Receta eliminada.');
-          navigate({ name: 'index', id: null });
-        },
-      });
-    } else {
-      setState({ confirmDelete: null });
-    }
-  } else if (state.settingsOpen) {
-    openDialog = openSettings({
-      recipeCount: state.recipes.length,
-      withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
-      revision: repo.publishedRevision(),
-      changes: repo.localChanges(),
-      getPublishableFile: repo.toPublishableFile,
-      canPublish: repo.canPublishToAll(),
-      editKey: getEditKey(),
-      onPublish: async (password) => {
-        const result = await repo.publishToAll({ password, author: 'recetario' });
-        if (result.ok) {
-          setEditKey(password);
-          setState({ recipes: repo.findAll() });
-          notify(`Publicado para todas las sedes: ${result.value.count} recetas.`, 'success');
-          announce('Recetario publicado.');
-        }
-        return result;
-      },
-      onDiscard: () => {
-        const result = repo.discardLocalChanges();
-        setState({ recipes: repo.findAll(), ingredientes: repo.allIngredients(), settingsOpen: false });
-        notify(`Se descartaron los cambios. Vuelves a la versión publicada (${result.value} recetas).`, 'info');
-        announce('Cambios locales descartados.');
-        navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES });
-      },
-      onImport: (backup) => {
-        const result = repo.replaceAll(backup);
-        if (!result.ok) {
-          notify(result.message, 'error');
-          return;
-        }
-        setState({ recipes: repo.findAll(), ingredientes: repo.allIngredients(), settingsOpen: false });
-        notify(`Se cargaron ${result.value} recetas en este equipo.`, 'success');
-        announce(`Se cargaron ${result.value} recetas.`);
-        navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES });
-      },
-      onClose: () => {
-        setState({ settingsOpen: false });
-        isUsingDefaultPassword().then((isDefault) => {
-          usingDefaultPassword = isDefault;
-        });
-      },
-    });
-  } else if (route.name === 'new' || route.name === 'edit') {
-    const isNew = route.name === 'new';
-    const source = isNew ? emptyRecipe(repo.nextId()) : repo.findById(route.id);
-    if (!source) {
-      navigate({ name: 'index', id: null }, { replace: true });
-    } else {
-      openDialog = openEditor({
-        draft: source,
-        isNew,
-        ingredientes: getState().ingredientes,
-        onCancel: () => navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id }),
-        onSave: (recipe) => {
-          const result = repo.save(recipe);
-          if (!result.ok) {
-            notify(result.message, 'error');
-            return;
-          }
-          setState({ recipes: repo.findAll() });
-          notify('Receta guardada en este equipo.', 'success');
-          announce('Receta guardada.');
-          navigate({ name: 'detail', id: recipe.id });
-        },
-      });
-    }
-  }
+  if (state.production) openDialog = buildProduction(state);
+  else if (state.confirmDelete) openDialog = buildConfirmDelete(state);
+  else if (state.settingsOpen) openDialog = buildSettings(state);
+  else if (route.name === 'new' || route.name === 'edit') openDialog = buildEditor(route);
 
   openDialogKey = openDialog ? key : null;
   setInert(shell, Boolean(openDialog));
@@ -357,29 +408,95 @@ function renderDialogs(shell) {
 /**
  * Identifica de forma estable el dialogo que corresponde al estado actual.
  *
- * @param {object} state
- * @param {object} route
+ * Dos estados distintos con la misma clave se consideran el mismo dialogo y no
+ * lo reconstruyen. Por eso la clave de Ajustes incluye el estado de publicacion:
+ * tras publicar hay que repintarlo para que deje de decir "cambios sin publicar".
+ *
  * @returns {string|null} null cuando no debe haber ningun dialogo
  */
 function dialogKey(state, route) {
   if (state.production) return 'prod:' + state.production;
   if (state.confirmDelete) return 'delete:' + state.confirmDelete;
-  // La clave incluye el estado de publicacion: si no, tras publicar el dialogo
-  // seguia mostrando "cambios sin publicar" y el boton seguia activo.
+
   if (state.settingsOpen) {
-    const c = repo.localChanges();
-    return `settings:${c.total}:${c.dirty}:${repo.publishedRevision()}`;
+    const changes = repo.localChanges();
+    return `settings:${changes.total}:${changes.dirty}:${repo.publishedRevision()}`;
   }
+
   if (route.name === 'new') return 'new';
   if (route.name === 'edit') return 'edit:' + route.id;
+
   return null;
 }
 
-function renderPrint(state, route, recipe) {
-  clear(printRoot);
-  printRoot.appendChild(
-    recipe
-      ? renderRecipeSheet(recipe)
-      : renderIndexSheet({ recipes: state.recipes, query: route.query, category: route.category }),
-  );
+/** Modo Pesar: pantalla completa para el momento de pesar ingredientes. */
+function buildProduction(state) {
+  const recipe = repo.findById(state.production);
+  if (!recipe) {
+    setState({ production: null });
+    return null;
+  }
+  return openProduction({
+    recipe,
+    onClose: () => setState({ production: null }),
+  });
+}
+
+/** Confirmacion antes de eliminar una receta. */
+function buildConfirmDelete(state) {
+  const recipe = repo.findById(state.confirmDelete);
+  if (!recipe) {
+    setState({ confirmDelete: null });
+    return null;
+  }
+  return openConfirmDelete({
+    recipe,
+    onCancel: () => setState({ confirmDelete: null }),
+    onConfirm: () => deleteRecipe(recipe.id),
+  });
+}
+
+/** Ajustes: estado de publicacion, contrasena y recuperacion. */
+function buildSettings(state) {
+  return openSettings({
+    recipeCount: state.recipes.length,
+    withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
+    revision: repo.publishedRevision(),
+    changes: repo.localChanges(),
+    canPublish: repo.canPublishToAll(),
+    needsReload: repo.needsReloadBeforePublish(),
+    editKey: getEditKey(),
+    getPublishableFile: repo.toPublishableFile,
+    onPublish: publish,
+    onDiscard: discardChanges,
+    onImport: importBackup,
+    onClose: () => {
+      setState({ settingsOpen: false });
+      // La contrasena pudo cambiar dentro del dialogo: la pista de la pantalla
+      // de entrada solo debe verse mientras siga la de fabrica.
+      isUsingDefaultPassword().then((isDefault) => {
+        usingDefaultPassword = isDefault;
+      });
+    },
+  });
+}
+
+/** Editor de recetas, tanto para crear como para modificar. */
+function buildEditor(route) {
+  const isNew = route.name === 'new';
+  const source = isNew ? emptyRecipe(repo.nextId()) : repo.findById(route.id);
+
+  // La receta que se pedia editar ya no existe: de vuelta al listado.
+  if (!source) {
+    navigate({ name: 'index', id: null }, { replace: true });
+    return null;
+  }
+
+  return openEditor({
+    draft: source,
+    isNew,
+    ingredientes: getState().ingredientes,
+    onCancel: () => navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id }),
+    onSave: saveRecipe,
+  });
 }

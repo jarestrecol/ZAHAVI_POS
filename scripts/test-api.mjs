@@ -11,7 +11,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validatePayload } from '../api/_schema.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -102,6 +102,37 @@ console.log('\n4. Normaliza sin perder informacion util');
     comprobar('descarta el componente vacio', receta.componentes.length === 1);
     comprobar('cantidad numerica a texto', receta.componentes[0].items[0].cantidad === '250');
     comprobar('unidad recortada', receta.componentes[0].items[0].unidad === 'gr');
+  }
+}
+
+console.log('\n5. Las dos validaciones coinciden sobre los datos reales');
+{
+  // El cliente y el servidor validan con politicas distintas a proposito (uno
+  // repara, el otro rechaza), pero sobre el recetario real de produccion tienen
+  // que dar exactamente el mismo resultado. Si alguien cambia una de las dos y
+  // las separa de mas, esto lo detecta antes de que llegue a la panaderia.
+  //
+  // `src/core/schema.js` toca `window` solo dentro de funciones, asi que se
+  // puede importar desde Node con un objeto minimo simulado.
+  globalThis.window = globalThis.window || { localStorage: undefined };
+
+  const { validateBackup } = await import(
+    pathToFileURL(join(root, 'src/core/schema.js')).href
+  );
+
+  const cliente = validateBackup(real);
+  const servidor = validatePayload(real.recipes, real.ingredientes);
+
+  comprobar('el cliente acepta el recetario real', cliente.ok, cliente.ok ? '' : cliente.message);
+  comprobar('el servidor acepta el recetario real', servidor.ok, servidor.ok ? '' : servidor.error);
+
+  if (cliente.ok && servidor.ok) {
+    const iguales = JSON.stringify(cliente.value.recipes) === JSON.stringify(servidor.value.recipes);
+    comprobar('ambas devuelven las mismas recetas', iguales);
+
+    const mismosIngredientes =
+      JSON.stringify(cliente.value.ingredientes) === JSON.stringify(servidor.value.ingredientes);
+    comprobar('ambas devuelven los mismos ingredientes', mismosIngredientes);
   }
 }
 

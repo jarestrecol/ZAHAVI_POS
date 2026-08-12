@@ -1,0 +1,388 @@
+/* =============================================================================
+ *  ADAPTACION A CADA PANTALLA
+ * =============================================================================
+ *
+ *  Un solo archivo con todos los ajustes por tamaño, para no tener que buscar
+ *  media queries repartidas por seis hojas distintas.
+ *
+ *  LOS TRES ESCENARIOS REALES
+ *  --------------------------
+ *
+ *    CELULAR      hasta 47.9375rem (767 px)
+ *                 Se usa de pie, sujetando el aparato con una mano. No caben el
+ *                 listado y la receta a la vez: se ve uno u otro. Todo lo que se
+ *                 toca crece, y las acciones de la receta pasan a una barra fija
+ *                 abajo, al alcance del pulgar.
+ *
+ *    TABLET       de 48rem a 61.9375rem (768 a 991 px)
+ *                 El aparato que de verdad se usa en el obrador. Sigue sin caber
+ *                 el listado junto a la receta, pero hay ancho de sobra para dos
+ *                 columnas de ingredientes y para que la barra superior quepa en
+ *                 una sola linea.
+ *
+ *    ESCRITORIO   desde 62rem (992 px)
+ *                 Listado y receta a la vez. Es el modo de consulta y edicion.
+ *
+ *  El punto de corte de 62 rem no es arbitrario: es el ancho por debajo del cual
+ *  el listado (21 rem) dejaria a la receta menos de 40 rem, que es donde las dos
+ *  columnas de ingredientes empiezan a apretarse.
+ */
+
+/* ===========================================================================
+ *  CELULAR Y TABLET: no caben listado y receta a la vez
+ * ======================================================================== */
+
+@media (max-width: 61.9375rem) {
+  /* Una sola columna: el atributo `data-view` del contenedor decide cual de las
+     dos se ve. Lo pone `main.js` segun haya receta abierta o no. */
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .app[data-view='detail'] .sidebar {
+    display: none;
+  }
+
+  .app[data-view='index'] .panel {
+    display: none;
+  }
+
+  /* El boton de volver al listado solo tiene sentido aqui. */
+  .sheet-head__back {
+    display: inline-flex !important;
+  }
+
+  /* La barra superior se reparte en dos filas: marca y acciones arriba,
+     buscador debajo ocupando todo el ancho. */
+  .topbar {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  /* Los ingredientes vuelven a una sola columna: repartirlos en un ancho
+     estrecho parte los nombres y obliga a leer en zigzag. */
+  .components--cols-2,
+  .components--cols-3 {
+    column-count: 1;
+  }
+
+  .sheet-head,
+  .facts,
+  .block {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .booting__body {
+    grid-template-columns: 1fr;
+  }
+
+  .booting__main {
+    display: none;
+  }
+}
+
+/* ===========================================================================
+ *  ESCRITORIO
+ * ======================================================================== */
+
+@media (min-width: 62rem) {
+  /* Con el listado siempre visible, volver no significa nada. */
+  .sheet-head__back {
+    display: none;
+  }
+}
+
+/* ===========================================================================
+ *  SOLO CELULAR
+ * ======================================================================== */
+
+@media (max-width: 47.9375rem) {
+  /* --- Todo lo que se toca, mas grande --------------------------------- */
+  :root {
+    --tap-min: 2.75rem;
+    --tap-row: 3.25rem;
+    --sidebar-w: 100%;
+  }
+
+  /* --- Barra superior --------------------------------------------------- */
+  .topbar {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .topbar__logo {
+    height: 1.5rem;
+  }
+
+  /* "recetario" al lado de la marca sobra en esta anchura. */
+  .topbar__sub {
+    display: none;
+  }
+
+  /* Solo el icono en "Nueva receta": el texto no cabe junto al buscador. */
+  .topbar__actions .btn {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  /* --- Listado ---------------------------------------------------------- */
+  .recipe-link {
+    /* Mas aire vertical: se toca con el pulgar y en movimiento. */
+    padding: var(--space-3);
+    font-size: var(--text-md);
+  }
+
+  .sidebar__filters {
+    /* Los filtros se desplazan en horizontal en vez de apilarse en tres filas
+       y comerse media pantalla. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .sidebar__filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    flex-shrink: 0;
+  }
+
+  /* --- Ficha de receta -------------------------------------------------- */
+  .sheet-head {
+    /* Deja de estar pegada arriba: en una pantalla baja se comeria un tercio
+       del espacio util al desplazar. */
+    position: static;
+    padding: var(--space-4) var(--space-3) var(--space-3);
+  }
+
+  .sheet-head__title {
+    font-size: var(--text-xl);
+  }
+
+  /* Las acciones de la receta van a una barra fija abajo, donde llega el
+     pulgar sin recolocar la mano. */
+  .sheet-head__actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface-card);
+    border-top: 1px solid var(--line);
+  }
+
+  .sheet-head__actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  /* Hueco al final para que la barra fija no tape el ultimo ingrediente. */
+  .sheet-view {
+    padding-bottom: 5rem;
+  }
+
+  .facts {
+    gap: var(--space-4);
+    padding: var(--space-3);
+  }
+
+  .block {
+    padding: var(--space-5) var(--space-3) 0;
+  }
+
+  /* Cifras algo mayores: se leen a distancia de brazo. */
+  .item {
+    padding: var(--space-3) 0;
+  }
+
+  .item__name {
+    font-size: var(--text-md);
+  }
+
+  /* --- Modo Pesar ------------------------------------------------------- */
+  .prod__head {
+    padding: var(--space-3);
+  }
+
+  .prod__name {
+    font-size: var(--text-xl);
+  }
+
+  .prod__number {
+    /* Sigue siendo el elemento mayor de la pantalla, pero cabiendo. */
+    font-size: 3rem;
+  }
+
+  .prod__foot {
+    padding: var(--space-3);
+  }
+
+  .prod__hint {
+    /* La ayuda de teclado no aporta nada sin teclado. */
+    display: none;
+  }
+
+  /* --- Dialogos: a pantalla completa ------------------------------------ */
+  .overlay {
+    padding: 0;
+  }
+
+  .win {
+    max-width: none;
+    max-height: 100vh;
+    max-height: 100dvh;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .editor__identity,
+  .editor__panes,
+  .settings__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .editor__pane {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .editor__pane:first-child {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Filas del editor: el nombre arriba a todo el ancho, y debajo cantidad,
+     unidad y el boton de quitar. En una sola linea no caben. */
+  .rows__head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: 1fr 5rem var(--tap-min);
+    grid-template-areas:
+      'nombre nombre nombre'
+      'cantidad unidad quitar';
+    gap: var(--space-2);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .row > *:nth-child(1) { grid-area: nombre; }
+  .row > *:nth-child(2) { grid-area: cantidad; }
+  .row > *:nth-child(3) { grid-area: unidad; }
+  .row > *:nth-child(4) { grid-area: quitar; }
+
+  .settings__row {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .settings__publish-row {
+    flex-direction: column;
+  }
+
+  .settings__publish-row .btn {
+    width: 100%;
+  }
+
+  /* --- Bienvenida y entrada --------------------------------------------- */
+  .welcome {
+    padding: var(--space-5) var(--space-3);
+  }
+
+  .welcome__stats {
+    /* Cuatro cifras en fila no caben: dos y dos. */
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-5);
+  }
+
+  .welcome__stat {
+    flex: 1 1 40%;
+  }
+
+  .login__card {
+    padding: var(--space-5) var(--space-4);
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  /* --- Avisos ----------------------------------------------------------- */
+  .notice {
+    left: var(--space-2);
+    right: var(--space-2);
+    /* Por encima de la barra fija de acciones. */
+    bottom: 4.5rem;
+    max-width: none;
+    transform: none;
+  }
+}
+
+/* ===========================================================================
+ *  SOLO TABLET
+ * ======================================================================== */
+
+@media (min-width: 48rem) and (max-width: 61.9375rem) {
+  /* Hay ancho de sobra para dos columnas de ingredientes aunque el listado no
+     quepa al lado. */
+  .components--cols-2,
+  .components--cols-3 {
+    column-count: 2;
+  }
+
+  /* El listado ocupa toda la pantalla cuando se ve, asi que se reparte en dos
+     columnas y se recorre en la mitad de desplazamiento. */
+  .sidebar__list {
+    column-count: 2;
+    column-gap: 0;
+  }
+
+  .sidebar__list > li {
+    break-inside: avoid;
+  }
+}
+
+/* ===========================================================================
+ *  PANTALLAS MUY ANCHAS
+ * ======================================================================== */
+
+@media (min-width: 100rem) {
+  /* La ficha deja de estirarse: pasados los 90 rem las lineas de metodo se
+     hacen incomodas de leer. */
+  .sheet-view {
+    max-width: 90rem;
+  }
+
+  :root {
+    --sidebar-w: 24rem;
+  }
+}
+
+/* ===========================================================================
+ *  APARATOS TACTILES, SIN IMPORTAR EL TAMAÑO
+ * ======================================================================== */
+
+@media (pointer: coarse) {
+  /* Sin raton no hay `hover`, asi que el area de toque tiene que ser generosa
+     de partida en cualquier tamaño de pantalla. */
+  .btn,
+  .chip,
+  .btn-icon {
+    min-height: 2.75rem;
+  }
+
+  .recipe-link {
+    min-height: 3rem;
+  }
+}

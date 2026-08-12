@@ -22,7 +22,7 @@ const outDir = join(root, 'dist');
 const outFile = join(outDir, 'Zahavi-Recetario-offline.html');
 
 /** Hojas de estilo, en el mismo orden que declara index.html. */
-const STYLES = ['tokens', 'base', 'layout', 'sheet', 'views', 'dialogs', 'print'];
+const STYLES = ['tokens', 'base', 'layout', 'sheet', 'views', 'dialogs', 'print', 'responsive'];
 
 /** Modulos en orden de dependencia: cada uno solo usa lo definido antes. */
 const MODULES = [
@@ -45,8 +45,10 @@ const MODULES = [
   'views/editor.js',
   'views/settings.js',
   'views/confirm.js',
+  'views/skeleton.js',
   'views/print.js',
   'views/production.js',
+  'app/commands.js',
   'main.js',
 ];
 

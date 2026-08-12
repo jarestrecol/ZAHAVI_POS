@@ -1,17 +1,45 @@
 /**
- * Validacion del recetario en el servidor.
+ * =============================================================================
+ *  VALIDACION DEL RECETARIO EN EL SERVIDOR
+ * =============================================================================
  *
- * El navegador ya valida antes de guardar, pero esa comprobacion no sirve de
- * nada aqui: este endpoint es la unica puerta de escritura sobre el recetario
- * real, y quien llame a la API directamente se salta el cliente entero. Un envio
- * con la clave correcta pero mal formado reemplazaria las recetas de las dos
- * sedes por basura.
+ *  El navegador ya valida antes de guardar, pero esa comprobacion no cuenta
+ *  aqui: este endpoint es la unica puerta de escritura sobre el recetario real,
+ *  y quien llame a la API directamente se salta el cliente entero. Un envio con
+ *  la clave correcta pero mal formado reemplazaria las recetas de las dos sedes
+ *  por basura.
  *
- * Las reglas son las mismas que en `src/core/schema.js`. Estan duplicadas a
- * proposito: el modulo del navegador depende de `window` y no se puede importar
- * desde una funcion de servidor.
+ *  POR QUE HAY DOS VALIDACIONES Y NO UNA
+ *  -------------------------------------
+ *  Este archivo NO es una copia de `src/core/schema.js`. Aplican politicas
+ *  distintas a proposito, porque resuelven momentos distintos:
  *
- * El prefijo _ evita que Vercel publique este archivo como ruta.
+ *      src/core/schema.js  -> REPARA.  Lee lo que haya en el dispositivo o en un
+ *                             archivo de respaldo y hace lo posible por
+ *                             aprovecharlo: descarta lo ilegible, renombra
+ *                             codigos repetidos, rellena lo que falta. Es
+ *                             preferible mostrar 120 recetas que ninguna.
+ *
+ *      api/_schema.js      -> RECHAZA.  Antes de escribir sobre el recetario
+ *                             compartido, si algo no cuadra se para todo. Es
+ *                             preferible no publicar que publicar algo dudoso
+ *                             encima del trabajo de las dos sedes.
+ *
+ *  Diferencias concretas, todas deliberadas:
+ *
+ *      caso                        cliente              servidor
+ *      -------------------------   ------------------   ------------------
+ *      receta sin nombre           la descarta          rechaza el envio
+ *      codigos repetidos           renombra a R001-1    rechaza el envio
+ *      componentes no es lista     lo trata como vacio  rechaza el envio
+ *      ingredientes ausente        lo trata como vacio  rechaza el envio
+ *
+ *  `scripts/test-api.mjs` comprueba que el recetario real de produccion pasa por
+ *  las dos sin que se altere ni un dato, que es la garantia que de verdad
+ *  importa. Si alguien cambia una de las dos y las separa de mas, esa prueba
+ *  falla.
+ *
+ *  El prefijo _ del nombre evita que Vercel publique este archivo como ruta.
  */
 
 /** Tope de recetas por envio. */

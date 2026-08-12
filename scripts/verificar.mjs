@@ -130,7 +130,7 @@ paso('Capa de datos', () => {
 
 paso('Validacion del servidor', () => {
   run('test-api.mjs');
-  return '24 comprobaciones';
+  return '28 comprobaciones';
 });
 
 paso('Integridad de las recetas', () => {

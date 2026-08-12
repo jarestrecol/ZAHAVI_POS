@@ -416,36 +416,3 @@
 
 /* ---- Pantallas estrechas ---- */
 
-@media (max-width: 62rem) {
-  .workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .app[data-view='detail'] .sidebar {
-    display: none;
-  }
-
-  .app[data-view='index'] .panel {
-    display: none;
-  }
-
-  .sheet-head__back {
-    display: inline-flex !important;
-  }
-
-  .topbar {
-    flex-wrap: wrap;
-  }
-
-  .search {
-    order: 3;
-    flex-basis: 100%;
-    max-width: none;
-  }
-}
-
-@media (min-width: 62.0625rem) {
-  .sheet-head__back {
-    display: none;
-  }
-}
