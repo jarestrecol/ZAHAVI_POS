@@ -99,9 +99,16 @@ inventario quedan fuera de esta fase por decisión de producto.
 
 ### Principio rector
 
-**Cero dependencias, cero compilación.** No hay `package.json`, ni
-`node_modules`, ni empaquetador, ni framework. El navegador ejecuta exactamente
-los archivos que están en el repositorio.
+**Cero dependencias, cero compilación.** No hay `node_modules`, ni empaquetador,
+ni framework. El navegador ejecuta exactamente los archivos que están en el
+repositorio.
+
+El `package.json` existe pero **no declara ni una sola dependencia**: solo
+`"type": "module"`, que le dice a Vercel que las funciones de `api/` son módulos
+ES y no CommonJS. Sin esa línea, Vercel las convierte a CommonJS por su cuenta y
+avisa de ello en cada despliegue. Los dos `scripts` que incluye son atajos a los
+comandos de verificación; no hay ningún script de compilación, y `npm install`
+no tiene nada que instalar.
 
 Esto no es minimalismo por gusto: es la decisión que garantiza que el sistema
 siga funcionando dentro de cinco años sin que nadie tenga que actualizar una
@@ -386,6 +393,8 @@ Al importar el repositorio:
 
 Los campos de compilación se dejan **en blanco**: no hay nada que compilar ni que
 instalar. Lo que Vercel muestra ahí es texto de ejemplo, no un valor por defecto.
+El `package.json` del proyecto no declara dependencias ni script de compilación,
+así que aunque Vercel lo detecte no hay nada que ejecutar.
 
 ### Variables de entorno
 
@@ -498,6 +507,7 @@ tipografías incrustados. No comparte almacenamiento con el sitio web.
 
 ```
 index.html                 Punto de entrada
+package.json               Solo "type": "module". Cero dependencias
 vercel.json                Cabeceras de seguridad y política de caché
 sw.js                      Service worker: funcionamiento sin conexión
 manifest.webmanifest       Instalación como aplicación
