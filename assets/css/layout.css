@@ -239,7 +239,7 @@
   display: grid;
   grid-template-rows: auto auto 1fr;
   min-height: 0;
-  background: var(--surface-sunk);
+  background: var(--surface-panel);
   border-right: 1px solid var(--line);
 }
 
@@ -441,7 +441,7 @@
    izquierdo. La barra va con `inset box-shadow` y no con `border-left`, para
    que activarla no ensanche la fila ni desplace el texto medio pixel. */
 .recipe-link.is-active {
-  background: var(--amber-soft);
+  background: var(--selected-bg);
   color: var(--ink);
   font-weight: 700;
   border-color: var(--amber);
@@ -455,30 +455,7 @@
 /* El punto de categoria de la receta abierta gana un anillo del color de
    fondo, para que no se confunda con los de las filas de al lado. */
 .recipe-link.is-active .recipe-link__dot {
-  box-shadow: 0 0 0 3px var(--surface-card);
-}
-
-/* En oscuro el tinte naranja claro se ensucia y resta contraste al texto, asi
-   que ahi el fondo es una superficie mas clara y el naranja se queda en el
-   borde y en la barra, donde si luce. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .recipe-link.is-active {
-    background: var(--surface-hover);
-    border-color: var(--amber);
-  }
-
-  :root:not([data-theme='light']) .recipe-link.is-active .recipe-link__dot {
-    box-shadow: 0 0 0 3px var(--surface-hover);
-  }
-}
-
-:root[data-theme='dark'] .recipe-link.is-active {
-  background: var(--surface-hover);
-  border-color: var(--amber);
-}
-
-:root[data-theme='dark'] .recipe-link.is-active .recipe-link__dot {
-  box-shadow: 0 0 0 3px var(--surface-hover);
+  box-shadow: 0 0 0 3px var(--selected-bg);
 }
 
 /* Punto de categoria: presente en todas las filas. */

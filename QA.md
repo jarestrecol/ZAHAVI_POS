@@ -234,6 +234,7 @@ que nadie se dé cuenta.
 
 | Defecto | Cómo se detectó | Estado |
 |---|---|---|
+| Al filtrar por una categoría y abrir una receta, el filtro se perdía y volvían a listarse las 121: los enlaces del listado se escribían a mano sin los parámetros de la dirección | Uso real | Corregido |
 | Listado y ficha se veían a la vez en móvil y tableta, apretados: el atributo `data-view` se ponía en un elemento y el CSS lo buscaba en otro, así que la regla nunca se aplicaba | Diagnóstico del flujo móvil | Corregido |
 | Cerrar sesión no borraba la clave de edición: quien entrara después podía publicar sin conocerla | Auditoría de seguridad | Corregido |
 | El foco de los campos dependía de un borde naranja a 2,45:1, por debajo del mínimo exigido | Auditoría de accesibilidad | Corregido |

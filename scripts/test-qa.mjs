@@ -194,6 +194,35 @@ comprobar('sigue sin tocar ninguna receta real', cambios.modified === 0 && cambi
 comprobar('no quedan cambios que anunciar', cambios.dirty === false, JSON.stringify(cambios));
 comprobar('el recuento es cero', cambios.total === 0, String(cambios.total));
 
+/* ---------------------------------------------------------------------------
+ *  El enlace de una receta conserva el filtro y la busqueda
+ *
+ *  Los enlaces del listado se escribian a mano como `#/receta/R123`, sin los
+ *  parametros. Al elegir "galletas" y abrir una, el filtro se perdia y el
+ *  listado volvia a mostrar las 121. Se comprueba sobre `buildHash`, que es lo
+ *  que ahora construye esos enlaces.
+ * ------------------------------------------------------------------------ */
+
+console.log('\n5b. Abrir una receta no pierde el filtro ni la busqueda');
+const router = await import(pathToFileURL(repoRoot + '/src/core/router.js').href);
+
+const conFiltro = router.buildHash({ name: 'detail', id: 'R010', query: '', category: 'GALLETAS' });
+comprobar('el enlace lleva la categoria', conFiltro.includes('cat=GALLETAS'), conFiltro);
+comprobar('y sigue apuntando a la receta', conFiltro.includes('receta/R010'), conFiltro);
+comprobar(
+  'al leerlo se recupera la categoria',
+  router.parseHash(conFiltro).category === 'GALLETAS',
+  router.parseHash(conFiltro).category,
+);
+comprobar('y el codigo de receta, limpio', router.parseHash(conFiltro).id === 'R010', router.parseHash(conFiltro).id);
+
+const conBusqueda = router.buildHash({ name: 'detail', id: 'R010', query: 'torta', category: 'PANADERÍA' });
+comprobar('tambien conserva la busqueda', router.parseHash(conBusqueda).query === 'torta');
+comprobar('y la categoria a la vez', router.parseHash(conBusqueda).category === 'PANADERÍA');
+
+const sinFiltro = router.buildHash({ name: 'detail', id: 'R010', query: '', category: 'TODAS' });
+comprobar('sin filtro no ensucia la direccion', !sinFiltro.includes('cat='), sinFiltro);
+
 console.log('\n6. Las 121 recetas reales quedan como estaban');
 const idsReales = publicado.recipes.map((r) => r.id).sort();
 const idsAhora = repo.findAll().map((r) => r.id).sort();

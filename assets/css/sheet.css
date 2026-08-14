@@ -124,30 +124,69 @@
   padding-right: var(--space-4);
 }
 
-/* Imprimir: el mas neutro de los tres discretos. */
+/* Imprimir: verde, el mismo de "correcto". Es la accion que saca la receta del
+   sistema al papel del obrador, y conviene reconocerla sin leer. */
+.btn--print {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok);
+}
+
 .btn--print .btn__icon {
-  color: var(--ink-4);
+  color: var(--ok);
 }
 
 .btn--print:hover {
-  border-color: var(--ink-4);
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+.btn--print:hover .btn__icon {
+  color: #fff;
 }
 
 /* Editar: ambar, la familia de la marca, porque modifica sin destruir. */
+.btn--edit {
+  color: var(--amber-text);
+  background: var(--amber-soft);
+  border-color: var(--amber);
+}
+
 .btn--edit .btn__icon {
   color: var(--amber-text);
 }
 
 .btn--edit:hover {
-  background: var(--amber-soft);
-  border-color: var(--amber);
-  color: var(--ink);
+  background: var(--amber);
+  border-color: var(--amber-deep);
+  color: var(--brand-ink);
 }
 
-/* Eliminar: el icono ya va en rojo en reposo, no solo al pasar por encima.
-   Es la unica accion irreversible de la ficha y conviene que se anuncie. */
+.btn--edit:hover .btn__icon {
+  color: var(--brand-ink);
+}
+
+/* Eliminar: rojo ya en reposo, no solo al pasar por encima. Es la unica accion
+   irreversible de la ficha y conviene que se anuncie sola. */
+.btn--danger.btn--action {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
 .btn--danger .btn__icon {
   color: var(--danger);
+}
+
+.btn--danger.btn--action:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn--danger.btn--action:hover .btn__icon {
+  color: #fff;
 }
 
 /* ---- Ficha técnica ---- */
@@ -391,13 +430,17 @@
 
 .method {
   max-width: 68ch;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-5) var(--space-6);
   font-size: var(--text-md);
-  line-height: 1.75;
+  line-height: 1.8;
   color: var(--ink-2);
-  background: var(--surface-sunk);
-  border-left: 4px solid var(--amber);
+  /* Tarjeta blanca sobre el area de trabajo, con barra de marca a la
+     izquierda: se separa por elevacion, no solo por un tono de fondo. */
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--amber);
   border-radius: 0 var(--radius) var(--radius) 0;
+  box-shadow: var(--shadow-xs);
   /* Conserva los saltos de línea sin construir marcado. */
   white-space: pre-wrap;
   text-wrap: pretty;

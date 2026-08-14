@@ -261,11 +261,11 @@ function renderMethod(recipe, canEdit) {
     el('div', { class: 'method-empty' }, [
       el('p', { class: 'method-empty__text', text: 'Aún no hay método para esta receta.' }),
       canEdit
-        ? el('button', {
-            type: 'button',
-            class: 'btn btn--quiet no-print',
-            text: 'Escribir método',
-            on: { click: () => navigate({ name: 'edit', id: recipe.id }) },
+        ? actionButton({
+            label: 'Escribir método',
+            icon: ICON_EDITAR,
+            variant: 'btn--quiet btn--edit no-print',
+            onClick: () => navigate({ name: 'edit', id: recipe.id }),
           })
         : null,
     ]),

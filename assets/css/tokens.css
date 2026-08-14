@@ -41,11 +41,25 @@
      lectura continua, donde un color plano sigue siendo más legible. */
   --brand-gradient: linear-gradient(135deg, var(--brand) 0%, #ff9f3d 45%, var(--brand-gold) 100%);
 
-  /* ---- Superficies ---- */
+  /* ---- Superficies ----
+     Cuatro planos, de mas hundido a mas elevado, con saltos que se ven de
+     verdad. Antes estaban los cuatro a menos de dos puntos de claridad entre
+     si y toda la pantalla parecia del mismo color:
+
+       --surface-panel   el listado de la izquierda: es un indice, va al fondo
+       --surface-sunk    franjas de datos dentro de la ficha
+       --surface         el area de trabajo donde se lee la receta
+       --surface-card    lo que flota encima: filas, tarjetas, dialogos */
+  --surface-panel: #ece7dd;
+  --surface-sunk: #f3efe7;
   --surface: #fbfaf9;
   --surface-card: #ffffff;
-  --surface-sunk: #f4f1ec;
   --surface-hover: #fdf2e3;
+
+  /* Fondo de la receta abierta en el listado. Naranja de marca muy diluido en
+     claro; en oscuro, un ambar profundo que se reconoce como naranja sin
+     apagar el texto (12,1:1 con la tinta principal). */
+  --selected-bg: #fde8cd;
 
   /* Estructura oscura: barra superior y diálogos */
   --rail: #1a1714;
@@ -219,10 +233,17 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --surface: #16130f;
-    --surface-card: #1e1a15;
+    /* Mismo escalonado que en claro, invertido: el listado es el plano mas
+       oscuro y las tarjetas el mas claro. */
+    --surface-panel: #100d0a;
     --surface-sunk: #14110d;
-    --surface-hover: #2a231b;
+    --surface: #16130f;
+    --surface-card: #221d17;
+    --surface-hover: #2f281f;
+
+    /* Ambar profundo: se reconoce como naranja de marca y deja la tinta
+       principal a 12,1:1 encima. */
+    --selected-bg: #3d2a14;
 
     --rail: #100e0b;
     --rail-2: #1e1a15;
@@ -294,10 +315,12 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --surface: #16130f;
-  --surface-card: #1e1a15;
+  --surface-panel: #100d0a;
   --surface-sunk: #14110d;
-  --surface-hover: #2a231b;
+  --surface: #16130f;
+  --surface-card: #221d17;
+  --surface-hover: #2f281f;
+  --selected-bg: #3d2a14;
 
   --rail: #100e0b;
   --rail-2: #1e1a15;

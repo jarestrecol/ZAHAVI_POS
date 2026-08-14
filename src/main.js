@@ -228,8 +228,12 @@ function moveSelection(delta) {
   const next = links[nextIndex];
   if (!next) return;
 
-  const id = next.getAttribute('href').replace('#/receta/', '');
-  navigate({ name: 'detail', id: decodeURIComponent(id) });
+  // El codigo se lee de `data-id`, no recortando la direccion: desde que el
+  // enlace conserva el filtro y la busqueda, la direccion lleva parametros
+  // detras (`#/receta/R123?cat=GALLETAS`) y recortarla daba un codigo invalido.
+  const id = next.dataset.id;
+  if (!id) return;
+  navigate({ name: 'detail', id });
   next.scrollIntoView({ block: 'nearest' });
 }
 

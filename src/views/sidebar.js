@@ -19,7 +19,7 @@
 import { el } from '../lib/dom.js';
 import { titleCase, splitName, indexLetter } from '../lib/format.js';
 import { filterRecipes, sortRecipes, availableCategories, categoryCounts } from '../core/search.js';
-import { navigate } from '../core/router.js';
+import { navigate, buildHash, getRoute } from '../core/router.js';
 
 /**
  * @param {{recipes: Array, query: string, category: string, selectedId: string|null}} params
@@ -117,6 +117,23 @@ function renderList(recipes, selectedId) {
   return el('ul', { class: 'sidebar__list' }, items);
 }
 
+/**
+ * Una fila del listado.
+ *
+ * El enlace se construye con `buildHash` sobre la ruta actual, NO a mano. Es
+ * importante: escrito a mano quedaba `#/receta/R123` pelado, sin los
+ * parametros, asi que al abrir una receta se perdian el filtro de categoria y
+ * la busqueda y el listado volvia a mostrarlas todas. Pasando por `buildHash`,
+ * la direccion conserva `?cat=` y `?q=`.
+ *
+ * El codigo va tambien en `data-id`: quien necesite leerlo (las flechas del
+ * teclado, en main.js) lo toma de ahi en vez de recortar la direccion, que
+ * ahora lleva parametros detras.
+ *
+ * @param {object} recipe
+ * @param {string|null} selectedId receta abierta ahora mismo
+ * @returns {HTMLElement}
+ */
 function renderLink(recipe, selectedId) {
   const { base, rinde } = splitName(recipe.nombre);
   const isActive = recipe.id === selectedId;
@@ -125,10 +142,11 @@ function renderLink(recipe, selectedId) {
     'a',
     {
       class: 'recipe-link' + (isActive ? ' is-active' : ''),
-      href: '#/receta/' + encodeURIComponent(recipe.id),
+      href: buildHash({ ...getRoute(), name: 'detail', id: recipe.id }),
       attrs: {
         'aria-current': isActive ? 'true' : null,
         'data-category': recipe.categoria,
+        'data-id': recipe.id,
         title: recipe.nombre,
       },
     },

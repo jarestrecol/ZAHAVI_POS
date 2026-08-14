@@ -323,16 +323,19 @@ button {
   color: #fff;
 }
 
+/* Boton sobre la barra oscura (Ajustes). Lleva el ambar de marca en el texto y
+   en el borde: sin color quedaba como una caja vacia al lado de "Nueva
+   receta", y no se distinguia del fondo de la barra. */
 .btn--dark-ghost {
-  background: transparent;
-  color: var(--on-rail);
-  border-color: var(--rail-line);
+  background: rgba(249, 169, 74, 0.1);
+  color: var(--amber-on-rail);
+  border-color: rgba(249, 169, 74, 0.45);
 }
 
 .btn--dark-ghost:hover {
-  background: var(--rail-2);
-  color: var(--on-rail);
-  border-color: var(--on-rail-2);
+  background: rgba(249, 169, 74, 0.2);
+  color: var(--amber-on-rail);
+  border-color: var(--amber-on-rail);
 }
 
 .btn--block {
