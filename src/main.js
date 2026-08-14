@@ -247,10 +247,20 @@ function moveSelection(delta) {
  * funciona identica, solo sin el cruce animado. La duracion sale de
  * `--dur-slow`, que cae a 0ms con movimiento reducido (ver tokens.css), asi
  * que ahi la transicion se vuelve instantanea sin ninguna comprobacion aqui.
+ *
+ * `paint()` se llama siempre de forma sincrona, dentro o fuera de la
+ * transicion: lo unico que cambia es si el cambio se ve animado o no.
  */
 function render() {
   if (typeof document.startViewTransition === 'function') {
-    document.startViewTransition(() => paint());
+    // El navegador salta una transicion (por ejemplo si llega otra antes de
+    // que termine, algo normal al escribir rapido en el buscador) rechazando
+    // su promesa `ready` con un AbortError. Es un aviso, no un fallo:
+    // `paint()` ya hizo el cambio real, solo no hay animacion esa vez. Sin
+    // este `catch` quedaba como error sin atrapar en la consola. `finished`
+    // se deja sin atrapar a proposito: si `paint()` mismo lanzara un error de
+    // verdad, eso si conviene que se vea.
+    document.startViewTransition(() => paint()).ready.catch(() => {});
   } else {
     paint();
   }
