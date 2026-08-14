@@ -1,10 +1,31 @@
 /**
- * Editor de recetas.
+ * =============================================================================
+ *  EDITOR DE RECETAS
+ * =============================================================================
  *
- * Cambios respecto de la version anterior: cada campo tiene su etiqueta asociada,
- * los errores se muestran junto al formulario en lugar de en un alert() del
- * navegador, y el campo de ingrediente autocompleta desde el catalogo de 159
- * ingredientes que ya venia en los datos y no se estaba usando.
+ *  La misma ventana sirve para crear una receta nueva y para modificar una que
+ *  ya existe. Lo unico que cambia es de donde sale el borrador de partida y el
+ *  titulo de la ventana.
+ *
+ *  COMO ESTA REPARTIDA LA PANTALLA
+ *  -------------------------------
+ *
+ *      IDENTIDAD      arriba, a todo el ancho: nombre y categoria
+ *      INGREDIENTES   panel izquierdo: componentes, cada uno con sus lineas
+ *      METODO         panel derecho: texto libre
+ *
+ *  Se edita sobre una COPIA, nunca sobre la receta original. Mientras la
+ *  ventana esta abierta, el recetario no se entera de nada: solo al pulsar
+ *  Guardar se valida el borrador entero y se entrega. Cancelar, cerrar o pulsar
+ *  Escape dejan la receta exactamente como estaba, sin necesidad de deshacer
+ *  nada.
+ *
+ *  QUE SE REPINTA Y CUANDO
+ *  -----------------------
+ *  Los componentes y sus lineas se redibujan solos cuando se anade o se quita
+ *  alguno (`redrawComponents` y `redrawItems`). El resto de campos escribe
+ *  directamente en el borrador segun se teclea, sin repintar: repintar mientras
+ *  alguien escribe le movería el cursor.
  */
 
 import { el, clear } from '../lib/dom.js';
@@ -44,6 +65,21 @@ export function openEditor(options) {
     });
   };
 
+  /* =======================================================================
+   *  1. UN COMPONENTE (masa, relleno, cobertura...)
+   * ==================================================================== */
+
+  /**
+   * Dibuja un componente entero: su nombre, la cabecera de columnas, sus
+   * lineas de ingrediente y el boton de anadir una mas.
+   *
+   * El boton de quitar el componente solo aparece si hay mas de uno: una
+   * receta sin ningun componente no tendria donde poner los ingredientes.
+   *
+   * @param {{nombre: string, items: Array}} component
+   * @param {number} componentIndex posicion dentro del borrador
+   * @returns {HTMLElement}
+   */
   function renderComponent(component, componentIndex) {
     const itemsHost = el('div', { class: 'rows' });
 
@@ -113,6 +149,24 @@ export function openEditor(options) {
     ]);
   }
 
+  /* =======================================================================
+   *  2. UNA LINEA DE INGREDIENTE
+   * ==================================================================== */
+
+  /**
+   * Una fila del componente: ingrediente, cantidad, unidad y quitar.
+   *
+   * El nombre y la unidad se pasan a mayusculas segun se escriben, para que
+   * las 121 recetas mantengan el mismo criterio que traian de origen y el
+   * autocompletado encuentre coincidencias.
+   *
+   * @param {{ingrediente: string, cantidad: string|number, unidad: string}} item
+   * @param {number} componentIndex
+   * @param {number} itemIndex
+   * @param {object} component componente al que pertenece la linea
+   * @param {() => void} redrawItems repinta las lineas tras quitar una
+   * @returns {HTMLElement}
+   */
   function renderItemRow(item, componentIndex, itemIndex, component, redrawItems) {
     const rowId = `it-${componentIndex}-${itemIndex}`;
 
@@ -176,6 +230,10 @@ export function openEditor(options) {
         on: {
           click: () => {
             component.items.splice(itemIndex, 1);
+            // Un componente nunca se queda sin ninguna fila: si se quita la
+            // ultima, entra una vacia en su lugar. Dejarlo a cero mostraba un
+            // componente con nombre y nada debajo, y la unica salida era
+            // borrar el componente entero y volver a crearlo.
             if (component.items.length === 0) {
               component.items.push({ ingrediente: '', cantidad: '', unidad: 'GR' });
             }
@@ -187,6 +245,10 @@ export function openEditor(options) {
   }
 
   redrawComponents();
+
+  /* =======================================================================
+   *  3. LA VENTANA COMPLETA
+   * ==================================================================== */
 
   const body = el('div', { class: 'editor' }, [
     el('div', { class: 'editor__identity' }, [
@@ -266,6 +328,14 @@ export function openEditor(options) {
     buildDatalist(UNITS_ID, UNITS),
   ]);
 
+  /**
+   * Valida el borrador entero y, si esta correcto, lo entrega.
+   *
+   * La validacion ocurre aqui y no mientras se escribe: avisar campo por campo
+   * mientras alguien teclea una cantidad a medias solo estorba. El error se
+   * muestra dentro del formulario y se anuncia a los lectores de pantalla,
+   * nunca en un `alert()` del navegador.
+   */
   const save = () => {
     const result = validateRecipe(draft);
     if (!result.ok) {
@@ -304,6 +374,21 @@ export function openEditor(options) {
   });
 }
 
+/* ===========================================================================
+ *  4. AYUDANTES
+ * ======================================================================== */
+
+/**
+ * Opciones del desplegable de categoria.
+ *
+ * Si la receta trae una categoria que no esta entre las tres canonicas (puede
+ * pasar con datos antiguos), se anade al final en vez de descartarla: cambiar
+ * la categoria de una receta tiene que ser una decision de quien edita, no un
+ * efecto secundario de abrir el editor.
+ *
+ * @param {string} selected categoria actual de la receta
+ * @returns {Array<HTMLElement>}
+ */
 function categoryOptions(selected) {
   const known = CATEGORIES.includes(selected) ? CATEGORIES : [...CATEGORIES, selected];
   return known.filter(Boolean).map((name) =>
@@ -311,6 +396,17 @@ function categoryOptions(selected) {
   );
 }
 
+/**
+ * Lista de sugerencias para un campo (`<datalist>`).
+ *
+ * Se usa para los 159 ingredientes del catalogo y para las unidades. A
+ * diferencia de un `<select>`, deja escribir un valor que no este en la lista:
+ * hace falta para poder dar de alta un ingrediente nuevo.
+ *
+ * @param {string} id identificador al que apunta el atributo `list` del campo
+ * @param {Array<string>} values
+ * @returns {HTMLElement}
+ */
 function buildDatalist(id, values) {
   return el(
     'datalist',
@@ -319,6 +415,15 @@ function buildDatalist(id, values) {
   );
 }
 
+/**
+ * Indice de ingrediente a su unidad habitual.
+ *
+ * Sirve para proponer la unidad al elegir un ingrediente conocido y ahorrar
+ * ese paso, que se repite en cada linea de cada receta.
+ *
+ * @param {Array<{nombre: string, unidad: string}>} ingredientes
+ * @returns {Map<string, string>}
+ */
 function buildUnitLookup(ingredientes) {
   const map = new Map();
   for (const item of ingredientes) {
@@ -327,6 +432,14 @@ function buildUnitLookup(ingredientes) {
   return map;
 }
 
+/**
+ * Lleva el cursor a la fila recien anadida.
+ *
+ * Sin esto, tras pulsar "+ ingrediente" habia que ir a buscar el campo con el
+ * raton o con el tabulador, y se anaden muchas seguidas.
+ *
+ * @param {HTMLElement} host contenedor de las filas del componente
+ */
 function focusLastIngredient(host) {
   const inputs = host.querySelectorAll('input[list="' + CATALOG_ID + '"]');
   const last = inputs[inputs.length - 1];

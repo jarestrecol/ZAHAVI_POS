@@ -62,7 +62,6 @@ const SHELL = [
   './src/views/window.js',
   './src/views/login.js',
   './src/views/header.js',
-  
   './src/views/sidebar.js',
   './src/views/detail.js',
   './src/views/editor.js',

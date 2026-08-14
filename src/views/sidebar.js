@@ -1,8 +1,19 @@
 /**
- * Lista lateral de recetas: filtros de categoria y listado completo.
+ * =============================================================================
+ *  LISTA LATERAL DE RECETAS
+ * =============================================================================
  *
- * Sustituye al indice a doble pagina del libro. La lista queda siempre visible,
- * asi que saltar de una receta a otra es un clic y no hay que volver atras.
+ *  Dos partes, de arriba abajo:
+ *
+ *      FILTROS    una rejilla con las tres categorias mas "todas", cada una
+ *                 con su punto de color y su recuento
+ *      LISTADO    las recetas que pasan el filtro y la busqueda, agrupadas por
+ *                 la letra inicial
+ *
+ *  La lista queda siempre visible en pantallas anchas, asi que saltar de una
+ *  receta a otra es un clic y nunca hay que volver atras. En celular y tableta
+ *  no caben la lista y la ficha a la vez: `main.js` decide cual de las dos se
+ *  ve (ver `data-view` en responsive.css).
  */
 
 import { el } from '../lib/dom.js';
