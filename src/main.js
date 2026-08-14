@@ -252,18 +252,36 @@ function moveSelection(delta) {
  * transicion: lo unico que cambia es si el cambio se ve animado o no.
  */
 function render() {
-  if (typeof document.startViewTransition === 'function') {
-    // El navegador salta una transicion (por ejemplo si llega otra antes de
-    // que termine, algo normal al escribir rapido en el buscador) rechazando
-    // su promesa `ready` con un AbortError. Es un aviso, no un fallo:
-    // `paint()` ya hizo el cambio real, solo no hay animacion esa vez. Sin
-    // este `catch` quedaba como error sin atrapar en la consola. `finished`
-    // se deja sin atrapar a proposito: si `paint()` mismo lanzara un error de
-    // verdad, eso si conviene que se vea.
-    document.startViewTransition(() => paint()).ready.catch(() => {});
-  } else {
+  if (typeof document.startViewTransition !== 'function') {
     paint();
+    return;
   }
+
+  const transicion = document.startViewTransition(() => paint());
+
+  // El navegador SALTA una transicion cuando llega otra antes de que la
+  // anterior termine. Pasa constantemente en uso normal: al escribir en el
+  // buscador, al recorrer el listado con las flechas, al abrir una receta
+  // mientras se cierra un dialogo. Cuando la salta, rechaza sus promesas con
+  // un AbortError.
+  //
+  // No es un fallo: `paint()` ya hizo el cambio real y la pantalla esta
+  // correcta; lo unico que se pierde es la animacion de esa vez. Pero si nadie
+  // recoge ese rechazo, el navegador lo anuncia como error sin atrapar y
+  // ensucia la consola.
+  //
+  // Se vigilan las DOS promesas. Un intento anterior cubria solo `ready` y el
+  // aviso seguia saliendo, asi que aqui no se asume cual de las dos rechaza:
+  // se cubren ambas y se descarta unicamente el AbortError. Cualquier otro
+  // error (por ejemplo, uno de verdad dentro de `paint()`) se deja salir, para
+  // no esconder un fallo real detras de esta red de seguridad.
+  const descartarSalto = (error) => {
+    if (error && error.name === 'AbortError') return;
+    throw error;
+  };
+
+  transicion.ready.catch(descartarSalto);
+  transicion.finished.catch(descartarSalto);
 }
 
 /**

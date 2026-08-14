@@ -81,12 +81,16 @@ comprobar('origen local', estado.source === 'local', estado.source);
 comprobar('sigue el metodo editado', repo.findById('R005').metodo.includes('Paso 1'));
 comprobar('sigue eliminada R001', repo.findById('R001') === null);
 
-console.log('\n6. El archivo a publicar lleva los cambios');
-const archivo = repo.toPublishableFile();
-comprobar('esquema v2', archivo.version === 2);
-comprobar('lleva revision', typeof archivo.revision === 'string' && archivo.revision.length === 10);
-comprobar('incluye la edicion', archivo.recipes.find((r) => r.id === 'R005').metodo.includes('Paso 1'));
-comprobar('no incluye la eliminada', !archivo.recipes.find((r) => r.id === 'R001'));
+// Lo que se envia al publicar es exactamente el estado actual del repositorio:
+// `publishToAll` pasa `findAll()` y el catalogo tal cual a `publishShared`, y es
+// el servidor quien arma el archivo con su version y su revision. Se comprueba
+// sobre ese estado, que es el que de verdad viaja.
+console.log('\n6. Lo que se publicaria lleva los cambios');
+const aPublicar = repo.findAll();
+comprobar('incluye la edicion', aPublicar.find((r) => r.id === 'R005').metodo.includes('Paso 1'));
+comprobar('no incluye la eliminada', !aPublicar.find((r) => r.id === 'R001'));
+comprobar('incluye la receta nueva', aPublicar.some((r) => r.nombre === 'PRUEBA X 1 UND'));
+comprobar('lleva el catalogo de ingredientes', repo.allIngredients().length > 0);
 
 console.log('\n7. Se publica una version nueva: se detecta el conflicto');
 servido = { ...publicado, revision: '2026-09-01' };

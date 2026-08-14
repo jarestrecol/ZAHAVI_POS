@@ -401,21 +401,6 @@ export function nextId() {
 }
 
 /**
- * Contenido del archivo `data/recipes.json` con el estado actual, listo para
- * reemplazar el del proyecto y publicar una version nueva.
- *
- * @returns {object}
- */
-export function toPublishableFile() {
-  return {
-    version: SCHEMA_VERSION,
-    revision: new Date().toISOString().slice(0, 10),
-    recipes: current.recipes,
-    ingredientes: current.ingredientes,
-  };
-}
-
-/**
  * Indica si este sitio puede publicar para todas las sedes o solo guardar en
  * este equipo.
  *

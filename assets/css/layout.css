@@ -99,10 +99,6 @@
   color: var(--on-rail-2);
 }
 
-.topbar__spacer {
-  flex: 1 1 auto;
-}
-
 .topbar__actions {
   display: flex;
   align-items: center;
@@ -232,35 +228,45 @@
   min-height: 0;
 }
 
-/* ---- Lista de recetas ---- */
+/* ---- Lista de recetas ----
+   El listado va sobre superficie HUNDIDA y la ficha sobre superficie de
+   trabajo: son dos planos distintos, no dos mitades del mismo. Asi, con una
+   receta abierta, se ve de un vistazo que el panel de la izquierda es el
+   indice y el de la derecha es donde se trabaja. Antes ambos eran claros y
+   solo los separaba una linea de un pixel. */
 
 .sidebar {
   display: grid;
   grid-template-rows: auto auto 1fr;
   min-height: 0;
-  background: var(--surface-card);
+  background: var(--surface-sunk);
   border-right: 1px solid var(--line);
 }
 
 /*
  * Filtro de categoria, tratado como control segmentado de panel, no como
- * pastillas sueltas: un solo fondo hundido para el grupo entero (mismo
- * idioma que `.sidebar__count`, justo debajo) y cada segmento con un realce
- * inferior del color de su categoria en vez de un relleno de acento. Sin
- * radios de pildora ni rebote al pulsar: eso lee como filtro decorativo de
- * blog, y esto tiene que leerse como instrumento de un sistema de trabajo.
+ * pastillas sueltas. Sin radios de pildora ni rebote al pulsar: eso lee como
+ * filtro decorativo de blog, y esto tiene que leerse como instrumento de un
+ * sistema de trabajo.
+ *
+ * Cuadricula de dos columnas en vez de una fila que se parte sola: con cuatro
+ * filtros de ancho distinto ("todas 121", "pastelería 66", "panadería 34",
+ * "galletas 21") el reparto flexible los dejaba desalineados y cambiando de
+ * sitio segun el ancho del panel. En rejilla quedan siempre en dos columnas
+ * parejas, y si algun dia aparece una categoria mas, solo anade una fila.
+ *
+ * `align-items: stretch` mas `grid-auto-rows: 1fr` es lo que los deja de
+ * verdad rectos: todos los segmentos miden exactamente igual de alto aunque
+ * uno tenga el nombre mas largo o el conteo de tres cifras.
  */
-/* Cuadricula de dos columnas en vez de una fila que se parte sola: con cuatro
-   filtros de ancho distinto ("todas 121", "pastelería 66", "panadería 34",
-   "galletas 21") el reparto flexible los dejaba desalineados y cambiando de
-   sitio segun el ancho del panel. En rejilla quedan siempre en dos columnas
-   parejas, y si algun dia aparece una categoria mas, solo anade una fila. */
 .sidebar__filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-sunk);
+  padding: var(--space-3);
+  background: var(--surface-card);
   border-bottom: 1px solid var(--line);
 }
 
@@ -271,15 +277,15 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--tap-min);
-  padding: var(--space-1) var(--space-3);
+  min-height: var(--tap-row);
+  padding: var(--space-2) var(--space-3);
   font-family: var(--font-ui);
   font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-align: left;
   color: var(--ink-3);
-  background: transparent;
+  background: var(--surface-sunk);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -289,6 +295,7 @@
 
 .chip:hover {
   background: var(--surface-hover);
+  border-color: var(--line);
   color: var(--ink);
 }
 
@@ -296,31 +303,32 @@
   background: var(--surface-hover);
 }
 
-/* Realce inferior de 2px con box-shadow, no border-bottom: un borde que
-   crece de 1 a 2px desplaza la caja verticalmente al activarse. El shadow no
-   participa del modelo de caja, asi que no hay salto de layout. */
+/* Categoria activa: barra del color de la categoria pegada al borde
+   izquierdo, mas superficie elevada y negrita. La barra va con `inset
+   box-shadow` y no con `border-left`, porque un borde que crece de 1 a 4px
+   desplazaria el contenido del segmento cada vez que se cambia de filtro. */
 .chip[aria-pressed='true'] {
   color: var(--ink);
   background: var(--surface-card);
   border-color: var(--line);
-  box-shadow: var(--shadow-xs), inset 0 -2px 0 0 var(--cat-otros);
+  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-otros);
   font-weight: 700;
 }
 
 .chip[data-category='TODAS'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 0 -2px 0 0 var(--brand);
+  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--brand);
 }
 
 .chip[data-category='PASTELERÍA'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 0 -2px 0 0 var(--cat-pasteleria);
+  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-pasteleria);
 }
 
 .chip[data-category='PANADERÍA'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 0 -2px 0 0 var(--cat-panaderia);
+  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-panaderia);
 }
 
 .chip[data-category='GALLETAS'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 0 -2px 0 0 var(--cat-galletas);
+  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-galletas);
 }
 
 .chip__dot {
@@ -376,43 +384,55 @@
   padding: var(--space-2);
 }
 
+/* Separador de letra inicial. Va en su propia franja, con linea debajo y el
+   fondo hundido del panel, para que se lea como un corte entre grupos y no
+   como una receta mas de la lista. Queda pegado arriba al desplazar, asi que
+   siempre se sabe por que letra se va. */
 .sidebar__letter {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: var(--space-2) var(--space-2) var(--space-1);
+  margin: var(--space-3) 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
   font-family: var(--font-num);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.16em;
   color: var(--ink-4);
-  background: var(--surface-card);
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--line);
 }
 
-/* Fila de receta, tratada como tarjeta pequeña: se separa de sus vecinas con
-   margen en vez de una linea, y gana profundidad al pasar el cursor en lugar
-   de solo cambiar de color plano. */
+.sidebar__letter:first-child {
+  margin-top: 0;
+}
+
+/* Fila de receta, tratada como tarjeta blanca sobre el panel hundido: cada
+   receta es una pieza, no un renglon de una tabla. */
 .recipe-link {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: var(--tap-row);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-base);
   line-height: 1.3;
   color: var(--ink-2);
   text-decoration: none;
+  background: var(--surface-card);
   border-radius: var(--radius);
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
 .recipe-link:hover {
   background: var(--surface-hover);
+  border-color: var(--amber);
   color: var(--ink);
   transform: translateX(2px);
+  box-shadow: var(--shadow-xs);
 }
 
 /* Receta abierta ahora mismo.
@@ -425,26 +445,40 @@
   color: var(--ink);
   font-weight: 700;
   border-color: var(--amber);
-  box-shadow: var(--shadow-xs), inset 3px 0 0 0 var(--brand);
+  box-shadow: var(--shadow), inset 4px 0 0 0 var(--brand);
 }
 
 .recipe-link.is-active .recipe-link__yield {
   color: var(--amber-text);
 }
 
-/* En oscuro el tinte naranja se ensucia y resta contraste al texto: la
-   seleccion se comunica con un salto de superficie mas la misma barra de
-   marca, que ahi destaca todavia mas. */
+/* El punto de categoria de la receta abierta gana un anillo del color de
+   fondo, para que no se confunda con los de las filas de al lado. */
+.recipe-link.is-active .recipe-link__dot {
+  box-shadow: 0 0 0 3px var(--surface-card);
+}
+
+/* En oscuro el tinte naranja claro se ensucia y resta contraste al texto, asi
+   que ahi el fondo es una superficie mas clara y el naranja se queda en el
+   borde y en la barra, donde si luce. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .recipe-link.is-active {
-    background: var(--rail-2);
-    border-color: var(--rail-line);
+    background: var(--surface-hover);
+    border-color: var(--amber);
+  }
+
+  :root:not([data-theme='light']) .recipe-link.is-active .recipe-link__dot {
+    box-shadow: 0 0 0 3px var(--surface-hover);
   }
 }
 
 :root[data-theme='dark'] .recipe-link.is-active {
-  background: var(--rail-2);
-  border-color: var(--rail-line);
+  background: var(--surface-hover);
+  border-color: var(--amber);
+}
+
+:root[data-theme='dark'] .recipe-link.is-active .recipe-link__dot {
+  box-shadow: 0 0 0 3px var(--surface-hover);
 }
 
 /* Punto de categoria: presente en todas las filas. */
@@ -511,14 +545,6 @@
 .welcome__inner {
   max-width: 36rem;
   text-align: center;
-}
-
-.welcome__eyebrow {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--amber-text);
 }
 
 /* Nunca por encima de su tamaño nativo (254 px): al ampliarlo se veía suave

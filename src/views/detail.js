@@ -134,10 +134,13 @@ export function renderDetail(params) {
             on: { click: () => navigate({ name: 'index', id: null }) },
           }),
 
+          // Pesar es la accion estrella de la ficha: la que se pulsa cada vez
+          // que arranca una tanda. Lleva el naranja de marca, el unico relleno
+          // fuerte de la barra, para que se distinga del resto sin leer.
           actionButton({
             label: 'Pesar',
             icon: ICON_PESAR,
-            variant: 'btn--primary',
+            variant: 'btn--accent btn--action',
             ariaLabel: 'Abrir modo producción para pesar',
             onClick: () => setState({ production: recipe.id }),
           }),
@@ -145,7 +148,7 @@ export function renderDetail(params) {
           actionButton({
             label: 'Imprimir',
             icon: ICON_IMPRIMIR,
-            variant: 'btn--quiet',
+            variant: 'btn--quiet btn--action btn--print',
             onClick: () => window.print(),
           }),
 
@@ -153,7 +156,7 @@ export function renderDetail(params) {
             ? actionButton({
                 label: 'Editar',
                 icon: ICON_EDITAR,
-                variant: 'btn--quiet',
+                variant: 'btn--quiet btn--action btn--edit',
                 onClick: () => navigate({ name: 'edit', id: recipe.id }),
               })
             : null,
@@ -166,7 +169,7 @@ export function renderDetail(params) {
             ? actionButton({
                 label: 'Eliminar',
                 icon: ICON_ELIMINAR,
-                variant: 'btn--quiet btn--danger',
+                variant: 'btn--quiet btn--danger btn--action',
                 onClick: () => setState({ confirmDelete: recipe.id }),
               })
             : null,
