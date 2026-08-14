@@ -1,0 +1,302 @@
+/**
+ * =============================================================================
+ *  PRUEBA DE ACEPTACION: ALTA Y BAJA MASIVA
+ * =============================================================================
+ *
+ *  Responde a dos preguntas concretas del dueno del producto:
+ *
+ *      1. Si creo 20 recetas, ¿se guardan bien y siguen ahi al recargar?
+ *         ¿Y se pueden borrar todas, dejando el recetario como estaba?
+ *
+ *      2. Si creo 5 usuarios, ¿se guardan? ¿Se puede entrar con ellos?
+ *         ¿Se pueden borrar? ¿Y las protecciones aguantan?
+ *
+ *  NO TOCA NINGUN DATO REAL
+ *  ------------------------
+ *  El navegador esta simulado: `localStorage` es un Map en memoria que muere
+ *  con el proceso, y `fetch` devuelve una copia del recetario publicado sin
+ *  pedir nada por la red. Las 121 recetas reales se leen, nunca se escriben.
+ *  Al final se comprueba que el archivo `data/recipes.json` sigue con su mismo
+ *  resumen sha256, byte a byte.
+ *
+ *  Todo lo que crea la prueba lleva el prefijo `QA-TEST-` o `qa-test-` para que
+ *  no pueda confundirse con contenido real ni siquiera al leer el volcado.
+ *
+ *  Se ejecuta con:  node scripts/test-qa.mjs
+ */
+
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { webcrypto } from 'node:crypto';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { resolve, dirname, join } from 'node:path';
+
+const repoRoot = process.argv[2] || resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const rutaDatos = join(repoRoot, 'data/recipes.json');
+
+/** Resumen del archivo real ANTES de empezar, para comprobarlo al terminar. */
+const shaAntes = createHash('sha256').update(readFileSync(rutaDatos)).digest('hex');
+
+const publicado = JSON.parse(readFileSync(rutaDatos, 'utf8'));
+const RECETAS_ORIGINALES = publicado.recipes.length;
+
+/* ===========================================================================
+ *  NAVEGADOR SIMULADO
+ * ======================================================================== */
+
+const almacen = new Map();
+const almacenSesion = new Map();
+
+const storage = (mapa) => ({
+  getItem: (k) => (mapa.has(k) ? mapa.get(k) : null),
+  setItem: (k, v) => mapa.set(k, String(v)),
+  removeItem: (k) => mapa.delete(k),
+});
+
+globalThis.window = {
+  localStorage: storage(almacen),
+  sessionStorage: storage(almacenSesion),
+  location: { protocol: 'https:', hash: '' },
+  // `users.js` usa crypto.subtle para el SHA-256 de las claves. Node ya
+  // expone `globalThis.crypto`, pero solo de lectura, asi que se cuelga aqui.
+  crypto: webcrypto,
+};
+
+globalThis.fetch = async () => ({ ok: true, json: async () => JSON.parse(JSON.stringify(publicado)) });
+
+const repo = await import(pathToFileURL(repoRoot + '/src/core/repository.js').href);
+const { validateRecipe } = await import(pathToFileURL(repoRoot + '/src/core/schema.js').href);
+const usuarios = await import(pathToFileURL(repoRoot + '/src/core/users.js').href);
+
+/* ===========================================================================
+ *  UTILIDADES DE LA PRUEBA
+ * ======================================================================== */
+
+let fallos = 0;
+function comprobar(titulo, condicion, detalle = '') {
+  const marca = condicion ? 'OK   ' : 'FALLA';
+  if (!condicion) fallos += 1;
+  console.log(`  ${marca} ${titulo}${detalle ? ' -> ' + detalle : ''}`);
+}
+
+/** Reparte las 20 recetas entre las tres categorias reales. */
+const CATEGORIAS = ['PASTELERÍA', 'PANADERÍA', 'GALLETAS'];
+
+/**
+ * Construye una receta de prueba, reconocible por su prefijo.
+ *
+ * @param {number} n numero de orden, de 1 a 20
+ * @returns {object} receta ya validada
+ */
+function recetaDePrueba(n) {
+  const num = String(n).padStart(2, '0');
+  const resultado = validateRecipe({
+    id: repo.nextId(),
+    nombre: `QA-TEST-${num} RECETA DE PRUEBA X 1 UND`,
+    categoria: CATEGORIAS[n % 3],
+    metodo: `Paso 1 de la prueba ${num}.\nPaso 2 de la prueba ${num}.`,
+    componentes: [
+      {
+        nombre: 'MASA DE PRUEBA',
+        items: [
+          { ingrediente: 'HARINA', cantidad: String(100 * n), unidad: 'GR' },
+          { ingrediente: 'AZUCAR', cantidad: String(50 * n), unidad: 'GR' },
+          { ingrediente: 'LECHE', cantidad: String(10 * n), unidad: 'ML' },
+        ],
+      },
+    ],
+  });
+  if (!resultado.ok) throw new Error('la receta de prueba no valida: ' + resultado.message);
+  return resultado.value;
+}
+
+console.log('\n===========================================================');
+console.log(' PRUEBA DE ACEPTACION - ALTA Y BAJA MASIVA');
+console.log('===========================================================');
+console.log(` Recetario real: ${RECETAS_ORIGINALES} recetas (no se modifica)`);
+console.log(` Resumen sha256: ${shaAntes.slice(0, 8)}`);
+
+/* ===========================================================================
+ *  BLOQUE 1: VEINTE RECETAS
+ * ======================================================================== */
+
+console.log('\n1. Arranque: se carga el recetario publicado');
+let estado = await repo.hydrate();
+comprobar(`${RECETAS_ORIGINALES} recetas al arrancar`, estado.recipes.length === RECETAS_ORIGINALES, String(estado.recipes.length));
+comprobar('sin cambios pendientes', repo.localChanges().dirty === false);
+
+console.log('\n2. Crear 20 recetas de prueba');
+const creadas = [];
+for (let n = 1; n <= 20; n += 1) {
+  const receta = recetaDePrueba(n);
+  const guardado = repo.save(receta);
+  if (!guardado.ok) {
+    comprobar(`guardar QA-TEST-${n}`, false, guardado.message);
+    break;
+  }
+  creadas.push(receta.id);
+}
+comprobar('se crearon las 20', creadas.length === 20, String(creadas.length));
+comprobar('todas con codigo distinto', new Set(creadas).size === 20, `${new Set(creadas).size} codigos unicos`);
+comprobar(
+  `el recetario pasa a ${RECETAS_ORIGINALES + 20}`,
+  repo.findAll().length === RECETAS_ORIGINALES + 20,
+  String(repo.findAll().length),
+);
+
+let cambios = repo.localChanges();
+comprobar('marcadas como cambios sin publicar', cambios.dirty === true);
+comprobar('cuenta 20 nuevas', cambios.added === 20, JSON.stringify(cambios));
+comprobar('ninguna receta real modificada', cambios.modified === 0, `modificadas: ${cambios.modified}`);
+comprobar('ninguna receta real eliminada', cambios.removed === 0, `eliminadas: ${cambios.removed}`);
+
+console.log('\n3. El contenido guardado es exactamente el que se envio');
+const muestra = repo.findById(creadas[7]);
+comprobar('la receta se recupera por su codigo', muestra !== null);
+comprobar('conserva el nombre', muestra && muestra.nombre.startsWith('QA-TEST-08'), muestra && muestra.nombre);
+comprobar('conserva los 3 ingredientes', muestra && muestra.componentes[0].items.length === 3);
+comprobar('conserva la cantidad exacta', muestra && String(muestra.componentes[0].items[0].cantidad) === '800');
+comprobar('conserva la unidad de volumen', muestra && muestra.componentes[0].items[2].unidad === 'ML');
+comprobar('conserva el metodo con sus saltos', muestra && muestra.metodo.split('\n').length === 2);
+
+console.log('\n4. Recargar la pagina: las 20 siguen ahi');
+estado = await repo.hydrate();
+comprobar('origen: cambios de este equipo', estado.source === 'local', estado.source);
+comprobar(
+  `siguen las ${RECETAS_ORIGINALES + 20}`,
+  repo.findAll().length === RECETAS_ORIGINALES + 20,
+  String(repo.findAll().length),
+);
+const trasRecarga = repo.findById(creadas[7]);
+comprobar('la muestra sobrevive intacta', trasRecarga && trasRecarga.nombre.startsWith('QA-TEST-08'));
+comprobar('y con su metodo', trasRecarga && trasRecarga.metodo.includes('Paso 2 de la prueba 08'));
+
+console.log('\n5. Borrar las 20, una por una');
+let borradas = 0;
+for (const id of creadas) {
+  const resultado = repo.remove(id);
+  if (resultado.ok && repo.findById(id) === null) borradas += 1;
+}
+comprobar('se borraron las 20', borradas === 20, String(borradas));
+comprobar(
+  `el recetario vuelve a ${RECETAS_ORIGINALES}`,
+  repo.findAll().length === RECETAS_ORIGINALES,
+  String(repo.findAll().length),
+);
+comprobar('no queda ninguna QA-TEST', repo.findAll().filter((r) => r.nombre.includes('QA-TEST')).length === 0);
+
+cambios = repo.localChanges();
+comprobar('ya no hay nuevas pendientes', cambios.added === 0, JSON.stringify(cambios));
+comprobar('sigue sin tocar ninguna receta real', cambios.modified === 0 && cambios.removed === 0);
+// Crear 20 y borrarlas deja el recetario igual que al principio. Si aqui
+// siguiera marcado como "con cambios", la cabecera anunciaria "0 cambios sin
+// publicar" y el boton de publicar quedaria activo sin nada que publicar.
+comprobar('no quedan cambios que anunciar', cambios.dirty === false, JSON.stringify(cambios));
+comprobar('el recuento es cero', cambios.total === 0, String(cambios.total));
+
+console.log('\n6. Las 121 recetas reales quedan como estaban');
+const idsReales = publicado.recipes.map((r) => r.id).sort();
+const idsAhora = repo.findAll().map((r) => r.id).sort();
+comprobar('mismos codigos', JSON.stringify(idsReales) === JSON.stringify(idsAhora));
+comprobar(
+  'mismo contenido byte a byte',
+  JSON.stringify(publicado.recipes) === JSON.stringify(repo.findAll()),
+);
+
+/* ===========================================================================
+ *  BLOQUE 2: CINCO USUARIOS
+ * ======================================================================== */
+
+console.log('\n7. Usuario de fabrica');
+await usuarios.ensureUsers();
+comprobar('existe un usuario de partida', usuarios.listUsers().length === 1, String(usuarios.listUsers().length));
+comprobar('se llama zahavi', usuarios.listUsers()[0].name === usuarios.DEFAULT_USER, usuarios.listUsers()[0].name);
+comprobar(
+  'entra con la clave de fabrica',
+  await usuarios.verifyUser(usuarios.DEFAULT_USER, usuarios.DEFAULT_PASSWORD),
+);
+comprobar('rechaza una clave incorrecta', !(await usuarios.verifyUser(usuarios.DEFAULT_USER, 'incorrecta')));
+usuarios.signIn(usuarios.DEFAULT_USER);
+comprobar('la sesion queda abierta', usuarios.isSignedIn() === true);
+
+console.log('\n8. Crear 5 usuarios');
+const creados = [];
+for (let n = 1; n <= 5; n += 1) {
+  const nombre = `qa-test-${n}`;
+  const clave = `ClaveDePrueba${n}`;
+  const resultado = await usuarios.createUser(nombre, clave, clave);
+  if (resultado.ok) creados.push(nombre);
+  else comprobar(`crear ${nombre}`, false, resultado.message);
+}
+comprobar('se crearon los 5', creados.length === 5, String(creados.length));
+comprobar('la lista tiene 6 (fabrica + 5)', usuarios.listUsers().length === 6, String(usuarios.listUsers().length));
+
+console.log('\n9. Los 5 pueden entrar de verdad');
+let entran = 0;
+for (let n = 1; n <= 5; n += 1) {
+  if (await usuarios.verifyUser(`qa-test-${n}`, `ClaveDePrueba${n}`)) entran += 1;
+}
+comprobar('los 5 entran con su clave', entran === 5, String(entran));
+comprobar('no entran con la clave de otro', !(await usuarios.verifyUser('qa-test-1', 'ClaveDePrueba2')));
+comprobar('no entra un usuario inventado', !(await usuarios.verifyUser('qa-test-99', 'ClaveDePrueba1')));
+
+console.log('\n10. Protecciones al crear');
+let r = await usuarios.createUser('qa-test-1', 'OtraClave123', 'OtraClave123');
+comprobar('rechaza un nombre repetido', !r.ok, r.ok ? 'lo permitio' : r.message);
+r = await usuarios.createUser('qa-test-6', 'abc', 'abc');
+comprobar('rechaza una clave demasiado corta', !r.ok, r.ok ? 'la permitio' : r.message);
+r = await usuarios.createUser('qa-test-6', 'ClaveLarga1', 'ClaveLarga2');
+comprobar('rechaza si las claves no coinciden', !r.ok, r.ok ? 'lo permitio' : r.message);
+r = await usuarios.createUser('', 'ClaveLarga1', 'ClaveLarga1');
+comprobar('rechaza un nombre vacio', !r.ok, r.ok ? 'lo permitio' : r.message);
+
+console.log('\n11. Cambiar la clave propia');
+r = await usuarios.changePassword(usuarios.DEFAULT_USER, 'claveIncorrecta', 'NuevaClave123', 'NuevaClave123');
+comprobar('rechaza si la clave actual esta mal', !r.ok, r.ok ? 'lo permitio' : r.message);
+r = await usuarios.changePassword(usuarios.DEFAULT_USER, usuarios.DEFAULT_PASSWORD, 'NuevaClave123', 'NuevaClave123');
+comprobar('acepta con la clave actual correcta', r.ok, r.ok ? '' : r.message);
+comprobar('la nueva clave funciona', await usuarios.verifyUser(usuarios.DEFAULT_USER, 'NuevaClave123'));
+comprobar('la anterior ya no', !(await usuarios.verifyUser(usuarios.DEFAULT_USER, usuarios.DEFAULT_PASSWORD)));
+
+console.log('\n12. Borrar los 5 usuarios');
+let quitados = 0;
+for (const nombre of creados) {
+  const resultado = usuarios.removeUser(nombre);
+  if (resultado.ok) quitados += 1;
+  else comprobar(`quitar ${nombre}`, false, resultado.message);
+}
+comprobar('se quitaron los 5', quitados === 5, String(quitados));
+comprobar('vuelve a quedar 1 usuario', usuarios.listUsers().length === 1, String(usuarios.listUsers().length));
+comprobar('ninguno qa-test sobrevive', usuarios.listUsers().filter((u) => u.name.startsWith('qa-test')).length === 0);
+comprobar('los borrados ya no entran', !(await usuarios.verifyUser('qa-test-1', 'ClaveDePrueba1')));
+
+console.log('\n13. Protecciones al borrar');
+r = usuarios.removeUser(usuarios.DEFAULT_USER);
+comprobar('no deja quedarse sin usuarios', !r.ok, r.ok ? 'lo permitio' : r.message);
+comprobar('el usuario sigue ahi', usuarios.listUsers().length === 1);
+
+console.log('\n14. Cerrar sesion revoca tambien la clave de edicion');
+const remote = await import(pathToFileURL(repoRoot + '/src/core/remote.js').href);
+remote.setEditKey('clave-de-edicion-de-prueba');
+comprobar('la clave queda en la sesion', remote.getEditKey() === 'clave-de-edicion-de-prueba');
+usuarios.signOut();
+comprobar('la sesion se cierra', usuarios.isSignedIn() === false);
+comprobar('y la clave de edicion se borra', remote.getEditKey() === '', remote.getEditKey());
+
+/* ===========================================================================
+ *  CIERRE: EL ARCHIVO REAL NO SE TOCO
+ * ======================================================================== */
+
+console.log('\n15. El archivo de recetas reales no se modifico');
+const shaDespues = createHash('sha256').update(readFileSync(rutaDatos)).digest('hex');
+comprobar('mismo resumen sha256', shaAntes === shaDespues, shaDespues.slice(0, 8));
+
+console.log('\n===========================================================');
+if (fallos === 0) {
+  console.log(' RESULTADO: todo correcto.');
+} else {
+  console.log(` RESULTADO: ${fallos} comprobacion(es) fallida(s).`);
+}
+console.log('===========================================================\n');
+
+process.exit(fallos === 0 ? 0 : 1);

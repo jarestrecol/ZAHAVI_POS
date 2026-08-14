@@ -356,6 +356,22 @@ export function localChanges() {
   const catalogChanged =
     JSON.stringify(published.ingredientes) !== JSON.stringify(current.ingredientes) ? 1 : 0;
 
+  const total = added + modified + removed + catalogChanged;
+
+  // Se escribio algo en este equipo, pero el resultado coincide con lo
+  // publicado: por ejemplo, crear una receta y volver a borrarla, o deshacer a
+  // mano una edicion. Para la persona no hay ningun cambio pendiente, asi que
+  // tampoco debe verlo.
+  //
+  // La marca interna `dirty` no dice "difiere de lo publicado", dice "hay una
+  // copia local que manda sobre lo publicado", y eso sigue siendo cierto: por
+  // eso se corrige aqui, al informar, y no tocando la marca. Sin esto, la
+  // cabecera anunciaba "0 cambios sin publicar" con el boton de publicar
+  // activo, y Ajustes listaba los cambios con la enumeracion vacia.
+  if (total === 0) {
+    return { dirty: false, conflict, unknown: false, added: 0, modified: 0, removed: 0, catalogChanged: 0, total: 0 };
+  }
+
   return {
     dirty: true,
     conflict,
@@ -364,7 +380,7 @@ export function localChanges() {
     modified,
     removed,
     catalogChanged,
-    total: added + modified + removed + catalogChanged,
+    total,
   };
 }
 

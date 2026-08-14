@@ -5,7 +5,8 @@
  *
  * Ejecuta, en orden: sintaxis de todos los modulos, resolucion de importaciones,
  * coherencia del CSS, pruebas de la capa de datos, pruebas de la validacion del
- * servidor, integridad de las recetas y generacion del archivo offline.
+ * servidor, alta y baja masiva de recetas y usuarios, integridad de las recetas
+ * y generacion del archivo offline.
  *
  * Devuelve codigo distinto de cero si algo falla, para poder usarlo como puerta
  * antes de publicar.
@@ -131,6 +132,12 @@ paso('Capa de datos', () => {
 paso('Validacion del servidor', () => {
   run('test-api.mjs');
   return '28 comprobaciones';
+});
+
+paso('Alta y baja masiva', () => {
+  const out = run('test-qa.mjs');
+  const total = (out.match(/^\s+OK\s/gm) || []).length;
+  return `${total} comprobaciones`;
 });
 
 paso('Integridad de las recetas', () => {

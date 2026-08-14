@@ -459,6 +459,7 @@ Resolucion de importaciones…    ok (26 modulos)
 Coherencia del CSS…             ok (207 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
+Alta y baja masiva…             ok (56 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, 187 componentes, 1282 items)
 Archivo offline…                ok
 ```
@@ -468,9 +469,16 @@ Archivo offline…                ok
 | `check-css.mjs` | Valores CSS corrompidos, hexadecimales inválidos, llaves sin cerrar, tokens sin definir, clases sin estilo, y que todo módulo esté declarado en el service worker y en el empaquetador |
 | `test-datos.mjs` | Arranque limpio, integridad, edición, borrado, recarga con cambios pendientes, conflicto de versiones, descarte y ausencia de red |
 | `test-api.mjs` | Que el recetario real pasa la validación del servidor sin alterarse, que se rechazan los envíos que lo destruirían, y que cliente y servidor coinciden sobre los datos reales |
+| `test-qa.mjs` | Alta y baja masiva: crea 20 recetas y 5 usuarios, comprueba que se guardan y sobreviven a una recarga, los borra todos y verifica que el recetario vuelve exactamente a su estado inicial |
 
 La comprobación de integridad incluye el **sha256 del archivo de recetas**: si
 una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
+
+### Verificación manual
+
+[QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
+hacerse mirando la pantalla: 97 puntos organizados por área, más el historial de
+defectos reales que estas pruebas han encontrado.
 
 ### Versión de un solo archivo
 
@@ -548,7 +556,10 @@ scripts/
   check-css.mjs            Coherencia de hojas de estilo y manifiestos
   test-datos.mjs           Pruebas de la capa de datos
   test-api.mjs             Pruebas del validador del servidor
+  test-qa.mjs              Alta y baja masiva de recetas y usuarios
   build-standalone.mjs     Empaquetador de un solo archivo
+
+QA.md                      Lista de verificación manual (97 puntos)
 
 data/
   recipes.json             Recetario publicado
