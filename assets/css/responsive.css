@@ -266,6 +266,24 @@
     padding-right: var(--space-2);
   }
 
+  /* Con cinco botones repartiendose el ancho de un celular no caben icono y
+     texto a la vez. Se queda el texto, que es el que dice lo que hace; el
+     icono es una ayuda visual para pantallas con sitio. */
+  .sheet-head__actions .btn__icon {
+    display: none;
+  }
+
+  /* El separador solo tiene sentido en una barra horizontal con holgura: en la
+     barra flotante del celular los botones ya van repartidos a partes iguales. */
+  .sheet-head__sep {
+    display: none;
+  }
+
+  /* Los datos de la ficha tecnica se aprietan: menos margen entre columnas. */
+  .facts__item {
+    padding: 0 var(--space-3);
+  }
+
   /* Hueco al final para que la barra flotante no tape el ultimo ingrediente. */
   .sheet-view {
     padding-bottom: 6rem;

@@ -250,17 +250,25 @@
  * radios de pildora ni rebote al pulsar: eso lee como filtro decorativo de
  * blog, y esto tiene que leerse como instrumento de un sistema de trabajo.
  */
+/* Cuadricula de dos columnas en vez de una fila que se parte sola: con cuatro
+   filtros de ancho distinto ("todas 121", "pastelería 66", "panadería 34",
+   "galletas 21") el reparto flexible los dejaba desalineados y cambiando de
+   sitio segun el ancho del panel. En rejilla quedan siempre en dos columnas
+   parejas, y si algun dia aparece una categoria mas, solo anade una fila. */
 .sidebar__filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
   background: var(--surface-sunk);
   border-bottom: 1px solid var(--line);
 }
 
+/* Tres zonas fijas: punto, nombre y cifra. El nombre se estira y la cifra
+   queda pegada a la derecha, asi que los puntos forman una columna y las
+   cifras otra, en vez de bailar segun el largo de cada palabra. */
 .chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--tap-min);
@@ -269,6 +277,7 @@
   font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
+  text-align: left;
   color: var(--ink-3);
   background: transparent;
   border: 1px solid transparent;
@@ -322,15 +331,23 @@
   background: var(--cat-otros);
 }
 
+/* "Todas" tambien lleva punto, en color de marca: sin el, su nombre empezaba
+   dos posiciones antes que el de las demas y rompia la columna. */
+.chip[data-category='TODAS'] .chip__dot { background: var(--brand); }
 .chip[data-category='PASTELERÍA'] .chip__dot { background: var(--cat-pasteleria); }
 .chip[data-category='PANADERÍA'] .chip__dot { background: var(--cat-panaderia); }
 .chip[data-category='GALLETAS'] .chip__dot { background: var(--cat-galletas); }
 
 .chip__label {
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chip__count {
+  flex-shrink: 0;
   font-family: var(--font-num);
   font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
@@ -398,25 +415,36 @@
   transform: translateX(2px);
 }
 
+/* Receta abierta ahora mismo.
+   Tres señales a la vez, porque en una lista de 121 filas iguales una sola no
+   basta: fondo teñido, texto en negrita y una barra de marca pegada al borde
+   izquierdo. La barra va con `inset box-shadow` y no con `border-left`, para
+   que activarla no ensanche la fila ni desplace el texto medio pixel. */
 .recipe-link.is-active {
   background: var(--amber-soft);
   color: var(--ink);
-  font-weight: 600;
-  border-color: var(--line);
-  box-shadow: var(--shadow-xs);
+  font-weight: 700;
+  border-color: var(--amber);
+  box-shadow: var(--shadow-xs), inset 3px 0 0 0 var(--brand);
+}
+
+.recipe-link.is-active .recipe-link__yield {
+  color: var(--amber-text);
 }
 
 /* En oscuro el tinte naranja se ensucia y resta contraste al texto: la
-   seleccion se comunica con un salto de superficie y el punto de categoria
-   ya hace de indicador. */
+   seleccion se comunica con un salto de superficie mas la misma barra de
+   marca, que ahi destaca todavia mas. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .recipe-link.is-active {
     background: var(--rail-2);
+    border-color: var(--rail-line);
   }
 }
 
 :root[data-theme='dark'] .recipe-link.is-active {
   background: var(--rail-2);
+  border-color: var(--rail-line);
 }
 
 /* Punto de categoria: presente en todas las filas. */

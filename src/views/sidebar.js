@@ -8,7 +8,7 @@
 import { el } from '../lib/dom.js';
 import { titleCase, splitName, indexLetter } from '../lib/format.js';
 import { filterRecipes, sortRecipes, availableCategories, categoryCounts } from '../core/search.js';
-import { navigate, ALL_CATEGORIES } from '../core/router.js';
+import { navigate } from '../core/router.js';
 
 /**
  * @param {{recipes: Array, query: string, category: string, selectedId: string|null}} params
@@ -36,16 +36,22 @@ export function renderSidebar(params) {
 }
 
 /**
- * Un segmento del filtro de categoria: punto de color, nombre y conteo. El
- * punto se omite en TODAS porque no tiene un color de categoria propio.
+ * Un segmento del filtro de categoria: punto de color, nombre y conteo.
  *
- * @param {string} name
- * @param {number} count
- * @param {string} activeCategory
+ * Los tres van siempre, incluido TODAS, que lleva el punto en color de marca:
+ * si a uno le faltara el punto, su nombre arrancaria desplazado respecto a los
+ * demas y la columna dejaria de leerse recta.
+ *
+ * El nombre accesible se declara entero en `aria-label` y los tres hijos se
+ * ocultan con `aria-hidden`, para que el lector de pantalla diga "pastelería
+ * (66 recetas)" en vez de encadenar los trozos sueltos y repetir la cifra.
+ *
+ * @param {string} name nombre de la categoria, o TODAS
+ * @param {number} count cuantas recetas tiene
+ * @param {string} activeCategory categoria filtrada ahora mismo
  * @returns {HTMLElement}
  */
 function renderCategoryChip(name, count, activeCategory) {
-  const isAll = name === ALL_CATEGORIES;
   const word = count === 1 ? 'receta' : 'recetas';
 
   return el('button', {
@@ -58,7 +64,7 @@ function renderCategoryChip(name, count, activeCategory) {
     },
     on: { click: () => navigate({ name: 'index', id: null, category: name }) },
   }, [
-    isAll ? null : el('span', { class: 'chip__dot', attrs: { 'aria-hidden': 'true' } }),
+    el('span', { class: 'chip__dot', attrs: { 'aria-hidden': 'true' } }),
     el('span', { class: 'chip__label', attrs: { 'aria-hidden': 'true' }, text: name.toLowerCase() }),
     el('span', { class: 'chip__count', attrs: { 'aria-hidden': 'true' }, text: String(count) }),
   ]);

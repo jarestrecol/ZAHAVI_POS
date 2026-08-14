@@ -78,12 +78,21 @@
   --amber-on-rail: #f9a94a;
 
   /* ---- Categorías ----
-     Las tres llegan a AAA. Galletas se desplaza a oliva porque en su tono dorado
-     quedaba a 14 grados de Panaderia, y ese salto desaparece en deuteranopia y
-     protanopia: las dos se percibian como el mismo marron. */
-  --cat-pasteleria: #9b294a;
-  --cat-panaderia: #7b4911;
-  --cat-galletas: #495625;
+     Los tres tonos se reparten el circulo cromatico lo mas lejos posible:
+     rosa (330 grados), ambar (35) y verde (165), unos 130 grados entre cada
+     par. La version anterior los dejaba a menos de 60 grados y con luminancias
+     casi identicas (0,089 / 0,090 / 0,084), asi que de un vistazo los tres se
+     leian como el mismo marron apagado.
+
+     Los tres siguen en AAA sobre blanco: 7,4:1 el rosa, 7,7:1 el ambar y
+     7,1:1 el verde. Ese techo (AAA exige luminancia por debajo de 0,10) es lo
+     que impide separarlos ademas por claridad, asi que la distincion la carga
+     el tono. No es un problema de accesibilidad porque el color nunca va solo:
+     en los filtros lleva su nombre al lado y en el listado acompana al nombre
+     de la receta, nunca lo sustituye. */
+  --cat-pasteleria: #a31956;
+  --cat-panaderia: #7d4505;
+  --cat-galletas: #1d6349;
   --cat-otros: #4f473e;
 
   /* ---- Estado ---- */
@@ -245,11 +254,14 @@
     --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 100%);
     --brand-gradient-soft: linear-gradient(135deg, rgba(246, 138, 30, 0.22) 0%, rgba(252, 224, 12, 0.08) 100%);
 
-    /* Separadas por luminancia ademas de por tono: en deuteranopia el matiz se
-       pierde, pero el orden de claridad se sigue percibiendo. */
-    --cat-pasteleria: #e689a4;
-    --cat-panaderia: #b87a35;
-    --cat-galletas: #a7c653;
+    /* Los mismos tres tonos del modo claro, subidos de claridad para que
+       contrasten sobre fondo oscuro: 7,3:1 el rosa, 7,9:1 el ambar y 8,5:1 el
+       verde sobre la superficie de tarjeta. Aqui si se separan tambien por
+       luminancia (0,39 / 0,43 / 0,46), porque sobre fondo oscuro el techo de
+       contraste deja margen para hacerlo. */
+    --cat-pasteleria: #f087b0;
+    --cat-panaderia: #e0a355;
+    --cat-galletas: #5fc79b;
     --cat-otros: #b0a696;
 
     --danger: #eb7070;
@@ -317,9 +329,11 @@
   --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 100%);
   --brand-gradient-soft: linear-gradient(135deg, rgba(246, 138, 30, 0.22) 0%, rgba(252, 224, 12, 0.08) 100%);
 
-  --cat-pasteleria: #e689a4;
-  --cat-panaderia: #b87a35;
-  --cat-galletas: #a7c653;
+  /* Mismos valores que el bloque automatico de arriba: ver alli el detalle de
+     contrastes. */
+  --cat-pasteleria: #f087b0;
+  --cat-panaderia: #e0a355;
+  --cat-galletas: #5fc79b;
   --cat-otros: #b0a696;
 
   --danger: #eb7070;

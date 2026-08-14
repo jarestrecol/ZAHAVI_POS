@@ -1,365 +1,668 @@
-# Zahavi · Recetario
+# Zahavi · Recetario de Producción
 
-Sistema de consulta de recetas para panadería, repostería y café. Se abre desde
-el mismo enlace en la panadería y en la casa de producción, funciona sin conexión
-y está pensado para usarse de pie, en el obrador, con las manos ocupadas.
+Sistema de consulta y gestión de fórmulas para panadería, repostería y café.
+Un solo enlace, la misma información en la panadería y en la casa de producción,
+y funcionamiento garantizado sin conexión.
 
-**Fase 1**: consultar, crear y editar recetas con sus componentes y métodos.
-Producción, costos y escalado quedan para fases siguientes.
+**Estado**: Fase 1 en producción · 121 recetas · 187 componentes · 1.282 líneas de ingrediente
 
 ---
 
-## Qué hace
+## Índice
 
-- **Listado permanente** a la izquierda: saltar de una receta a otra es un clic.
-- **Búsqueda** por nombre, código o ingrediente.
-- **Ficha de receta** con los ingredientes a ancho completo y las cantidades como
-  lectura de báscula: cifra grande, monoespaciada y alineada en columna.
-- **Modo Pesar**: pantalla completa, un ingrediente a la vez, barra espaciadora
-  para dar por pesado y avanzar sin tocar la pantalla.
-- **Impresión A4** de la ficha o del índice completo.
-- **Borrado en tres pasos**, con el nombre escrito a mano para confirmar.
-- **Sin conexión**: el recetario abre igual y sigue consultándose.
-- **Modo oscuro**, automático por el sistema operativo o a mano con el
-  interruptor de la barra superior. La elección a mano gana siempre y se
-  recuerda en este dispositivo.
+1. [Qué resuelve](#1-qué-resuelve)
+2. [Capacidades](#2-capacidades)
+3. [Arquitectura](#3-arquitectura)
+4. [Modelo de datos](#4-modelo-de-datos)
+5. [Seguridad](#5-seguridad)
+6. [Accesibilidad y rendimiento](#6-accesibilidad-y-rendimiento)
+7. [Sistema de diseño](#7-sistema-de-diseño)
+8. [Instalación y despliegue](#8-instalación-y-despliegue)
+9. [Desarrollo y verificación](#9-desarrollo-y-verificación)
+10. [Estructura del repositorio](#10-estructura-del-repositorio)
+11. [Decisiones de ingeniería](#11-decisiones-de-ingeniería)
+12. [Limitaciones conocidas](#12-limitaciones-conocidas)
+13. [Hoja de ruta](#13-hoja-de-ruta)
 
-### Quién entra y qué puede hacer
+---
 
-Cada persona entra con **su nombre y su clave**, no con una contraseña
-compartida. Así, cuando alguien deja de trabajar en la panadería se le quita su
-acceso sin obligar al resto a cambiar nada. **Ajustes → Cerrar sesión** deja el
-equipo listo para que entre la siguiente persona sin tocar nada más: no borra
-recetas ni cambios sin publicar, solo saca a quien tenía la sesión abierta.
+## 1. Qué resuelve
 
-Los usuarios se dan de alta desde **Ajustes → Quién puede entrar**, y son **de
-cada equipo**: crear un usuario en la panadería no lo crea en la casa de
-producción. Hay que darlo de alta en cada aparato donde vaya a entrar.
+Una panadería con dos sedes trabajaba sus fórmulas en un archivo de hoja de
+cálculo que viajaba por correo. El resultado previsible: cada sede terminaba con
+una versión distinta, nadie sabía cuál era la buena, y una corrección hecha en un
+sitio no llegaba nunca al otro.
 
-El acceso inicial es `zahavi` / `zahavi2026`, y conviene cambiarlo el primer día.
+Este sistema sustituye ese flujo por un único punto de consulta:
 
-Hay dos niveles distintos, que no conviene confundir:
+| Antes | Ahora |
+|---|---|
+| Un archivo por sede, divergiendo en silencio | Una sola versión publicada, idéntica en todas partes |
+| Sin historial: un cambio pisaba al anterior | Cada publicación queda registrada y es recuperable |
+| Buscar una fórmula obligaba a recorrer pestañas | Búsqueda por nombre, código o ingrediente |
+| Imprimir daba una tabla ilegible en el obrador | Ficha A4 diseñada para leerse de pie |
+| Sin conexión, sin recetas | Funciona igual con la red caída |
 
-| | Qué protege | Dónde se comprueba |
+**Alcance de la Fase 1**: consultar, crear y editar recetas con sus componentes,
+ingredientes y métodos. El escalado de tandas, el costeo y el control de
+inventario quedan fuera de esta fase por decisión de producto.
+
+---
+
+## 2. Capacidades
+
+### Consulta
+
+- **Listado permanente** en el panel izquierdo: cambiar de receta es un clic, sin
+  navegación intermedia.
+- **Búsqueda** simultánea sobre nombre, código de receta e ingredientes, sin
+  distinguir mayúsculas ni acentos.
+- **Filtro por categoría** con recuento en vivo: pastelería (66), panadería (34),
+  galletas (21).
+- **Ficha de receta** con los ingredientes a ancho completo y las cantidades
+  tratadas como lectura de báscula: cifra grande, monoespaciada y alineada en
+  columna, para localizarla sin leer el renglón entero.
+- **Marcado de unidades de volumen** (ml, l, cc) con un indicador propio:
+  confundirlas con peso es el error clásico del oficio.
+
+### Producción
+
+- **Modo Pesar**: pantalla completa, un ingrediente a la vez, cifra gigante. La
+  barra espaciadora da por pesado y avanza, para no tocar la pantalla con las
+  manos ocupadas.
+- **Impresión A4** de la ficha individual o del índice completo, con la
+  maquetación calculada aparte de la pantalla.
+
+### Edición
+
+- **Editor de recetas** con componentes múltiples y autocompletado desde el
+  catálogo de 159 ingredientes ya existentes.
+- **Publicación explícita**: lo editado queda en el equipo hasta que alguien
+  publica. La cabecera indica en todo momento cuántos cambios hay pendientes.
+- **Control de concurrencia**: si otra sede publicó mientras tanto, el sistema
+  obliga a recargar antes de permitir publicar. Es imposible pisar el trabajo
+  ajeno por insistir.
+- **Borrado en tres pasos** con confirmación escrita a mano.
+
+### Plataforma
+
+- **Sin conexión**: la aplicación arranca y se consulta con la red caída.
+- **Instalable** como aplicación (PWA) en escritorio y móvil.
+- **Tema claro y oscuro**, automático por sistema operativo o manual. Las
+  jornadas empiezan de madrugada y una pantalla blanca a brillo alto deslumbra.
+- **Adaptado** a escritorio, tableta y teléfono, con recorridos distintos en cada
+  uno, no un simple reajuste de anchos.
+
+---
+
+## 3. Arquitectura
+
+### Principio rector
+
+**Cero dependencias, cero compilación.** No hay `package.json`, ni
+`node_modules`, ni empaquetador, ni framework. El navegador ejecuta exactamente
+los archivos que están en el repositorio.
+
+Esto no es minimalismo por gusto: es la decisión que garantiza que el sistema
+siga funcionando dentro de cinco años sin que nadie tenga que actualizar una
+cadena de dependencias que ya no compila. Una panadería no tiene equipo de
+mantenimiento.
+
+### Capas
+
+Tres capas con una única regla: **cada una solo conoce la de abajo.**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  views/          construyen pantallas                    │
+│                  no guardan datos, no deciden reglas     │
+├──────────────────────────────────────────────────────────┤
+│  app/            casos de uso                            │
+│                  orquestan, no construyen pantallas      │
+├──────────────────────────────────────────────────────────┤
+│  core/           datos, estado, reglas de negocio        │
+│                  no saben que existe una pantalla        │
+└──────────────────────────────────────────────────────────┘
+                            │
+                   ┌────────┴────────┐
+                   │  lib/  utilidades sin estado
+                   └─────────────────┘
+```
+
+`main.js` es el único módulo que une las tres: decide qué pintar y llama a los
+casos de uso. Ninguna vista importa nada de otra vista; ningún módulo de `core/`
+importa nada de `views/`.
+
+### Flujo de una carga
+
+```
+1. theme-init.js    aplica el tema guardado (antes del CSS, evita el destello)
+2. main.js boot()   prepara usuarios y carga las recetas
+3. repository       intenta el servidor → si falla, el archivo publicado
+                                        → si falla, la copia local
+4. render()         pinta según estado y ruta
+5. sw.js            registra el service worker para el uso sin conexión
+```
+
+A partir de ahí, cualquier cambio de estado o de dirección vuelve a llamar a
+`render()`.
+
+### Flujo de una publicación
+
+```
+Editor → repository.save()      guarda en localStorage, marca "pendiente"
+       → commands.publish()     envía a /api/recipes con la clave de edición
+       → api/recipes.js         valida la clave (comparación de tiempo constante)
+                                valida el contenido (rechaza, no repara)
+                                comprueba el sha contra GitHub
+       → GitHub Contents API    escribe data/recipes.json como un commit
+       → las demás sedes ven el cambio en su siguiente carga
+```
+
+El `sha` es obligatorio en cada envío. Sin él no hay control de concurrencia
+posible: un envío ciego sobrescribiría el recetario de las dos sedes sin
+comprobar nada. El servidor lo rechaza antes de tocar GitHub.
+
+### Patrones aplicados
+
+| Patrón | Dónde | Por qué |
 |---|---|---|
-| **Clave de usuario** | Entrar a ver el recetario | En el navegador. Es una cortina: quien tenga el enlace ve el contenido igualmente |
-| **Clave de edición** | Publicar para todas las sedes | **En el servidor**. Es la única protección real del sistema |
-
-### Atajos de teclado
-
-| Tecla | Acción |
-|---|---|
-| `/` | Ir al buscador |
-| `↑` `↓` | Recorrer el listado |
-| `E` | Editar la receta abierta |
-| `Esc` | Salir del buscador o cerrar el diálogo |
-| Espacio | En modo Pesar: dar por pesado y avanzar |
-
-### En cada pantalla
-
-| Tamaño | Comportamiento |
-|---|---|
-| **Celular** (< 768 px) | Listado y receta se turnan. Las acciones de la receta pasan a una barra flotante abajo, al alcance del pulgar. Los diálogos suben desde el borde inferior como una hoja, en vez de aparecer centrados. Filtros deslizables en horizontal, con encaje al soltar. |
-| **Tablet** (768 – 991 px) | Listado a dos columnas para recorrerlo en la mitad de desplazamiento. Ingredientes a dos columnas. |
-| **Escritorio** (≥ 992 px) | Listado y receta a la vez. |
-
-Todo lo que se toca crece en pantallas táctiles, se detecte o no el tamaño.
+| **Result** (`{ok, value}` / `{ok, code, message}`) | Todo `core/` y `api/` | Los errores se devuelven, no se lanzan. El `message` viene ya redactado para mostrarse a la persona. |
+| **Repositorio** | `core/repository.js` | Única puerta entre la aplicación y el almacenamiento. Ninguna vista toca `localStorage`. |
+| **Concurrencia optimista** | `core/remote.js` + `api/recipes.js` | El `sha` de GitHub detecta escrituras simultáneas entre sedes. |
+| **Construcción de DOM sin `innerHTML`** | `lib/dom.js` | Todo el texto pasa por `textContent`. Los nombres de receta y el método son texto libre. |
+| **Funciones puras** | `core/search.js`, `lib/format.js` | Filtrado, orden y formato se comprueban sin navegador. |
 
 ---
 
-## Cómo se guardan los datos
+## 4. Modelo de datos
 
-El recetario compartido vive en `data/recipes.json` **del propio repositorio**.
-No hay base de datos.
+### Esquema
 
-Cuando el sitio corre en Vercel con las variables configuradas, la función
-`/api/recipes` lee y escribe ese archivo por la API de GitHub. Entonces:
+```js
+{
+  version: 2,
+  revision: "2026-08-12T14:22:31.004Z",   // sello de la última publicación
+  recipes: [
+    {
+      id: "R001",                          // código estable, nunca se reutiliza
+      nombre: "TORTA DE BANANO X 2 UND",
+      categoria: "PASTELERÍA",             // una de las tres canónicas
+      metodo: "",                          // texto libre, saltos preservados
+      componentes: [
+        {
+          nombre: "MASA",
+          items: [
+            { ingrediente: "HARINA", cantidad: 1000, unidad: "GR" }
+          ]
+        }
+      ]
+    }
+  ],
+  ingredientes: [                          // catálogo para autocompletado
+    { nombre: "HARINA", unidad: "GR" }
+  ]
+}
+```
 
-- Todos los dispositivos ven lo mismo al abrir el enlace.
-- **Publicar** desde Ajustes hace un commit real y el cambio queda visible al
-  instante en las demás sedes.
-- Cada cambio queda en el historial de git, con opción de revertir.
-- Si dos equipos editan a la vez, el segundo recibe un aviso de conflicto y
-  **tiene que recargar** antes de poder publicar. No se puede pisar el trabajo
-  del otro por insistir.
+### Dónde vive cada cosa
 
-Mientras no se publica, lo editado se guarda en ese equipo y la cabecera muestra
-*"N cambios sin publicar"*. Publicar requiere la **clave de edición**, que se
-comprueba en el servidor: quien no la tenga puede consultar, pero no modificar lo
-que ven los demás.
+| Capa | Ubicación | Alcance |
+|---|---|---|
+| **Publicado** | `data/recipes.json` en el repositorio | Todas las sedes |
+| **Pendiente** | `localStorage` del navegador | Solo ese dispositivo |
+| **Rescate** | `localStorage`, clave aparte | Copia local dañada, apartada sin sobrescribir |
+| **Sesión** | `localStorage` / `sessionStorage` | Usuario activo y clave de edición de la pestaña |
 
-Si el sitio se sirve sin las funciones (alojamiento estático o archivo local),
-todo sigue funcionando contra el archivo publicado y el almacenamiento del
-equipo, y la publicación compartida no aparece.
+**No hay base de datos.** El recetario es un archivo JSON de 230 KB versionado en
+git. Cada publicación es un commit real: el historial de git *es* el registro de
+auditoría, y cualquier versión anterior se recupera desde GitHub.
 
-### No hay descarga ni carga de archivos
+Esta elección es deliberada para el volumen actual. La sección
+[Limitaciones](#12-limitaciones-conocidas) documenta cuándo dejará de servir.
 
-El recetario **no se puede exportar a un archivo** desde la interfaz, y tampoco
-se puede cargar uno. Sacar una copia completa de las fórmulas a un archivo suelto
-es justo lo que no debe poder hacerse desde el mostrador.
+### Validación en dos niveles
 
-La copia de seguridad de verdad es **el historial del repositorio**: cada
-publicación queda guardada ahí y se puede recuperar cualquier versión anterior
-desde GitHub.
+Cliente y servidor validan con criterios **distintos a propósito**:
 
-### Eliminar una receta
-
-Es la única acción que destruye trabajo sin poder deshacerse desde la aplicación,
-así que pasa por tres pasos con contenido distinto:
-
-1. **Qué se va a borrar**, con nombre, código y cuánto contiene.
-2. **Qué consecuencias tiene**, incluida la de las demás sedes.
-3. **Escribir el nombre de la receta** para activar el botón.
-
-Son tres pasos distintos y no cuatro avisos iguales a propósito: encadenar
-ventanas idénticas entrena a pulsar "aceptar" sin leer. Lo que obliga a parar de
-verdad es tener que escribir el nombre.
+- **El cliente repara**: si una receta llega con un campo raro, la normaliza y
+  sigue. Prioridad: que el obrador nunca se quede sin poder consultar.
+- **El servidor rechaza**: si algo no cuadra, devuelve error y no escribe.
+  Prioridad: que nunca entre basura al archivo compartido.
 
 ---
 
-## Despliegue en Vercel
+## 5. Seguridad
 
-Sitio estático con funciones. Al importar el repositorio:
+### Dos fronteras, con niveles muy distintos
 
-- **Framework Preset**: `Other`
-- **Build Command**: vacío
-- **Output Directory**: vacío
+| | Qué protege | Dónde se comprueba | Fuerza real |
+|---|---|---|---|
+| **Clave de usuario** | Ver la interfaz en ese dispositivo | En el navegador | **Ninguna.** Es una cortina, no una cerradura |
+| **Clave de edición** | Publicar para todas las sedes | **En el servidor** | La única protección real del sistema |
+
+Esta distinción está documentada en el propio código y en la interfaz, y es
+importante no confundirla: **quien tenga el enlace puede ver el contenido**. La
+clave de usuario evita que un cliente asomado al mostrador lea las fórmulas; no
+protege frente a nadie decidido.
+
+Lo que sí está protegido de verdad es la escritura. `EDIT_PASSWORD` vive como
+variable de entorno en el servidor, se compara con un algoritmo de tiempo
+constante (`safeEqual`) para no filtrar información por la duración de la
+respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
+
+### Medidas implementadas
+
+- **Política de seguridad de contenido estricta**: `default-src 'none'`, sin
+  `unsafe-inline` ni `unsafe-eval`, declarada tanto en cabecera HTTP como en
+  etiqueta `<meta>` de respaldo.
+- **Cero peticiones externas**: sin CDN, sin analítica, sin tipografías remotas.
+  Las tres familias tipográficas están auto-hospedadas.
+- **Sin `innerHTML` en todo el proyecto**: `lib/dom.js` es la única vía de
+  construcción de nodos y solo escribe texto.
+- **Credenciales con SHA-256**, nunca en claro.
+- **Cierre de sesión revoca la clave de edición** en caché, para que quien entre
+  después no herede capacidad de publicar.
+- **Solo `PUT`** en la ruta de escritura: obliga a verificación previa de CORS,
+  cerrando la vía de un formulario de otro origen.
+- **Limitación de intentos** de clave fallidos en el servidor.
+- **Cabeceras**: `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+  `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`.
+
+### Lo que este sistema NO hace
+
+Se declara explícitamente para que nadie construya sobre supuestos falsos:
+
+- No cifra el contenido en reposo.
+- No tiene control de acceso por roles ni sesiones de servidor.
+- No registra quién hizo cada cambio de forma verificable: el autor de cada
+  commit lo declara el navegador y el servidor no lo comprueba. El historial
+  sirve para saber *qué* cambió y *cuándo*, no para atribuir responsabilidad.
+- No permite exportar el recetario a un archivo desde la interfaz, por decisión
+  expresa: sacar una copia completa de las fórmulas no debe poder hacerse desde
+  el mostrador.
+
+---
+
+## 6. Accesibilidad y rendimiento
+
+### Accesibilidad
+
+Objetivo **WCAG 2.2 nivel AA**, con AAA en el texto de lectura porque se lee de
+pie, a distancia de brazo y con posible reflejo.
+
+- Contrastes verificados y anotados en el propio código, valor por valor.
+- Los tres colores de categoría se reparten el círculo cromático (rosa 330°,
+  ámbar 35°, verde 165°) y nunca son la única señal: siempre van acompañados del
+  nombre.
+- Navegación completa por teclado, con foco visible de alto contraste.
+- Foco atrapado y restaurado en cada diálogo.
+- Región viva para anunciar el resultado de guardar, eliminar y publicar.
+- `prefers-reduced-motion` respetado: toda la animación sale de variables CSS que
+  la propia hoja de estilos deja en `0ms`, sin comprobaciones dispersas.
+
+### Rendimiento
+
+| Métrica | Valor |
+|---|---|
+| Dependencias en tiempo de ejecución | 0 |
+| Peticiones a terceros | 0 |
+| JavaScript (sin comprimir) | ~165 KB |
+| CSS (sin comprimir) | ~87 KB |
+| Tipografías (subconjunto latino) | ~290 KB |
+| Datos | 230 KB |
+| Paso de compilación | Ninguno |
+
+El repintado reconstruye el árbol completo en cada cambio. Con 121 recetas son
+unos cientos de nodos y el navegador lo resuelve sin esfuerzo, así que no hace
+falta comparar árboles ni llevar registro de qué cambió. La única excepción son
+los diálogos, que se conservan montados para no borrar lo que alguien está
+escribiendo.
+
+---
+
+## 7. Sistema de diseño
+
+**Dirección**: obrador de producción. Superficie clara de trabajo, estructura
+oscura que enmarca, profundidad real con vidrio esmerilado y sombras de dos
+capas, y el naranja de la marca como único acento.
+
+### Paleta
+
+Nace del logotipo real, con los valores tomados del archivo: naranja `#F68A1E`,
+dorado `#FCE00C`, blanco `#FCFCFC`.
+
+Dos decisiones que conviene conocer antes de tocar los colores:
+
+- **El naranja de marca no vale para texto**: sobre blanco da 2,4:1. Se usa como
+  relleno, borde e icono; para texto existe `--amber-text`, oscurecido pero del
+  mismo tono.
+- **Las categorías se separan por tono, no por claridad**: el techo de contraste
+  AAA las obliga a todas por debajo de una luminancia de 0,10, así que la
+  distinción la carga el matiz.
+
+### Tipografía
+
+Tres familias con papeles distintos, auto-hospedadas en `assets/fonts/`
+(subconjunto latino, que cubre todo el español):
+
+| Familia | Papel | Por qué |
+|---|---|---|
+| **Plus Jakarta Sans** | Interfaz | Es lo que hace que se lea como sistema y no como libro de cocina |
+| **Lora** | Marca y títulos de receta | Da carácter editorial al nombre del producto |
+| **IBM Plex Mono** | Cifras | Tabular: las cantidades deben alinearse siempre en columna |
+
+### Tokens
+
+Todo el sistema vive en `assets/css/tokens.css`: color, tipografía, ritmo,
+radios, sombras, duraciones. Ningún valor de color o espaciado está escrito a
+mano fuera de ese archivo.
+
+El tema oscuro no es una inversión automática: el fondo no es negro puro porque
+en un obrador a oscuras el texto blanco sobre negro absoluto produce halo.
+
+---
+
+## 8. Instalación y despliegue
+
+### Requisitos
+
+- Cuenta de GitHub con el repositorio.
+- Cuenta de Vercel (el plan gratuito basta).
+- Node.js únicamente para ejecutar los scripts de verificación. **No hace falta
+  para desplegar ni para usar el sistema.**
+
+### Configuración en Vercel
+
+Al importar el repositorio:
+
+| Campo | Valor |
+|---|---|
+| Framework Preset | `Other` |
+| Root Directory | `./` |
+| Build Command | *(vacío)* |
+| Output Directory | *(vacío)* |
+| Install Command | *(vacío)* |
+
+Los campos de compilación se dejan **en blanco**: no hay nada que compilar ni que
+instalar. Lo que Vercel muestra ahí es texto de ejemplo, no un valor por defecto.
 
 ### Variables de entorno
 
-En **Settings → Environment Variables**:
+En **Settings → Environment Variables**, las cuatro son obligatorias para que
+funcione la publicación compartida:
 
-| Variable | Valor |
-|---|---|
-| `GITHUB_TOKEN` | Token de GitHub con permiso de contenido sobre este repositorio |
-| `GITHUB_REPO` | `usuario/repositorio` |
-| `GITHUB_BRANCH` | `main` |
-| `EDIT_PASSWORD` | La clave que habilita publicar |
+| Variable | Valor | Para qué |
+|---|---|---|
+| `GITHUB_TOKEN` | Token de acceso personal | Leer y escribir `data/recipes.json` |
+| `GITHUB_REPO` | `usuario/repositorio` | Dónde escribir |
+| `GITHUB_BRANCH` | `main` | Qué rama |
+| `EDIT_PASSWORD` | Clave larga y aleatoria | Autorizar la publicación |
 
 El token se crea en GitHub → Settings → Developer settings → Personal access
-tokens → Fine-grained tokens, con acceso solo a este repositorio y permiso de
-**lectura y escritura** en Contents. No lo pongas nunca en el código.
+tokens → Fine-grained tokens, con acceso **solo a este repositorio** y permiso de
+**lectura y escritura en Contents**. Nunca debe aparecer en el código.
 
-**Tras añadir variables hay que redesplegar**: las que ya están desplegadas no
-las recogen solas.
+> **Tras añadir variables hay que volver a desplegar.** Los despliegues ya
+> existentes no las recogen solos.
 
-Sin esas variables el sitio despliega igual, pero sin publicación compartida.
+Sin esas variables el sitio despliega igual y funciona en modo consulta, pero sin
+publicación compartida.
 
-### Diagnóstico de `/api/recipes`
+### Dominio propio
 
-| Respuesta | Qué significa |
+En **Settings → Domains**, añade el dominio y usa los registros DNS que Vercel
+indique en ese momento. En Namecheap se cargan en **Advanced DNS**. El
+certificado HTTPS lo emite Vercel automáticamente.
+
+### Diagnóstico
+
+| Respuesta de `/api/recipes` | Significado |
 |---|---|
 | `200` con las recetas | Funciona |
 | `500` "no tiene configurado el acceso al repositorio" | Faltan `GITHUB_TOKEN` o `GITHUB_REPO` |
 | `500` "no tiene configurada la clave de edición" | Falta `EDIT_PASSWORD` |
 | `502` "el repositorio rechazó la lectura" | El token no tiene permiso de Contents, o `GITHUB_REPO` está mal escrito |
 | `404` | `GITHUB_BRANCH` no coincide con la rama real |
-| `403` con "Vercel Security Checkpoint" | El firewall de Vercel está interceptando. Revisa **Firewall → Attack Challenge Mode** |
+| `403` "Vercel Security Checkpoint" | Firewall de Vercel interceptando: revisa **Firewall → Attack Challenge Mode** |
 
-### Dominio
-
-En Vercel, **Settings → Domains**, añade el dominio y usa los registros que
-indique en ese momento. En Namecheap se cargan en **Advanced DNS**. El
-certificado HTTPS lo emite Vercel.
+**Si los despliegues automáticos no se disparan** y GitHub muestra *"Git author
+… must have access to the project on Vercel"*: la cuenta de GitHub que firma los
+commits no es miembro del equipo de Vercel. Se resuelve invitándola en
+**Team Settings → Members**, o alineando la identidad de git
+(`git config user.email`) con la cuenta que sí tiene acceso.
 
 ---
 
-## Desarrollo
+## 9. Desarrollo y verificación
 
-Los módulos ES necesitan servirse por HTTP:
+### Servidor local
 
-```
+Los módulos ES necesitan servirse por HTTP; abrir `index.html` con doble clic no
+funciona.
+
+```bash
 python -m http.server 8000
 ```
 
 ### Verificación
 
-Un solo comando comprueba todo, y devuelve error si algo falla:
+Un solo comando comprueba todo y devuelve código de error si algo falla:
 
-```
+```bash
 node scripts/verificar.mjs
 ```
 
 ```
 Sintaxis de los modulos…        ok (29 archivos)
 Resolucion de importaciones…    ok (26 modulos)
-Coherencia del CSS…             ok (201 clases)
+Coherencia del CSS…             ok (207 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, 187 componentes, 1282 items)
 Archivo offline…                ok
 ```
 
-Qué cubre cada paso:
-
 | Script | Qué comprueba |
 |---|---|
-| `check-css.mjs` | Valores CSS corrompidos, hexadecimales inválidos, llaves sin cerrar, tokens sin definir, clases sin estilo, y que todo módulo esté en el service worker y en el empaquetador |
-| `test-datos.mjs` | Arranque limpio, integridad, edición, borrado, recarga con pendientes, conflicto de versiones, descarte y ausencia de red |
+| `check-css.mjs` | Valores CSS corrompidos, hexadecimales inválidos, llaves sin cerrar, tokens sin definir, clases sin estilo, y que todo módulo esté declarado en el service worker y en el empaquetador |
+| `test-datos.mjs` | Arranque limpio, integridad, edición, borrado, recarga con cambios pendientes, conflicto de versiones, descarte y ausencia de red |
 | `test-api.mjs` | Que el recetario real pasa la validación del servidor sin alterarse, que se rechazan los envíos que lo destruirían, y que cliente y servidor coinciden sobre los datos reales |
+
+La comprobación de integridad incluye el **sha256 del archivo de recetas**: si
+una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 
 ### Versión de un solo archivo
 
-Para llevar el recetario en una memoria USB y abrirlo con doble clic:
+Para llevar el recetario en una memoria USB y abrirlo con doble clic, sin
+servidor:
 
-```
+```bash
 node scripts/build-standalone.mjs
 ```
 
+Genera `dist/Zahavi-Recetario-offline.html` con CSS, JavaScript, datos y
+tipografías incrustados. No comparte almacenamiento con el sitio web.
+
 ---
 
-## Estructura
+## 10. Estructura del repositorio
 
 ```
-index.html              Punto de entrada
-vercel.json             Cabeceras de seguridad y caché
-sw.js                   Service worker: funcionamiento sin conexión
+index.html                 Punto de entrada
+vercel.json                Cabeceras de seguridad y política de caché
+sw.js                      Service worker: funcionamiento sin conexión
+manifest.webmanifest       Instalación como aplicación
 
 api/
-  recipes.js            Lectura y publicación contra GitHub
-  _schema.js            Validación del servidor (rechaza lo dudoso)
+  recipes.js               Lectura y publicación contra GitHub
+  _schema.js               Validación del servidor (rechaza lo dudoso)
 
-assets/css/
-  fonts.css              Declaraciones @font-face de las tipografías propias
-  tokens.css            Colores, tipografías, ritmo, radios, sombras, tema
-  base.css              Reset, campos, botones y transiciones de vista
-  layout.css            Barra, listado y estructura
-  sheet.css             Ficha de receta y modo Pesar
-  views.css             Entrada, avisos y estados
-  dialogs.css           Ventanas modales
-  print.css             Hojas A4
-  responsive.css        Todos los ajustes por tamaño de pantalla
-
-assets/fonts/            Plus Jakarta Sans, Lora e IBM Plex Mono (OFL),
-                        auto-hospedadas: cero peticiones a Google en uso
+assets/
+  css/
+    fonts.css              Declaraciones @font-face
+    tokens.css             Sistema de diseño: color, texto, ritmo, tema
+    base.css               Reinicio, campos, botones, transiciones de vista
+    layout.css             Barra superior, listado y estructura
+    sheet.css              Ficha de receta y modo Pesar
+    views.css              Entrada, avisos y estados
+    dialogs.css            Ventanas modales
+    print.css              Hojas A4
+    responsive.css         Todos los ajustes por tamaño de pantalla
+  fonts/                   Plus Jakarta Sans, Lora, IBM Plex Mono (OFL)
 
 src/
-  theme-init.js          Aplica el tema guardado antes del primer pintado
-  lib/                  dom (DOM sin innerHTML) · format · a11y
-  core/                 storage · schema · repository · remote · theme
-                        users · store · router · search
-  app/commands.js       Casos de uso: guardar, eliminar, publicar, descartar
-  views/                login · header · sidebar · detail · production
-                        editor · settings · confirm · window · skeleton · print
-  main.js               Arranque y orquestación
+  theme-init.js            Aplica el tema guardado antes del primer pintado
+  main.js                  Arranque y orquestación
+  app/
+    commands.js            Casos de uso: guardar, eliminar, publicar, descartar
+  core/
+    storage.js             Acceso a localStorage con resultados tipados
+    schema.js              Esquema, normalización y validación
+    repository.js          Única puerta a los datos
+    remote.js              Cliente de /api/recipes
+    users.js               Usuarios y sesión de este dispositivo
+    theme.js               Tema claro/oscuro
+    store.js               Estado de la aplicación y suscripciones
+    router.js              Enrutado por hash
+    search.js              Filtrado, orden y recuentos (funciones puras)
+  lib/
+    dom.js                 Construcción de DOM sin innerHTML
+    format.js              Formato de texto y cifras
+    a11y.js                Foco atrapado, región viva, inerte
+  views/
+    login.js               Pantalla de entrada
+    header.js              Barra superior, búsqueda, tema
+    sidebar.js             Listado y filtros de categoría
+    detail.js              Ficha de receta
+    editor.js              Editor de recetas
+    production.js          Modo Pesar
+    settings.js            Ajustes
+    confirm.js             Confirmación de borrado en tres pasos
+    window.js              Carcasa de ventana modal
+    skeleton.js            Esqueleto de carga
+    print.js               Hojas de impresión
 
-scripts/                Verificación, pruebas y empaquetador offline
-data/recipes.json       Recetario publicado
+scripts/
+  verificar.mjs            Verificación completa en un comando
+  check-css.mjs            Coherencia de hojas de estilo y manifiestos
+  test-datos.mjs           Pruebas de la capa de datos
+  test-api.mjs             Pruebas del validador del servidor
+  build-standalone.mjs     Empaquetador de un solo archivo
+
+data/
+  recipes.json             Recetario publicado
 ```
 
-Sin dependencias, sin compilación, sin `node_modules`. Las tipografías viven en
-el propio repositorio (licencia SIL Open Font License): ninguna petición
-externa, tampoco a Google Fonts.
+---
 
-### Cómo está organizado el código
+## 11. Decisiones de ingeniería
 
-Tres capas, con una regla simple: **cada una solo conoce la de abajo.**
+Las decisiones no obvias, con su motivo. Conviene leerlas antes de cambiarlas.
 
-```
-  views/     construyen pantallas          no guardan nada
-     ↓
-  app/       casos de uso                  no construyen pantallas
-     ↓
-  core/      datos, estado y reglas        no saben que existe una pantalla
-```
+### Por qué no hay framework
 
-`main.js` es el único que las une: decide qué pintar y llama a los casos de uso.
+Un framework habría ahorrado unas horas de desarrollo inicial a cambio de una
+cadena de dependencias que hay que mantener durante años. Para una aplicación de
+este tamaño (26 módulos, un solo tipo de entidad) el ahorro no compensa el
+compromiso a largo plazo. El código que hay aquí funcionará igual dentro de una
+década.
 
-Dos reglas más que conviene respetar al tocar el código:
+### Por qué el recetario es un archivo en git y no una base de datos
 
-1. **Nunca `innerHTML`.** Todo el DOM se construye con `src/lib/dom.js`, que solo
-   escribe texto. Los nombres de receta y el método son texto libre y podrían
-   traer marcado.
-2. **Los errores se devuelven, no se lanzan.** Todo el núcleo usa la misma forma:
-   `{ok: true, value}` o `{ok: false, code, message}`. El `message` ya viene
+Para 121 recetas y dos sedes que editan de forma esporádica, una base de datos
+añade un servicio que mantener, pagar y respaldar, a cambio de resolver un
+problema de concurrencia que aquí casi no existe. Git ya aporta historial,
+recuperación de versiones y control de escrituras simultáneas mediante el `sha`.
+
+### Por qué el borrado tiene tres pasos distintos y no cuatro avisos iguales
+
+Encadenar ventanas idénticas no hace que nadie lea: entrena a pulsar "aceptar"
+varias veces seguidas sin mirar. Lo que obliga a detenerse es que cada paso pida
+algo distinto y que el último exija escribir el nombre de la receta a mano.
+
+1. **Qué se va a borrar**: nombre, código y cuánto contiene.
+2. **Qué consecuencias tiene**, incluida la de las demás sedes.
+3. **Escribir el nombre** para activar el botón, que arranca deshabilitado.
+
+### Por qué los ingredientes usan multicolumna y no cuadrícula
+
+Con `grid` cada celda era un componente entero, y 72 de las 121 recetas tienen
+uno solo: una receta larga de un componente reservaba dos o tres columnas y
+volcaba toda la lista en la primera, dejando el resto en blanco. `columns`
+reparte el contenido con independencia de cuántos bloques haya.
+
+### Por qué el cliente repara y el servidor rechaza
+
+Son prioridades opuestas y ambas correctas en su sitio. En el obrador, quedarse
+sin poder consultar una fórmula a media producción no es aceptable: el cliente
+normaliza lo que pueda y sigue. En el archivo compartido, aceptar un dato dudoso
+lo propaga a las dos sedes: el servidor rechaza y devuelve el motivo.
+
+### Por qué la clave de usuario se declara insegura en la propia interfaz
+
+Porque lo es, y ocultarlo llevaría a alguien a apoyarse en ella. Se comprueba en
+el navegador, así que cualquiera con conocimientos puede saltársela. Decirlo
+claramente empuja a proteger de verdad lo que importa: la escritura.
+
+### Reglas al tocar el código
+
+1. **Nunca `innerHTML`.** Todo el DOM se construye con `lib/dom.js`, que solo
+   escribe texto. Los nombres de receta y el método son texto libre.
+2. **Los errores se devuelven, no se lanzan.** Todo el núcleo usa
+   `{ok: true, value}` o `{ok: false, code, message}`, con el mensaje ya
    redactado para mostrarse.
+3. **Ningún color ni espaciado fuera de `tokens.css`.**
+4. **Todo comentado en español**, explicando el porqué y no el qué.
 
 ---
 
-## Diseño
+## 12. Limitaciones conocidas
 
-Dirección de obrador, no de libro de cocina: superficie clara de trabajo,
-estructura oscura que enmarca, profundidad real con vidrio esmerilado y sombras
-en dos capas, y el naranja de la marca como único acento, ahora con su propio
-degradado para los momentos de mayor peso (bienvenida, entrada, modo Pesar).
+Documentadas de forma explícita para que las decisiones futuras se tomen con
+información completa.
 
-La paleta nace del logo real, con los valores tomados del archivo: naranja
-`#F68A1E`, dorado `#FCE00C`, blanco `#FCFCFC`.
+| Limitación | Impacto | Cuándo actuar |
+|---|---|---|
+| El contenido es visible para quien tenga el enlace | La clave de usuario no protege el contenido | Si las fórmulas pasan a considerarse secreto industrial |
+| La API de contenidos de GitHub deja de entregar el archivo a partir de 1 MB | Hoy son 230 KB | Antes de llenar los 121 métodos de preparación |
+| El almacenamiento del navegador ronda los 5 MB | Suficiente para texto, no para imágenes | Si se añaden fotografías de producto |
+| Los usuarios son de cada dispositivo, no del servidor | Hay que dar de alta a cada persona en cada equipo | Si el número de personas o equipos crece |
+| Los ingredientes se referencian por nombre, no por código | Un cambio de nombre no propaga | Antes del costeo (Fase 2) |
+| Borrar los datos de navegación borra los cambios sin publicar | Lo ya publicado se recupera al recargar | Formar al equipo: publicar al terminar |
+| Ninguna de las 121 recetas tiene método escrito | El campo existe y está vacío en origen | Trabajo de contenido, no técnico |
 
-Tres tipografías con papeles distintos, auto-hospedadas en `assets/fonts/`
-(subconjunto "latin", que cubre todo el español) para que no haya ninguna
-petición de red en tiempo de ejecución:
+### Incidencias detectadas en los datos, no corregidas
 
-- **Plus Jakarta Sans** para la interfaz: es lo que la hace leerse como sistema
-  y no como libro
-- **Lora** para la marca y los títulos de receta
-- **IBM Plex Mono** tabular para las cifras, que deben alinearse siempre
-
-Modo oscuro automático por el sistema operativo, o a mano con el interruptor de
-la barra superior (`src/core/theme.js`); `src/theme-init.js` aplica la elección
-guardada antes del primer pintado para que no haya destello del tema
-equivocado. Las transiciones entre pantallas usan la View Transitions API
-cuando el navegador la conoce, con reserva a un cambio directo sin animación
-donde no.
-
-Contrastes verificados contra WCAG 2.2. El texto de lectura llega a AAA porque se
-lee de pie y con posible reflejo. Dos decisiones que conviene conocer antes de
-tocar los colores:
-
-- **El naranja de marca no vale para texto**: sobre blanco da 2,4:1. Se usa como
-  relleno, borde e icono; para texto existe `--amber-text`, oscurecido pero del
-  mismo tono.
-- **Galletas es oliva y no dorado**: en su tono original quedaba a 14° de
-  Panadería y las dos se percibían como el mismo marrón en deuteranopía.
-
-Navegación completa por teclado, foco visible, foco atrapado en los diálogos y
-movimiento reducido respetado: toda la animación sale de variables CSS
-(`--dur`, `--dur-slow`) que la propia hoja de estilos deja en `0ms` cuando el
-sistema pide menos movimiento, sin ninguna comprobación aparte en JavaScript.
-
----
-
-## Categorías
-
-Son tres y no hay más: **pastelería** (66 recetas), **panadería** (34) y
-**galletas** (21). Existía una cuarta, "otros", que no usaba ninguna receta y
-solo ensuciaba el selector del editor; se retiró.
-
-## Sobre los datos
-
-Las 121 recetas se migraron sin alterar un solo valor. Las cantidades se
-**muestran** con un decimal como máximo porque el origen trae ruido de coma
-flotante del Excel (`283.33333333333297`), pero el valor guardado es el original.
-
-Hay dos incidencias detectadas en los datos que **no se han corregido**, porque
-son decisión del negocio:
+Se reportan y **no se tocan**, porque corregir una fórmula es una decisión del
+negocio, no de quien migró los datos:
 
 - `SACHER TORTE x 8` lleva `CHOCOLATE 70%: 10008 GR`. Las variantes ×1, ×5 y ×6
-  escalan exactas, así que el valor esperado sería `1008`.
-- `BERLINAS` mide la leche en `MG` (miligramos). Muy probablemente sea `ML`.
-
-El autor que aparece en cada commit es **declarativo**: lo envía el navegador y el
-servidor no lo verifica. El historial sirve para saber qué cambió y cuándo, no
-para atribuir responsabilidad.
+  escalan de forma exacta, así que el valor esperado sería `1008`. Son nueve
+  kilos de chocolate de diferencia.
+- `BERLINAS` mide la leche en `MG` (miligramos). Casi con seguridad debería ser
+  `ML`.
 
 ---
 
-## Limitaciones conocidas
+## 13. Hoja de ruta
 
-- El contenido es público para quien tenga el enlace. La contraseña de entrada es
-  un filtro visual; la que protege de verdad es la clave de edición del servidor.
-- El almacenamiento del navegador ronda los 5 MB: de sobra para texto, no para
-  imágenes.
-- Borrar los datos de navegación de un equipo borra sus cambios sin publicar. Lo
-  ya publicado se recupera solo al recargar.
-- La API de contenidos de GitHub deja de entregar el archivo a partir de 1 MB.
-  Hoy son unos 230 KB, pero llenar los 121 métodos añadiría bastante: conviene
-  vigilarlo antes de la fase 2.
-- Las recetas referencian ingredientes por nombre, no por código. Para costos
-  (fase 2) conviene normalizarlo antes.
+| Fase | Alcance | Estado |
+|---|---|---|
+| **1** | Consulta, edición y publicación de fórmulas | **En producción** |
+| **2** | Escalado de tandas y costeo por receta | Requiere normalizar ingredientes por código |
+| **3** | Inventario y órdenes de producción | Requiere base de datos real |
+| **4** | Control integral del restaurante | — |
+
+El salto a la Fase 2 es el punto donde conviene revisar la decisión de almacenar
+en un archivo: el costeo introduce precios que cambian a diario, y ese patrón de
+escritura sí justifica una base de datos.
 
 ---
 
 ## Licencia
 
-MIT para el código. Las recetas son de quien las escribe.
+Código bajo licencia MIT (ver [LICENSE](LICENSE)).
+
+Las fórmulas contenidas en `data/recipes.json` son propiedad de Zahavi y no están
+cubiertas por esa licencia.

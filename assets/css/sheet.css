@@ -88,8 +88,20 @@
 .sheet-head__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
+}
+
+/* Separador antes de Eliminar: una linea vertical fina que agrupa las acciones
+   normales a un lado y la destructiva al otro. Es la unica accion de la ficha
+   que no se puede deshacer, asi que no debe quedar pegada a Editar. */
+.sheet-head__sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: var(--tap-min);
+  margin: 0 var(--space-1);
+  background: var(--line);
 }
 
 /* ---- Ficha técnica ---- */
@@ -97,12 +109,27 @@
 .facts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-5);
+  gap: var(--space-3) 0;
   padding: var(--space-4) var(--space-6);
   background: var(--surface-sunk);
   background-image: var(--texture-dot);
   background-size: 18px 18px;
   border-bottom: 1px solid var(--line);
+}
+
+/* Cada dato en su columna, con una linea fina que lo separa del siguiente:
+   se lee como una fila de indicadores y no como una frase corrida. */
+.facts__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-5);
+  border-left: 1px solid var(--line);
+}
+
+.facts__item:first-child {
+  padding-left: 0;
+  border-left: none;
 }
 
 .facts__label {
@@ -114,11 +141,12 @@
 }
 
 .facts__value {
-  margin-bottom: var(--space-1);
   font-family: var(--font-num);
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: 700;
+  line-height: 1.1;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* El rendimiento decide si hay que doblar la tanda: se trata como sello. */
@@ -134,19 +162,62 @@
 [data-category='PANADERÍA'] .facts__value--seal { background: var(--cat-panaderia); }
 [data-category='GALLETAS'] .facts__value--seal { background: var(--cat-galletas); }
 
-/* ---- Bloques ---- */
+/* ---- Bloques ----
+   Cada seccion de la ficha (Ingredientes, Metodo) es un bloque. Antes solo las
+   separaba el espacio en blanco y, con una lista larga de ingredientes, no se
+   percibia donde acababa una y empezaba la siguiente. */
 
 .block {
   padding: var(--space-6) var(--space-6) 0;
 }
 
+/* Linea a todo el ancho entre secciones consecutivas, nunca antes de la
+   primera: ahi separaria el titulo de la ficha tecnica, que ya trae su propio
+   borde. */
+.block + .block {
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--line);
+}
+
+/*
+ * Titulo de seccion: [barra de color] NOMBRE ───────────────
+ *
+ * La barra de la izquierda toma el color de la categoria de la receta, asi que
+ * la identidad del producto se repite en cada seccion sin necesidad de mas
+ * texto. La linea de la derecha rellena hasta el borde y es lo que convierte
+ * una etiqueta suelta en un encabezado de verdad.
+ */
 .block__title {
-  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--ink-3);
+}
+
+.block__title::before {
+  content: '';
+  flex-shrink: 0;
+  width: 3px;
+  height: 0.95em;
+  border-radius: 2px;
+  background: var(--cat-otros);
+}
+
+[data-category='PASTELERÍA'] .block__title::before { background: var(--cat-pasteleria); }
+[data-category='PANADERÍA'] .block__title::before { background: var(--cat-panaderia); }
+[data-category='GALLETAS'] .block__title::before { background: var(--cat-galletas); }
+
+.block__title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
 }
 
 /* ---- Componentes e ingredientes ---- */
