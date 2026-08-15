@@ -20,14 +20,21 @@ const THREE_COLUMNS_FROM = 26;
 /**
  * Ficha de una receta.
  *
- * @param {object} recipe
+ * La receta llega YA escalada; `factor` solo sirve para avisarlo en el papel.
+ * Ese aviso es importante: una hoja impresa sale del sistema y se queda en el
+ * obrador sin nada alrededor que indique que no son las cantidades de la
+ * formula. Si no lo dijera, alguien la usaria meses despues creyendo que si.
+ *
+ * @param {object} recipe receta ya escalada
+ * @param {number} [factor] multiplicador aplicado
  * @returns {HTMLElement}
  */
-export function renderRecipeSheet(recipe) {
+export function renderRecipeSheet(recipe, factor = 1) {
   const { base, rinde } = splitName(recipe.nombre);
   const hasMethod = Boolean(recipe.metodo && recipe.metodo.trim());
   const total = countItems(recipe) + recipe.componentes.length * 1.5;
   const columns = total > THREE_COLUMNS_FROM ? 3 : total > TWO_COLUMNS_FROM ? 2 : 1;
+  const escalada = factor !== 1;
 
   return el('div', { class: 'sheet' }, [
     el('header', { class: 'sheet__head' }, [
@@ -37,6 +44,12 @@ export function renderRecipeSheet(recipe) {
       ]),
       el('h1', { class: 'sheet__title', text: titleCase(base) }),
       rinde ? el('p', { class: 'sheet__yield', text: 'Rinde ' + rinde.toLowerCase() }) : null,
+      escalada
+        ? el('p', {
+            class: 'sheet__scaled',
+            text: `TANDA ×${String(factor).replace('.', ',')} — cantidades multiplicadas, no son las de la fórmula original`,
+          })
+        : null,
     ]),
     el('hr', { class: 'sheet__rule' }),
     el('div', { class: 'sheet__body' + (hasMethod ? ' sheet__body--split' : '') }, [

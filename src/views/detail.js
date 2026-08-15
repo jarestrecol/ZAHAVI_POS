@@ -15,6 +15,15 @@ import { titleCase, splitName, formatQty } from '../lib/format.js';
 import { navigate } from '../core/router.js';
 import { setState } from '../core/store.js';
 import { countItems } from '../core/search.js';
+import {
+  FACTORES,
+  FACTOR_ORIGINAL,
+  escalarReceta,
+  esEscalable,
+  normalizarFactor,
+  rendimientoBase,
+  tieneMedidasFijas,
+} from '../core/scale.js';
 
 /** A partir de cuantos ingredientes conviene repartir en columnas. */
 const TWO_COLUMNS_FROM = 9;
@@ -89,20 +98,26 @@ function actionButton(options) {
 }
 
 /**
- * @param {{recipe: object, canEdit: boolean}} params
+ * @param {{recipe: object, canEdit: boolean, factor: number}} params
  * @returns {HTMLElement}
  */
 export function renderDetail(params) {
-  const recipe = params.recipe;
-  const { base, rinde } = splitName(recipe.nombre);
-  const total = countItems(recipe);
+  const original = params.recipe;
+  const factor = normalizarFactor(params.factor);
+
+  // Todo lo que se pinta debajo usa la version escalada. Con factor 1 es el
+  // mismo objeto, sin copiar: es el caso mas frecuente con diferencia.
+  const recipe = escalarReceta(original, factor);
+
+  const { base, rinde } = splitName(original.nombre);
+  const total = countItems(original);
 
   return el(
     'article',
     {
       class: 'sheet-view',
       id: 'contenido',
-      attrs: { 'aria-labelledby': 'recipe-title', 'data-category': recipe.categoria },
+      attrs: { 'aria-labelledby': 'recipe-title', 'data-category': original.categoria },
     },
     [
       el('header', { class: 'sheet-head' }, [
@@ -178,15 +193,130 @@ export function renderDetail(params) {
 
       // Ficha tecnica: los datos que deciden si esta receta sirve para el pedido.
       el('dl', { class: 'facts' }, [
-        rinde ? factItem('Rinde', rinde.toLowerCase(), 'facts__value--seal') : null,
+        rinde ? factItem('Rinde', rendimientoTexto(original, factor), 'facts__value--seal') : null,
         factItem('Componentes', String(recipe.componentes.length)),
         factItem('Ingredientes', String(total)),
       ]),
 
+      renderScaler(original, factor),
       renderIngredients(recipe, total),
-      renderMethod(recipe, params.canEdit),
+      renderMethod(recipe, params.canEdit, original.id),
     ],
   );
+}
+
+/**
+ * Texto del rendimiento, ya escalado si hay factor.
+ *
+ * Con factor 1 se muestra tal cual viene en el nombre. Con otro factor se
+ * calcula el rendimiento resultante, que es el dato que de verdad interesa:
+ * "voy a sacar 24 unidades", no "estoy multiplicando por tres".
+ *
+ * @param {object} recipe receta original, sin escalar
+ * @param {number} factor
+ * @returns {string}
+ */
+function rendimientoTexto(recipe, factor) {
+  const { rinde } = splitName(recipe.nombre);
+  if (factor === FACTOR_ORIGINAL) return rinde.toLowerCase();
+
+  const base = rendimientoBase(recipe.nombre);
+  if (base === null) return rinde.toLowerCase();
+
+  // Se conserva la unidad que traia el nombre ("und", "porciones"...).
+  const unidad = rinde.replace(/^[\d.,\s]+/, '').trim().toLowerCase();
+  return `${formatQty(base * factor)}${unidad ? ' ' + unidad : ''}`;
+}
+
+/**
+ * Control para producir mas o menos cantidad de la que dice la formula.
+ *
+ * Dos formas de pedirlo, porque hay dos maneras de pensarlo en el obrador:
+ *
+ *    MULTIPLICADOR   "el doble de lo normal"      -> sirve para las 121
+ *    CANTIDAD        "necesito 24 unidades"       -> solo si el nombre declara
+ *                                                    el rendimiento (102 de 121)
+ *
+ * No guarda nada: al cambiar de receta vuelve al original. Ver `core/scale.js`.
+ *
+ * @param {object} recipe receta original, sin escalar
+ * @param {number} factor factor vigente
+ * @returns {HTMLElement}
+ */
+function renderScaler(recipe, factor) {
+  const base = rendimientoBase(recipe.nombre);
+  const activo = factor !== FACTOR_ORIGINAL;
+
+  const botones = FACTORES.map((valor) =>
+    el('button', {
+      type: 'button',
+      class: 'scaler__btn',
+      text: valor === FACTOR_ORIGINAL ? 'Original' : '×' + String(valor).replace('.', ','),
+      attrs: {
+        'aria-pressed': String(valor === factor),
+        'aria-label':
+          valor === FACTOR_ORIGINAL
+            ? 'Cantidades originales de la receta'
+            : `Multiplicar la tanda por ${String(valor).replace('.', ',')}`,
+      },
+      on: { click: () => setState({ factor: valor }) },
+    }),
+  );
+
+  // Campo para pedir una cantidad concreta. Solo tiene sentido si se sabe
+  // cuanto rinde la receta original: sin esa referencia no hay forma de
+  // calcular el factor.
+  const campo = base === null
+    ? null
+    : el('div', { class: 'scaler__custom' }, [
+        el('label', { class: 'scaler__custom-label', for: 'scaler-cantidad', text: 'Quiero' }),
+        el('input', {
+          type: 'number',
+          id: 'scaler-cantidad',
+          class: 'field field--num scaler__input',
+          value: formatQty(base * factor).replace(',', '.'),
+          min: '0',
+          step: 'any',
+          attrs: { inputMode: 'decimal' },
+          on: {
+            change: (event) => {
+              const pedido = parseFloat(String(event.target.value).replace(',', '.'));
+              if (!Number.isFinite(pedido) || pedido <= 0) {
+                setState({ factor: FACTOR_ORIGINAL });
+                return;
+              }
+              setState({ factor: normalizarFactor(pedido / base) });
+            },
+          },
+        }),
+      ]);
+
+  return el('section', { class: 'scaler no-print', attrs: { 'aria-label': 'Escalar la tanda' } }, [
+    el('div', { class: 'scaler__row' }, [
+      el('span', { class: 'scaler__label', text: 'Tanda' }),
+      el('div', { class: 'scaler__group', attrs: { role: 'group', 'aria-label': 'Multiplicador' } }, botones),
+      campo,
+    ]),
+
+    // Aviso permanente mientras el factor no sea el original: nadie debe
+    // imprimir o pesar una tanda escalada creyendo que son las cantidades de
+    // la formula.
+    activo
+      ? el('p', { class: 'scaler__aviso', attrs: { role: 'status' } }, [
+          el('strong', { text: `Cantidades ×${String(factor).replace('.', ',')}.` }),
+          ' No es la fórmula original; nada de esto queda guardado.',
+        ])
+      : null,
+
+    // Las medidas de molde y tiempo no se multiplican, y conviene decirlo
+    // antes de que alguien lo note delante del horno.
+    activo && tieneMedidasFijas(recipe)
+      ? el('p', {
+          class: 'scaler__aviso scaler__aviso--fijas',
+          text: 'Las medidas de molde y los tiempos no se multiplican: revísalos a mano.',
+        })
+      : null,
+  ]);
 }
 
 /**
@@ -236,16 +366,27 @@ function renderItem(item) {
   const unit = (item.unidad || '').toUpperCase();
   const isVolume = VOLUME_UNITS.has(unit);
 
-  return el('li', { class: 'item' + (isVolume ? ' item--volume' : '') }, [
-    el('span', { class: 'item__name', text: titleCase(item.ingrediente) }),
-    el('span', { class: 'item__qty' }, [
-      el('span', { class: 'item__number', text: formatQty(item.cantidad) }),
-      el('span', { class: 'item__unit', text: unit.toLowerCase() }),
-    ]),
-  ]);
+  // Medida de molde o de tiempo: no se multiplica al escalar la tanda, y se
+  // marca para que se vea por que su cifra no cambio con las demas.
+  const esFija = !esEscalable(unit);
+
+  return el(
+    'li',
+    {
+      class: 'item' + (isVolume ? ' item--volume' : '') + (esFija ? ' item--fija' : ''),
+      attrs: esFija ? { title: 'Medida fija: no cambia al escalar la tanda' } : null,
+    },
+    [
+      el('span', { class: 'item__name', text: titleCase(item.ingrediente) }),
+      el('span', { class: 'item__qty' }, [
+        el('span', { class: 'item__number', text: formatQty(item.cantidad) }),
+        el('span', { class: 'item__unit', text: unit.toLowerCase() }),
+      ]),
+    ],
+  );
 }
 
-function renderMethod(recipe, canEdit) {
+function renderMethod(recipe, canEdit, recipeId) {
   const hasMethod = Boolean(recipe.metodo && recipe.metodo.trim());
 
   if (hasMethod) {
@@ -265,7 +406,7 @@ function renderMethod(recipe, canEdit) {
             label: 'Escribir método',
             icon: ICON_EDITAR,
             variant: 'btn--quiet btn--edit no-print',
-            onClick: () => navigate({ name: 'edit', id: recipe.id }),
+            onClick: () => navigate({ name: 'edit', id: recipeId }),
           })
         : null,
     ]),

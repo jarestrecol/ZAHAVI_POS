@@ -34,6 +34,7 @@ const MODULES = [
   'core/remote.js',
   'core/schema.js',
   'core/search.js',
+  'core/scale.js',
   'core/store.js',
   'core/repository.js',
   'core/users.js',

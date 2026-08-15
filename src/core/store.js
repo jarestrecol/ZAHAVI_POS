@@ -14,6 +14,7 @@
  * @property {Array} ingredientes
  * @property {string|null} confirmDelete id pendiente de confirmar
  * @property {string|null} production id de la receta abierta en modo produccion
+ * @property {number} factor multiplicador de la tanda que se esta viendo
  * @property {boolean} online hay conexion en este momento
  * @property {boolean} settingsOpen
  * @property {string} notice mensaje visible para la persona usuaria
@@ -29,6 +30,10 @@ const INITIAL = Object.freeze({
   ingredientes: [],
   confirmDelete: null,
   production: null,
+  // El multiplicador de la tanda es estado de PANTALLA, no un dato de la
+  // receta: no se guarda en ningun sitio y vuelve a 1 al cambiar de receta.
+  // Ver `core/scale.js` para el porque.
+  factor: 1,
   online: true,
   settingsOpen: false,
   notice: '',

@@ -31,6 +31,7 @@ import { getState, setState, subscribe, notify, clearNotice } from './core/store
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
 import { ensureUsers, isSignedIn, isUsingDefaultPassword } from './core/users.js';
 import { emptyRecipe } from './core/schema.js';
+import { escalarReceta } from './core/scale.js';
 import { getEditKey } from './core/remote.js';
 import { saveRecipe, deleteRecipe, publish, discardChanges } from './app/commands.js';
 import { renderLogin } from './views/login.js';
@@ -115,6 +116,10 @@ async function boot() {
 
   // A partir de aqui, cualquier cambio de estado o de direccion repinta.
   subscribe(render);
+  // El reinicio del factor va ANTES de `render` a proposito: asi el estado ya
+  // esta puesto cuando toca pintar y no se ve un parpadeo con las cantidades
+  // de la receta anterior.
+  onRouteChange(resetFactorAlCambiarDeReceta);
   onRouteChange(render);
   startRouter();
   render();
@@ -125,6 +130,23 @@ async function boot() {
 
   document.addEventListener('keydown', handleShortcuts);
   registerServiceWorker();
+}
+
+/**
+ * Devuelve las cantidades a las de la formula al cambiar de receta.
+ *
+ * El multiplicador pertenece a la receta que se estaba mirando, no es una
+ * preferencia de la persona. Arrastrarlo seria peligroso: se sale de una tanda
+ * al triple, se abre otra receta y sus cantidades apareceran multiplicadas sin
+ * que nadie lo haya pedido.
+ *
+ * @param {object} route ruta nueva
+ * @param {object} previous ruta anterior
+ */
+function resetFactorAlCambiarDeReceta(route, previous) {
+  if (route.id === previous.id) return;
+  if (getState().factor === 1) return;
+  setState({ factor: 1 });
 }
 
 /**
@@ -366,7 +388,7 @@ function paint() {
       // Derecha: la receta abierta, o la bienvenida si no hay ninguna.
       el('div', { class: 'panel' }, [
         recipe
-          ? renderDetail({ recipe, canEdit: true })
+          ? renderDetail({ recipe, canEdit: true, factor: state.factor })
           : renderPlaceholder({
               count: state.recipes.length,
               withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
@@ -416,12 +438,16 @@ function renderNotice(state) {
  * Se genera siempre, aunque no se vea: asi Ctrl+P imprime al instante lo que hay
  * en pantalla, sin pasos intermedios. Con una receta abierta imprime su ficha;
  * sin receta abierta, el indice completo con el filtro que este puesto.
+ *
+ * La hoja hereda el factor de la tanda: lo que se imprime tiene que ser lo
+ * mismo que se esta viendo. Imprimir las cantidades originales mientras la
+ * pantalla muestra el triple seria la peor version posible de esta funcion.
  */
 function renderPrint(state, route, recipe) {
   clear(printRoot);
   printRoot.appendChild(
     recipe
-      ? renderRecipeSheet(recipe)
+      ? renderRecipeSheet(escalarReceta(recipe, state.factor), state.factor)
       : renderIndexSheet({ recipes: state.recipes, query: route.query, category: route.category }),
   );
 }
@@ -494,7 +520,13 @@ function dialogKey(state, route) {
   return null;
 }
 
-/** Modo Pesar: pantalla completa para el momento de pesar ingredientes. */
+/**
+ * Modo Pesar: pantalla completa para el momento de pesar ingredientes.
+ *
+ * Recibe la receta YA escalada. Es el sitio donde el factor mas importa: es
+ * justo donde alguien esta con la bascula delante siguiendo las cifras al pie
+ * de la letra.
+ */
 function buildProduction(state) {
   const recipe = repo.findById(state.production);
   if (!recipe) {
@@ -502,7 +534,8 @@ function buildProduction(state) {
     return null;
   }
   return openProduction({
-    recipe,
+    recipe: escalarReceta(recipe, state.factor),
+    factor: state.factor,
     onClose: () => setState({ production: null }),
   });
 }

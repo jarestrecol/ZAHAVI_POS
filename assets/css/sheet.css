@@ -247,6 +247,120 @@
 [data-category='PANADERÍA'] .facts__value--seal { background: var(--cat-panaderia); }
 [data-category='GALLETAS'] .facts__value--seal { background: var(--cat-galletas); }
 
+/* =============================================================================
+ *  ESCALAR LA TANDA
+ * =============================================================================
+ *
+ *  Va justo debajo de la ficha tecnica y encima de los ingredientes: es lo
+ *  ultimo que se decide antes de empezar a pesar.
+ *
+ *  Cuando hay un factor distinto del original, la franja entera se tine de
+ *  ambar. Es deliberado que no sea sutil: quien mire la pantalla tiene que
+ *  saber, sin leer, que esas cifras no son las de la formula.
+ * ========================================================================== */
+
+.scaler {
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--line);
+}
+
+.scaler__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.scaler__label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* Control segmentado: los botones se tocan entre si y comparten marco, para
+   leerse como un selector y no como cinco botones sueltos. */
+.scaler__group {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.scaler__btn {
+  min-height: var(--tap-min);
+  padding: var(--space-1) var(--space-4);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  background: var(--surface-card);
+  border: none;
+  border-left: 1px solid var(--line);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.scaler__btn:first-child {
+  border-left: none;
+}
+
+.scaler__btn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.scaler__btn[aria-pressed='true'] {
+  color: var(--brand-ink);
+  background: var(--amber);
+}
+
+.scaler__custom {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scaler__custom-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.scaler__input {
+  width: 6rem;
+}
+
+.scaler__aviso {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--amber-soft);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+}
+
+.scaler__aviso--fijas {
+  background: var(--surface-card);
+  border-left-color: var(--line-strong);
+  color: var(--ink-3);
+}
+
+/* Linea cuya cifra NO cambia al escalar: molde, temperatura, tiempo. Se marca
+   con una guia discontinua en vez de la continua de las demas, para que se vea
+   por que su numero se quedo igual mientras el resto se multiplicaba. */
+.item--fija .item__qty {
+  border-left-style: dashed;
+  border-left-color: var(--line-strong);
+}
+
 /* ---- Bloques ----
    Cada seccion de la ficha (Ingredientes, Metodo) es un bloque. Antes solo las
    separaba el espacio en blanco y, con una lista larga de ingredientes, no se
@@ -491,9 +605,22 @@
 }
 
 .prod__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-family: var(--font-num);
   font-size: var(--text-xs);
   color: var(--amber-on-rail);
+}
+
+/* Aviso de tanda escalada, visible todo el tiempo que dura el pesaje. */
+.prod__factor {
+  padding: 0.1rem 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--brand-ink);
+  background: var(--amber-on-rail);
+  border-radius: var(--radius-sm);
 }
 
 .prod__title {

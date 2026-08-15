@@ -255,6 +255,92 @@ const conCategoria = busqueda.filterRecipes(todas, { query: '', category: 'GALLE
 comprobar('el filtro de categoria sigue funcionando', conCategoria.length === 21, String(conCategoria.length));
 comprobar('y todas son de esa categoria', conCategoria.every((r) => r.categoria === 'GALLETAS'));
 
+/* ---------------------------------------------------------------------------
+ *  ESCALADO DE TANDA
+ *
+ *  Es la funcion donde un error cuesta dinero de verdad: si multiplica mal, se
+ *  pierde una tanda entera de materia prima. Se comprueba contra recetas
+ *  reales, sin modificarlas.
+ * ------------------------------------------------------------------------ */
+
+console.log('\n5d. Escalado de la tanda');
+const escala = await import(pathToFileURL(repoRoot + '/src/core/scale.js').href);
+
+const muestraReal = repo.findAll().find((r) => r.componentes[0].items.length >= 2);
+const doble = escala.escalarReceta(muestraReal, 2);
+
+comprobar(
+  'multiplica la primera cantidad por 2',
+  Number(doble.componentes[0].items[0].cantidad) === Number(muestraReal.componentes[0].items[0].cantidad) * 2,
+);
+comprobar(
+  'NO altera la receta original',
+  Number(repo.findById(muestraReal.id).componentes[0].items[0].cantidad) ===
+    Number(muestraReal.componentes[0].items[0].cantidad),
+);
+comprobar('conserva el nombre y el codigo', doble.id === muestraReal.id && doble.nombre === muestraReal.nombre);
+comprobar(
+  'conserva el numero de lineas',
+  doble.componentes[0].items.length === muestraReal.componentes[0].items.length,
+);
+
+const mitad = escala.escalarReceta(muestraReal, 0.5);
+comprobar(
+  'divide a la mitad',
+  Number(mitad.componentes[0].items[0].cantidad) === Number(muestraReal.componentes[0].items[0].cantidad) / 2,
+);
+
+comprobar('factor 1 devuelve la receta tal cual', escala.escalarReceta(muestraReal, 1) === muestraReal);
+
+// Factores imposibles: no deben vaciar la receta ni dar cantidades negativas.
+comprobar('factor 0 vuelve al original', escala.normalizarFactor(0) === 1);
+comprobar('factor negativo vuelve al original', escala.normalizarFactor(-3) === 1);
+comprobar('texto sin numero vuelve al original', escala.normalizarFactor('abc') === 1);
+comprobar('acepta coma decimal', escala.normalizarFactor('1,5') === 1.5);
+comprobar('limita un factor desmedido', escala.normalizarFactor(99999) <= 100);
+
+// Las medidas de molde y tiempo no se multiplican.
+comprobar('los gramos si se escalan', escala.esEscalable('GR') === true);
+comprobar('los centimetros NO se escalan', escala.esEscalable('CM') === false);
+comprobar('los minutos NO se escalan', escala.esEscalable('MIN') === false);
+
+const conCm = repo.findAll().find((r) =>
+  r.componentes.some((c) => c.items.some((i) => String(i.unidad).toUpperCase() === 'CM')),
+);
+if (conCm) {
+  const cmOriginal = conCm.componentes
+    .flatMap((c) => c.items)
+    .find((i) => String(i.unidad).toUpperCase() === 'CM');
+  const cmEscalado = escala
+    .escalarReceta(conCm, 4)
+    .componentes.flatMap((c) => c.items)
+    .find((i) => String(i.unidad).toUpperCase() === 'CM');
+  comprobar(
+    'un molde en CM sigue igual con factor 4',
+    Number(cmEscalado.cantidad) === Number(cmOriginal.cantidad),
+    `${cmOriginal.cantidad} -> ${cmEscalado.cantidad}`,
+  );
+  comprobar('y la receta se marca como que tiene medidas fijas', escala.tieneMedidasFijas(conCm) === true);
+}
+
+// El rendimiento se lee del nombre para poder pedir "quiero N unidades".
+comprobar('lee el rendimiento del nombre', escala.rendimientoBase('TORTA DE BANANO X 2 UND') === 2);
+comprobar('sin rendimiento declarado devuelve null', escala.rendimientoBase('PAN SIN CANTIDAD') === null);
+
+// Cuantas recetas admiten pedir "quiero N unidades". Las demas solo pueden
+// usar el multiplicador, que funciona para las 121 sin excepcion. Se fija el
+// numero para enterarnos si un cambio en la lectura del nombre lo mueve.
+const conRinde = repo.findAll().filter((r) => escala.rendimientoBase(r.nombre) !== null).length;
+comprobar(
+  '87 recetas admiten pedir una cantidad concreta',
+  conRinde === 87,
+  `${conRinde} de ${RECETAS_ORIGINALES}`,
+);
+comprobar(
+  'y el multiplicador funciona para las 121',
+  repo.findAll().every((r) => escala.escalarReceta(r, 2) !== null),
+);
+
 console.log('\n6. Las 121 recetas reales quedan como estaban');
 const idsReales = publicado.recipes.map((r) => r.id).sort();
 const idsAhora = repo.findAll().map((r) => r.id).sort();

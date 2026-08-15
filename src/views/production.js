@@ -15,11 +15,13 @@ import { titleCase, splitName, formatQty } from '../lib/format.js';
 import { trapFocus, announce } from '../lib/a11y.js';
 
 /**
- * @param {{recipe: object, onClose: () => void}} options
+ * @param {{recipe: object, factor?: number, onClose: () => void}} options
+ *   `recipe` llega YA escalada; `factor` solo sirve para avisarlo en pantalla.
  * @returns {{node: HTMLElement, close: () => void}}
  */
 export function openProduction(options) {
   const recipe = options.recipe;
+  const factor = options.factor || 1;
   const { base } = splitName(recipe.nombre);
 
   /** Lista plana de lineas, conservando a que componente pertenece cada una. */
@@ -117,7 +119,14 @@ export function openProduction(options) {
     [
       el('header', { class: 'prod__head' }, [
         el('div', { class: 'prod__titles' }, [
-          el('p', { class: 'prod__eyebrow', text: recipe.id }),
+          el('p', { class: 'prod__eyebrow' }, [
+            recipe.id,
+            // Aviso siempre visible mientras se pesa: aqui se sigue la cifra
+            // al pie de la letra, y hay que saber que no es la de la formula.
+            factor !== 1
+              ? el('span', { class: 'prod__factor', text: `TANDA ×${String(factor).replace('.', ',')}` })
+              : null,
+          ]),
           el('h2', { class: 'prod__title', text: titleCase(base) }),
         ]),
         progress,

@@ -79,6 +79,21 @@
     margin: 0 0 14pt;
   }
 
+  /* Aviso de tanda escalada. En recuadro negro solido: una hoja impresa se
+     queda en el obrador sin nada alrededor que indique que esas cifras no son
+     las de la formula, asi que tiene que gritarlo el propio papel. */
+  .sheet__scaled {
+    margin: 6pt 0 0;
+    padding: 4pt 6pt;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #fff;
+    background: #000;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   .sheet__body--split {
     display: flex;
     align-items: flex-start;
