@@ -16,6 +16,7 @@
  * @property {string|null} production id de la receta abierta en modo produccion
  * @property {number} factor multiplicador de la tanda que se esta viendo
  * @property {boolean} planOpen plan de produccion abierto
+ * @property {boolean} ingredientsOpen catalogo de ingredientes abierto
  * @property {object|null} planPrint plan pendiente de imprimir
  * @property {boolean} online hay conexion en este momento
  * @property {boolean} settingsOpen
@@ -38,6 +39,8 @@ const INITIAL = Object.freeze({
   factor: 1,
   // Plan de produccion abierto. Tampoco se guarda: se pierde al cerrarlo.
   planOpen: false,
+  // Catalogo de ingredientes abierto. Solo lee: no guarda nada.
+  ingredientsOpen: false,
   // Plan pendiente de imprimir, si se pidio imprimirlo.
   planPrint: null,
   online: true,

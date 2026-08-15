@@ -44,6 +44,7 @@ import { openSettings } from './views/settings.js';
 import { openConfirmDelete } from './views/confirm.js';
 import { openProduction } from './views/production.js';
 import { openPlan } from './views/plan.js';
+import { openIngredients } from './views/ingredients.js';
 import { renderRecipeSheet, renderIndexSheet, renderPlanSheet } from './views/print.js';
 
 /** Contenedor donde se pinta la aplicacion. */
@@ -374,6 +375,7 @@ function paint() {
       canEdit: true,
       onNewRecipe: () => navigate({ name: 'new', id: null }),
       onPlan: () => setState({ planOpen: true }),
+      onIngredients: () => setState({ ingredientsOpen: true }),
       onSettings: () => setState({ settingsOpen: true }),
     }),
 
@@ -499,6 +501,7 @@ function renderDialogs(shell) {
   if (state.production) openDialog = buildProduction(state);
   else if (state.confirmDelete) openDialog = buildConfirmDelete(state);
   else if (state.planOpen) openDialog = buildPlan(state);
+  else if (state.ingredientsOpen) openDialog = buildIngredients(state);
   else if (state.settingsOpen) openDialog = buildSettings(state);
   else if (route.name === 'new' || route.name === 'edit') openDialog = buildEditor(route);
 
@@ -522,8 +525,10 @@ function dialogKey(state, route) {
 
   // Clave fija a proposito: el plan lleva su propia seleccion por dentro y se
   // repinta solo. Si la clave cambiara, cualquier repintado de la aplicacion
-  // lo reconstruiria y se perderia lo que se llevara elegido.
+  // lo reconstruiria y se perderia lo que se llevara elegido. Lo mismo vale
+  // para el catalogo de ingredientes, que guarda su busqueda y su orden.
   if (state.planOpen) return 'plan';
+  if (state.ingredientsOpen) return 'ingredientes';
 
   if (state.settingsOpen) {
     const changes = repo.localChanges();
@@ -578,6 +583,18 @@ function buildPlan(state) {
         setState({ planPrint: null });
       });
     },
+  });
+}
+
+/**
+ * Catalogo de ingredientes.
+ *
+ * Solo lee el recetario: no cambia nada ni guarda nada.
+ */
+function buildIngredients(state) {
+  return openIngredients({
+    recipes: state.recipes,
+    onClose: () => setState({ ingredientsOpen: false }),
   });
 }
 

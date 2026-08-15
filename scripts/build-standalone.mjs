@@ -35,8 +35,8 @@ const MODULES = [
   'core/schema.js',
   'core/search.js',
   'core/scale.js',
-  'core/audit.js',
   'core/plan.js',
+  'core/ingredients.js',
   'core/store.js',
   'core/repository.js',
   'core/users.js',
@@ -53,6 +53,7 @@ const MODULES = [
   'views/print.js',
   'views/production.js',
   'views/plan.js',
+  'views/ingredients.js',
   'app/commands.js',
   'main.js',
 ];

@@ -87,14 +87,23 @@ ningún sitio.
 - **Impresión A4** de la ficha individual, del índice completo o del plan del
   día, con la maquetación calculada aparte de la pantalla.
 
+### Ingredientes
+
+- **Catálogo de ingredientes**: los 159 productos distintos que se usan en las
+  1.282 líneas del recetario, con en cuántas recetas entra cada uno y cuánto se
+  gasta en total. Se despliega para ver en qué recetas se usa, que es la
+  búsqueda por ingrediente puesta donde corresponde.
+- **Totales por unidad, nunca mezclados**: si un ingrediente se mide en gramos
+  en una receta y en unidades en otra, lleva dos totales separados. Hoy son
+  **15 los ingredientes en esa situación** y están marcados: es lo primero que
+  habrá que resolver para poder ponerles precio.
+- Es la **base del costeo**: el total por unidad es exactamente la cifra que
+  habrá que multiplicar por el precio de cada producto.
+
 ### Edición
 
 - **Editor de recetas** con componentes múltiples y autocompletado desde el
   catálogo de 159 ingredientes ya existentes.
-- **Revisión de datos**: señala valores que se salen del patrón — una cantidad
-  que no cuadra con la de sus variantes escaladas, una unidad usada una sola vez
-  en 1.282 líneas, un ingrediente escrito de dos formas. **Solo señala, nunca
-  corrige**: decidir cuánto chocolate lleva una torta es del negocio.
 - **Publicación explícita**: lo editado queda en el equipo hasta que alguien
   publica. La cabecera indica en todo momento cuántos cambios hay pendientes.
 - **Control de concurrencia**: si otra sede publicó mientras tanto, el sistema
@@ -511,7 +520,7 @@ Resolucion de importaciones…    ok (30 modulos)
 Coherencia del CSS…             ok (253 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
-Alta y baja masiva…             ok (118 comprobaciones)
+Alta y baja masiva…             ok (126 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, 187 componentes, 1282 items)
 Archivo offline…                ok
 ```
@@ -588,8 +597,8 @@ src/
     router.js              Enrutado por hash
     search.js              Filtrado, orden y recuentos (funciones puras)
     scale.js               Escalado de tanda (transformación de lectura)
-    audit.js               Revisión de datos: señala, no corrige
     plan.js                Consolidación del plan de producción
+    ingredients.js         Catálogo de ingredientes y totales por unidad
   lib/
     dom.js                 Construcción de DOM sin innerHTML
     format.js              Formato de texto y cifras
@@ -602,6 +611,7 @@ src/
     editor.js              Editor de recetas
     production.js          Modo Pesar
     plan.js                Plan de producción del día
+    ingredients.js         Catálogo de ingredientes
     settings.js            Ajustes
     confirm.js             Confirmación de borrado en tres pasos
     window.js              Carcasa de ventana modal
@@ -724,7 +734,7 @@ y en la copia se coló el error.
 | Fase | Alcance | Estado |
 |---|---|---|
 | **1** | Consulta, edición y publicación de fórmulas | **En producción** |
-| **1.5** | Escalado de tandas, revisión de datos y plan del día | **En producción** |
+| **1.5** | Escalado de tandas, plan del día y catálogo de ingredientes | **En producción** |
 | **2** | Costeo por receta y margen | Requiere precios por ingrediente y normalizar por código |
 | **3** | Inventario y órdenes de producción | Requiere base de datos real |
 | **4** | Control integral del restaurante | — |
@@ -739,7 +749,10 @@ Antes de entrar en la Fase 2 hay dos trabajos que no son de software:
    sistema entrega cantidades pero no consistencia.
 2. **Reunir los precios.** Son 159 ingredientes, de los cuales 64 se usan en una
    sola receta: mantener esa lista tiene un costo operativo que conviene medir
-   antes de comprometerse.
+   antes de comprometerse. El catálogo de ingredientes da hoy esas cifras.
+3. **Unificar las unidades de 15 ingredientes** que hoy se miden de dos o tres
+   formas distintas (la leche llega a tener tres). Sin eso no se les puede
+   asignar un precio único.
 
 ---
 

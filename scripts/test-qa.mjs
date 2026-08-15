@@ -342,92 +342,80 @@ comprobar(
 );
 
 /* ---------------------------------------------------------------------------
- *  REVISION DE DATOS
+ *  CATALOGO DE INGREDIENTES
  *
- *  Se ancla a los dos errores reales que se encontraron a mano en el catalogo.
- *  Si un cambio futuro dejara de detectarlos, esta prueba lo dice.
+ *  Es la base del costeo futuro, asi que lo importante es que los totales sean
+ *  exactos y que NUNCA se sumen unidades distintas: con un precio de por medio,
+ *  ese error se convertiria en dinero.
  * ------------------------------------------------------------------------ */
 
-console.log('\n5e. Revision de datos');
-const auditoria = await import(pathToFileURL(repoRoot + '/src/core/audit.js').href);
-const hallazgos = auditoria.revisar(repo.findAll());
-const cuentaHallazgos = auditoria.resumen(hallazgos);
+console.log('\n5e. Catalogo de ingredientes');
+const ings = await import(pathToFileURL(repoRoot + '/src/core/ingredients.js').href);
+const catalogo = ings.catalogoIngredientes(repo.findAll());
+const resumenIng = ings.resumenCatalogo(catalogo);
 
-comprobar('encuentra algo que revisar', hallazgos.length > 0, `${hallazgos.length} hallazgos`);
+comprobar('159 ingredientes distintos', resumenIng.distintos === 159, String(resumenIng.distintos));
+comprobar('cubre las 1282 lineas', resumenIng.lineas === 1282, String(resumenIng.lineas));
+comprobar('64 se usan en una sola receta', resumenIng.enUnaSolaReceta === 64, String(resumenIng.enUnaSolaReceta));
 comprobar(
-  'sin ruido: menos de 20 hallazgos en 1282 lineas',
-  hallazgos.length < 20,
-  String(hallazgos.length),
-);
-
-// Los Rollos de Canela llevan mantequilla en la masa Y en el relleno, y las dos
-// escalan exactas (70->140 y 50->100). Comparando por nombre suelto, sin mirar
-// el componente, el relleno de la variante grande se media contra la masa de la
-// pequena y salia un aviso falso. Se fija aqui para que no reaparezca.
-comprobar(
-  'no da falso positivo con la mantequilla de los Rollos de Canela',
-  !hallazgos.some((h) => /ROLLOS DE CANELA/i.test(h.recetaNombre) && /MANTEQUILLA/i.test(h.detalle)),
-  hallazgos.filter((h) => /ROLLOS/i.test(h.recetaNombre)).map((h) => h.detalle).join(', ') || 'ninguno',
+  'ninguno se pierde por el camino',
+  catalogo.reduce((n, i) => n + i.lineas, 0) === 1282,
 );
 
-// Error conocido 1: la Sacher Torte x8 con nueve kilos de chocolate de mas.
-const sacher = hallazgos.find(
-  (h) => /SACHER/i.test(h.recetaNombre) && /CHOCOLATE/i.test(h.detalle),
-);
-comprobar('detecta el error de la Sacher Torte', Boolean(sacher), sacher ? sacher.detalle : 'no lo encontro');
+// El mas usado del recetario.
+const harinaCat = catalogo.find((i) => /HARINA DE TRIGO/i.test(i.nombre));
+comprobar('encuentra la harina de trigo', Boolean(harinaCat));
+comprobar('la sitúa en 86 recetas', harinaCat && harinaCat.recetas === 86, harinaCat ? String(harinaCat.recetas) : '');
 comprobar(
-  'y calcula el valor que cabria esperar',
-  Boolean(sacher) && sacher.sugerencia.includes('1008'),
-  sacher ? sacher.sugerencia : '',
-);
-comprobar('marcado como gravedad alta', Boolean(sacher) && sacher.gravedad === 'alta');
-
-// Error conocido 2: las Berlinas midiendo leche en miligramos.
-const berlinas = hallazgos.find((h) => /BERLINA/i.test(h.recetaNombre) && /MG/.test(h.detalle));
-comprobar('detecta el MG de las Berlinas', Boolean(berlinas), berlinas ? berlinas.detalle : 'no lo encontro');
-comprobar('marcado como gravedad alta', Boolean(berlinas) && berlinas.gravedad === 'alta');
-
-// Forma de los hallazgos: la pantalla depende de estos campos.
-comprobar(
-  'todos traen receta, detalle y sugerencia',
-  hallazgos.every((h) => h.recetaId && h.recetaNombre && h.detalle && h.sugerencia && h.tipo),
-);
-comprobar(
-  'todas las gravedades son conocidas',
-  hallazgos.every((h) => ['alta', 'media', 'baja'].includes(h.gravedad)),
-);
-comprobar(
-  'vienen ordenados de mas grave a menos',
-  hallazgos.every((h, i) => i === 0 || peso(hallazgos[i - 1].gravedad) >= peso(h.gravedad)),
-);
-comprobar(
-  'el resumen cuadra con la lista',
-  cuentaHallazgos.total === hallazgos.length &&
-    cuentaHallazgos.alta + cuentaHallazgos.media + cuentaHallazgos.baja === hallazgos.length,
-  JSON.stringify(cuentaHallazgos),
+  'sale de primera al ordenar por uso',
+  ings.ordenarPorUso(catalogo)[0].nombre === harinaCat.nombre,
 );
 
-// La revision no puede tocar nada.
+// LA REGLA: cada unidad lleva su propio total, nunca se mezclan.
+comprobar('la harina lleva dos unidades separadas', harinaCat && harinaCat.totales.length === 2);
 comprobar(
-  'revisar no altera el recetario',
-  repo.findAll().length === RECETAS_ORIGINALES && JSON.stringify(repo.findAll()) === JSON.stringify(publicado.recipes),
+  'y ninguna unidad se repite',
+  catalogo.every((i) => new Set(i.totales.map((t) => t.unidad)).size === i.totales.length),
+);
+const lecheCat = catalogo.find((i) => i.nombre.toUpperCase() === 'LECHE');
+comprobar('la leche aparece con tres unidades', lecheCat && lecheCat.totales.length === 3, lecheCat ? lecheCat.totales.map((t) => t.unidad).join('/') : '');
+comprobar('15 ingredientes con varias unidades', resumenIng.conVariasUnidades === 15, String(resumenIng.conVariasUnidades));
+
+// Comprobacion aritmetica contra los datos crudos.
+const harinaEnGr = repo
+  .findAll()
+  .flatMap((r) => r.componentes.flatMap((c) => c.items))
+  .filter((i) => /HARINA DE TRIGO/i.test(i.ingrediente) && String(i.unidad).toUpperCase() === 'GR')
+  .reduce((n, i) => n + Number(i.cantidad), 0);
+const totalGr = harinaCat.totales.find((t) => t.unidad === 'GR');
+comprobar(
+  'el total en gramos cuadra con la suma cruda',
+  Math.abs(totalGr.total - harinaEnGr) < 0.01,
+  `${Math.round(totalGr.total)} vs ${Math.round(harinaEnGr)}`,
 );
 
-// Un recetario sano no debe dar hallazgos.
-const sano = [
-  {
-    id: 'T001',
-    nombre: 'PRUEBA SANA X 1 UND',
-    categoria: 'PANADERÍA',
-    metodo: '',
-    componentes: [{ nombre: 'MASA', items: [{ ingrediente: 'HARINA', cantidad: 100, unidad: 'GR' }] }],
-  },
-];
-comprobar('un recetario sin anomalias no da hallazgos', auditoria.revisar(sano).length === 0);
+// Donde se usa cada uno: es la busqueda por ingrediente, en su sitio.
+comprobar('anota en que recetas entra', harinaCat && harinaCat.enRecetas.length === harinaCat.recetas);
+comprobar('con codigo y nombre de cada una', harinaCat.enRecetas.every((r) => r.id && r.nombre));
 
-function peso(g) {
-  return { alta: 3, media: 2, baja: 1 }[g] || 0;
-}
+// Orden y filtrado.
+comprobar(
+  'el orden alfabetico es correcto',
+  ings.ordenarPorNombre(catalogo).every((v, i, a) => i === 0 || a[i - 1].nombre.localeCompare(v.nombre, 'es') <= 0),
+);
+comprobar('filtra por texto', ings.filtrarIngredientes(catalogo, 'harina').length > 0);
+comprobar(
+  'filtra sin acentos',
+  ings.filtrarIngredientes(catalogo, 'azucar').some((i) => /AZÚCAR/i.test(i.nombre)),
+);
+comprobar('busqueda vacia devuelve todo', ings.filtrarIngredientes(catalogo, '').length === catalogo.length);
+comprobar('busqueda sin coincidencias devuelve vacio', ings.filtrarIngredientes(catalogo, 'zzzz').length === 0);
+comprobar('un recetario vacio no rompe', ings.catalogoIngredientes([]).length === 0);
+
+comprobar(
+  'consultar el catalogo no altera el recetario',
+  JSON.stringify(repo.findAll()) === JSON.stringify(publicado.recipes),
+);
 
 /* ---------------------------------------------------------------------------
  *  PLAN DE PRODUCCION

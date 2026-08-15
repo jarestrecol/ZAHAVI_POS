@@ -5,7 +5,7 @@ de un cambio o antes de entregarlo a la panadería.
 
 Dos partes:
 
-- **Automática**: 56 comprobaciones que ejecuta la máquina en segundos.
+- **Automática**: 126 comprobaciones que ejecuta la máquina en segundos.
 - **Manual**: lo que solo se puede confirmar mirando la pantalla.
 
 > **Regla que no se rompe nunca**: las pruebas manuales se hacen sobre recetas
@@ -24,12 +24,12 @@ node scripts/verificar.mjs
 Resultado esperado:
 
 ```
-Sintaxis de los modulos…        ok (29 archivos)
-Resolucion de importaciones…    ok (26 modulos)
-Coherencia del CSS…             ok (207 clases)
+Sintaxis de los modulos…        ok (34 archivos)
+Resolucion de importaciones…    ok (31 modulos)
+Coherencia del CSS…             ok (269 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
-Alta y baja masiva…             ok (56 comprobaciones)
+Alta y baja masiva…             ok (126 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, ... sha f0307204)
 Archivo offline…                ok
 ```
@@ -44,6 +44,9 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 |---|---|
 | Recetas | Crear 20, que se guarden con su contenido exacto, que sobrevivan a recargar, borrarlas todas y volver al estado inicial |
 | Usuarios | Crear 5, entrar con cada uno, cambiar clave, borrarlos, y que las protecciones aguanten |
+| Escalado | Que multiplique bien, que no toque la receta original y que no escale moldes ni tiempos |
+| Ingredientes | Que los 159 totales cuadren con la suma cruda y que nunca se mezclen unidades |
+| Plan del día | Que consolide bien y que **no sume** gramos con unidades |
 | Aislamiento | Que ninguna de las 121 recetas reales se toque en todo el proceso |
 
 ---
@@ -127,16 +130,6 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34i | Cambiar a otra receta | El factor **vuelve solo** al original |
 | 34j | Escribir 0 o un número negativo | Vuelve al original, no vacía la receta |
 
-### 2.4c Revisión de datos (Ajustes)
-
-| # | Comprobación | Esperado |
-|---|---|---|
-| 34k | Abrir Ajustes → Revisión de datos | Lista los valores por revisar |
-| 34l | Aparece la Sacher Torte ×8 | Con el valor esperado de 1008 GR |
-| 34m | Aparecen las Berlinas | Señalando que `MG` es la única vez en el recetario |
-| 34n | Pulsar "Ver" en un hallazgo | Abre esa receta y cierra Ajustes |
-| 34o | Ningún botón cambia datos | Solo hay enlaces para ir a mirar |
-
 ### 2.4d Plan del día
 
 | # | Comprobación | Esperado |
@@ -148,6 +141,20 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34t | Un ingrediente con dos unidades distintas | **Dos líneas separadas**, marcadas, con aviso |
 | 34u | Imprimir la lista | Sale la hoja del plan, no la receta abierta |
 | 34v | Cerrar y volver a abrir | El plan está vacío: no se guarda, y así se anuncia |
+
+### 2.4e Ingredientes
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 34w | Pulsar "Ingredientes" | Abre el catálogo con 159 distintos |
+| 34x | Cifras de cabecera | 159 distintos · 1282 líneas · 64 en una sola receta · 15 con varias unidades |
+| 34y | Orden por defecto | Harina de trigo primera, en 86 recetas |
+| 34z | Pulsar "A–Z" | Se reordena alfabéticamente |
+| 34aa | Buscar `azucar` sin acento | Encuentra "Azúcar" |
+| 34ab | Un ingrediente con varias unidades (leche) | Muestra **un total por unidad**, nunca sumados, y avisa |
+| 34ac | Pulsar sobre un ingrediente | Despliega las recetas donde se usa |
+| 34ad | Pulsar una de esas recetas | La abre y cierra el catálogo |
+| 34ae | Ningún botón cambia datos | Es solo de consulta |
 
 ### 2.5 Crear y editar (con recetas `QA-TEST-`)
 
@@ -271,7 +278,6 @@ que nadie se dé cuenta.
 
 | Defecto | Cómo se detectó | Estado |
 |---|---|---|
-| La revisión de datos daba un falso positivo: comparaba los ingredientes solo por nombre, sin mirar el componente, así que el relleno de una variante se medía contra la masa de otra | Al explicar un hallazgo al dueño del producto | Corregido |
 | Al filtrar por una categoría y abrir una receta, el filtro se perdía y volvían a listarse las 121: los enlaces del listado se escribían a mano sin los parámetros de la dirección | Uso real | Corregido |
 | Listado y ficha se veían a la vez en móvil y tableta, apretados: el atributo `data-view` se ponía en un elemento y el CSS lo buscaba en otro, así que la regla nunca se aplicaba | Diagnóstico del flujo móvil | Corregido |
 | Cerrar sesión no borraba la clave de edición: quien entrara después podía publicar sin conocerla | Auditoría de seguridad | Corregido |
