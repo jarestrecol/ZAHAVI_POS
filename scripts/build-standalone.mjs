@@ -35,6 +35,7 @@ const MODULES = [
   'core/schema.js',
   'core/search.js',
   'core/scale.js',
+  'core/audit.js',
   'core/store.js',
   'core/repository.js',
   'core/users.js',

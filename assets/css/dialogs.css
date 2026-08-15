@@ -312,6 +312,89 @@
   border-radius: var(--radius-sm);
 }
 
+/* ---- Revision de datos ----
+   Cada hallazgo es una tarjeta con una franja de color a la izquierda segun su
+   gravedad. Nunca lleva un boton que cambie datos: solo uno para ir a mirar la
+   receta. */
+
+.audit {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.audit__item {
+  padding: var(--space-3);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--ink-4);
+}
+
+.audit__item[data-gravedad='alta'] {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.audit__item[data-gravedad='media'] {
+  border-left-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.audit__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.audit__tipo {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.audit__gravedad {
+  flex-shrink: 0;
+  padding: 0.05rem 0.45rem;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--surface-card);
+  background: var(--ink-4);
+  border-radius: var(--radius-pill);
+}
+
+.audit__item[data-gravedad='alta'] .audit__gravedad {
+  background: var(--danger);
+}
+
+.audit__item[data-gravedad='media'] .audit__gravedad {
+  background: var(--amber-deep);
+}
+
+/* El valor sospechoso, en cifra monoespaciada: es el dato que se compara. */
+.audit__detalle {
+  font-family: var(--font-num);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.audit__sugerencia {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.audit__ir {
+  margin-top: var(--space-1);
+}
+
 /* ---- Usuarios ---- */
 
 .settings__grid--3 {

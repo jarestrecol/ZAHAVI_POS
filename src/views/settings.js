@@ -3,16 +3,20 @@
  *  AJUSTES
  * =============================================================================
  *
- *  Tres bloques, en este orden:
+ *  Cuatro bloques, en este orden:
  *
  *      1. ESTADO Y PUBLICACION
  *         Cuantas recetas hay, que version esta publicada y si este equipo tiene
  *         cambios que las demas sedes todavia no ven. Desde aqui se publica.
  *
- *      2. USUARIOS
+ *      2. REVISION DE DATOS
+ *         Valores del recetario que se salen del patron y merecen una segunda
+ *         mirada. Solo senala: no cambia nada.
+ *
+ *      3. USUARIOS
  *         Alta y baja de personas que pueden entrar en ESTE equipo.
  *
- *      3. MI CLAVE
+ *      4. MI CLAVE
  *         Cambiar la clave del usuario que tiene la sesion abierta.
  *
  *  LO QUE NO ESTA, Y POR QUE
@@ -26,6 +30,8 @@
 
 import { el, clear } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
+import { revisar, resumen } from '../core/audit.js';
+import { navigate } from '../core/router.js';
 import {
   createUser,
   changePassword,
@@ -55,6 +61,7 @@ import { createWindow } from './window.js';
 export function openSettings(options) {
   const body = el('div', { class: 'settings' }, [
     renderStatusBlock(options),
+    renderAuditBlock(options.recipes, options.onClose),
     renderUsersBlock(),
     renderPasswordBlock(),
   ]);
@@ -257,7 +264,84 @@ function renderChanges(changes) {
 }
 
 /* ===========================================================================
- *  2. USUARIOS
+ *  2. REVISION DE DATOS
+ * ======================================================================== */
+
+/**
+ * Lista los valores del recetario que merecen una segunda mirada.
+ *
+ * NO corrige nada ni propone un valor concreto: decidir cuanto chocolate lleva
+ * una torta es del negocio. Lo unico que hace es poner delante lo que se sale
+ * del patron, con un enlace para ir a esa receta y mirarla.
+ *
+ * Un hallazgo no es un error confirmado, es una anomalia. Por eso el texto
+ * habla siempre de "revisar" y no hay ningun boton que cambie datos.
+ *
+ * @param {Array} recipes recetario completo
+ * @param {() => void} onClose para cerrar Ajustes al ir a una receta
+ * @returns {HTMLElement}
+ */
+function renderAuditBlock(recipes, onClose) {
+  const hallazgos = revisar(recipes || []);
+  const cuenta = resumen(hallazgos);
+
+  if (cuenta.total === 0) {
+    return el('section', { class: 'settings__row' }, [
+      el('h3', { class: 'section-label', text: 'Revisión de datos' }),
+      el('p', { class: 'settings__ok', text: 'No se encontró ningún valor fuera de lo normal.' }),
+    ]);
+  }
+
+  return el('section', { class: 'settings__row' }, [
+    el('h3', { class: 'section-label', text: 'Revisión de datos' }),
+
+    el('p', { class: 'settings__count' }, [
+      el('strong', { text: String(cuenta.total) }),
+      cuenta.total === 1 ? ' valor por revisar.' : ' valores por revisar.',
+    ]),
+
+    el('ul', { class: 'audit' }, hallazgos.map((h) => renderHallazgo(h, onClose))),
+
+    el('p', {
+      class: 'settings__help',
+      text: 'Son valores que se salen del patrón, no errores confirmados: una receta puede ser legítimamente distinta. El sistema no cambia nada por su cuenta.',
+    }),
+  ]);
+}
+
+/**
+ * Un hallazgo de la revision.
+ *
+ * @param {object} hallazgo
+ * @param {() => void} onClose
+ * @returns {HTMLElement}
+ */
+function renderHallazgo(hallazgo, onClose) {
+  return el('li', { class: 'audit__item', attrs: { 'data-gravedad': hallazgo.gravedad } }, [
+    el('div', { class: 'audit__head' }, [
+      el('span', { class: 'audit__tipo', text: hallazgo.tipo }),
+      el('span', { class: 'audit__gravedad', text: hallazgo.gravedad }),
+    ]),
+
+    el('p', { class: 'audit__detalle', text: hallazgo.detalle }),
+    el('p', { class: 'audit__sugerencia', text: hallazgo.sugerencia }),
+
+    el('button', {
+      type: 'button',
+      class: 'btn-link audit__ir',
+      text: 'Ver ' + hallazgo.recetaNombre,
+      on: {
+        click: () => {
+          navigate({ name: 'detail', id: hallazgo.recetaId });
+          onClose();
+        },
+      },
+    }),
+  ]);
+}
+
+/* ===========================================================================
+ *  3. USUARIOS
  * ======================================================================== */
 
 /**
@@ -362,7 +446,7 @@ function renderUsersBlock() {
 }
 
 /* ===========================================================================
- *  3. MI CLAVE
+ *  4. MI CLAVE
  * ======================================================================== */
 
 /**

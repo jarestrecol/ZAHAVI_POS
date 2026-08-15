@@ -60,6 +60,7 @@ const SHELL = [
   './src/core/remote.js',
   './src/core/search.js',
   './src/core/scale.js',
+  './src/core/audit.js',
   './src/views/window.js',
   './src/views/login.js',
   './src/views/header.js',

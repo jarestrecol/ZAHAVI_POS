@@ -341,6 +341,84 @@ comprobar(
   repo.findAll().every((r) => escala.escalarReceta(r, 2) !== null),
 );
 
+/* ---------------------------------------------------------------------------
+ *  REVISION DE DATOS
+ *
+ *  Se ancla a los dos errores reales que se encontraron a mano en el catalogo.
+ *  Si un cambio futuro dejara de detectarlos, esta prueba lo dice.
+ * ------------------------------------------------------------------------ */
+
+console.log('\n5e. Revision de datos');
+const auditoria = await import(pathToFileURL(repoRoot + '/src/core/audit.js').href);
+const hallazgos = auditoria.revisar(repo.findAll());
+const cuentaHallazgos = auditoria.resumen(hallazgos);
+
+comprobar('encuentra algo que revisar', hallazgos.length > 0, `${hallazgos.length} hallazgos`);
+comprobar(
+  'sin ruido: menos de 20 hallazgos en 1282 lineas',
+  hallazgos.length < 20,
+  String(hallazgos.length),
+);
+
+// Error conocido 1: la Sacher Torte x8 con nueve kilos de chocolate de mas.
+const sacher = hallazgos.find(
+  (h) => /SACHER/i.test(h.recetaNombre) && /CHOCOLATE/i.test(h.detalle),
+);
+comprobar('detecta el error de la Sacher Torte', Boolean(sacher), sacher ? sacher.detalle : 'no lo encontro');
+comprobar(
+  'y calcula el valor que cabria esperar',
+  Boolean(sacher) && sacher.sugerencia.includes('1008'),
+  sacher ? sacher.sugerencia : '',
+);
+comprobar('marcado como gravedad alta', Boolean(sacher) && sacher.gravedad === 'alta');
+
+// Error conocido 2: las Berlinas midiendo leche en miligramos.
+const berlinas = hallazgos.find((h) => /BERLINA/i.test(h.recetaNombre) && /MG/.test(h.detalle));
+comprobar('detecta el MG de las Berlinas', Boolean(berlinas), berlinas ? berlinas.detalle : 'no lo encontro');
+comprobar('marcado como gravedad alta', Boolean(berlinas) && berlinas.gravedad === 'alta');
+
+// Forma de los hallazgos: la pantalla depende de estos campos.
+comprobar(
+  'todos traen receta, detalle y sugerencia',
+  hallazgos.every((h) => h.recetaId && h.recetaNombre && h.detalle && h.sugerencia && h.tipo),
+);
+comprobar(
+  'todas las gravedades son conocidas',
+  hallazgos.every((h) => ['alta', 'media', 'baja'].includes(h.gravedad)),
+);
+comprobar(
+  'vienen ordenados de mas grave a menos',
+  hallazgos.every((h, i) => i === 0 || peso(hallazgos[i - 1].gravedad) >= peso(h.gravedad)),
+);
+comprobar(
+  'el resumen cuadra con la lista',
+  cuentaHallazgos.total === hallazgos.length &&
+    cuentaHallazgos.alta + cuentaHallazgos.media + cuentaHallazgos.baja === hallazgos.length,
+  JSON.stringify(cuentaHallazgos),
+);
+
+// La revision no puede tocar nada.
+comprobar(
+  'revisar no altera el recetario',
+  repo.findAll().length === RECETAS_ORIGINALES && JSON.stringify(repo.findAll()) === JSON.stringify(publicado.recipes),
+);
+
+// Un recetario sano no debe dar hallazgos.
+const sano = [
+  {
+    id: 'T001',
+    nombre: 'PRUEBA SANA X 1 UND',
+    categoria: 'PANADERÍA',
+    metodo: '',
+    componentes: [{ nombre: 'MASA', items: [{ ingrediente: 'HARINA', cantidad: 100, unidad: 'GR' }] }],
+  },
+];
+comprobar('un recetario sin anomalias no da hallazgos', auditoria.revisar(sano).length === 0);
+
+function peso(g) {
+  return { alta: 3, media: 2, baja: 1 }[g] || 0;
+}
+
 console.log('\n6. Las 121 recetas reales quedan como estaban');
 const idsReales = publicado.recipes.map((r) => r.id).sort();
 const idsAhora = repo.findAll().map((r) => r.id).sort();
