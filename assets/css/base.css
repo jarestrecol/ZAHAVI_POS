@@ -6,14 +6,6 @@
   box-sizing: border-box;
 }
 
-html {
-  /* Transicion de color suave al cambiar de tema con el interruptor: sin
-     esto el cambio es un salto seco. Las superficies con su propia
-     transicion (botones, campos) ya la traen; esto cubre el fondo y el
-     texto de base, que no tienen selector propio. */
-  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
-}
-
 html,
 body {
   margin: 0;
@@ -77,16 +69,16 @@ button {
   font-family: inherit;
 }
 
-/* Foco visible con contraste suficiente en los dos fondos de la aplicación. */
+/* Foco visible con contraste suficiente sobre las dos superficies de la
+   aplicacion: la clara del area de trabajo y la oscura de la estructura. */
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
-/* Solo las superficies que son oscuras en los dos temas llevan el anillo claro.
-   El aviso no: usa surface-card, que en modo claro es blanco, y ahi un anillo
-   claro no se veia. */
+/* Solo la estructura oscura lleva el anillo claro. El aviso no: va sobre
+   superficie blanca, y ahi un anillo claro no se veria. */
 .topbar :focus-visible,
 .prod :focus-visible,
 .win__bar :focus-visible {
@@ -287,10 +279,13 @@ button {
   font-weight: 700;
 }
 
+/* Un tono mas oscuro que `--amber-deep`, escrito a mano igual que en
+   `.btn--destructive:hover`: sobre `--amber-deep` el blanco se queda en
+   4,58:1, que cumple por los pelos; asi sube a 5,9:1. */
 .btn--accent:hover {
-  background: var(--amber-deep);
+  background: #995107;
   color: #fff;
-  border-color: var(--amber-deep);
+  border-color: #995107;
 }
 
 /* Icono de dentro de un boton. Hereda el color del texto (`currentColor`), asi

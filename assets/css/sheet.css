@@ -139,7 +139,23 @@
  * en reposo: se conservan, pero solo aparecen cuando el cursor esta encima.
  */
 
+/*
+ * El borde y el fondo se declaran EXPLICITOS en reposo, no se heredan.
+ *
+ * Estos botones llevan tambien la clase `.btn--quiet`, que en base.css fija
+ * `border-color: var(--line)`. Ese gris da 1,31:1 sobre blanco y no llega al
+ * 3:1 que la norma exige al contorno de un control. Como base.css se carga
+ * antes que este archivo y las dos reglas tienen el mismo peso, sin declararlo
+ * aqui ganaba el borde invisible.
+ */
+
 /* Imprimir: verde, el de "correcto". Saca la receta al papel del obrador. */
+.btn--print {
+  color: var(--ink-2);
+  background: var(--surface-card);
+  border-color: var(--line-strong);
+}
+
 .btn--print .btn__icon {
   color: var(--ok);
 }
@@ -150,14 +166,22 @@
   color: var(--ink);
 }
 
-/* Editar: ambar, la familia de la marca, porque modifica sin destruir. */
+/* Editar: ambar, la familia de la marca, porque modifica sin destruir.
+   El icono usa `--amber-text` y no `--amber`: el naranja de marca puro se
+   queda en 2,45:1 sobre blanco y tampoco llegaria al 3:1. */
+.btn--edit {
+  color: var(--ink-2);
+  background: var(--surface-card);
+  border-color: var(--line-strong);
+}
+
 .btn--edit .btn__icon {
   color: var(--amber-text);
 }
 
 .btn--edit:hover {
   background: var(--amber-soft);
-  border-color: var(--amber);
+  border-color: var(--amber-text);
   color: var(--ink);
 }
 

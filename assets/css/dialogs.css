@@ -652,7 +652,9 @@
   display: grid;
   grid-template-columns: var(--ings-cols);
   gap: var(--space-4);
-  padding: var(--space-2) 0;
+  /* Mismo sangrado izquierdo que las filas: es donde cabe la marca de las que
+     tienen varias unidades, y sin el los rotulos no caerian sobre su columna. */
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: var(--track-loose);
@@ -672,6 +674,7 @@
 }
 
 .ings__item {
+  padding-left: var(--space-3);
   border-bottom: 1px solid var(--line);
 }
 
@@ -680,11 +683,15 @@
 }
 
 /* Ingrediente que se mide de dos formas: se marca porque es lo que habra que
-   resolver antes de poder ponerle un precio. */
+   resolver antes de poder ponerle un precio.
+
+   La marca va con `inset box-shadow`, no con borde mas relleno negativo. El
+   borde desplazaba el contenido de ESA fila respecto a las demas, justo lo
+   contrario de lo que busca la rejilla: la sombra no participa del modelo de
+   caja, asi que la columna sigue a plomo. Es la misma tecnica que usan los
+   filtros de categoria y la receta abierta del listado. */
 .ings__item--unidades {
-  border-left: 3px solid var(--amber);
-  padding-left: var(--space-3);
-  margin-left: calc(var(--space-3) * -1);
+  box-shadow: inset 3px 0 0 0 var(--amber);
 }
 
 /* La fila entera es un boton con las tres columnas por dentro.
