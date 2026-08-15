@@ -43,7 +43,8 @@ import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
 import { openConfirmDelete } from './views/confirm.js';
 import { openProduction } from './views/production.js';
-import { renderRecipeSheet, renderIndexSheet } from './views/print.js';
+import { openPlan } from './views/plan.js';
+import { renderRecipeSheet, renderIndexSheet, renderPlanSheet } from './views/print.js';
 
 /** Contenedor donde se pinta la aplicacion. */
 const app = document.getElementById('app');
@@ -372,6 +373,7 @@ function paint() {
     renderHeader({
       canEdit: true,
       onNewRecipe: () => navigate({ name: 'new', id: null }),
+      onPlan: () => setState({ planOpen: true }),
       onSettings: () => setState({ settingsOpen: true }),
     }),
 
@@ -445,6 +447,14 @@ function renderNotice(state) {
  */
 function renderPrint(state, route, recipe) {
   clear(printRoot);
+
+  // Un plan pendiente de imprimir manda sobre todo lo demas: es lo que la
+  // persona acaba de pedir de forma explicita.
+  if (state.planPrint) {
+    printRoot.appendChild(renderPlanSheet(state.planPrint));
+    return;
+  }
+
   printRoot.appendChild(
     recipe
       ? renderRecipeSheet(escalarReceta(recipe, state.factor), state.factor)
@@ -488,6 +498,7 @@ function renderDialogs(shell) {
 
   if (state.production) openDialog = buildProduction(state);
   else if (state.confirmDelete) openDialog = buildConfirmDelete(state);
+  else if (state.planOpen) openDialog = buildPlan(state);
   else if (state.settingsOpen) openDialog = buildSettings(state);
   else if (route.name === 'new' || route.name === 'edit') openDialog = buildEditor(route);
 
@@ -508,6 +519,11 @@ function renderDialogs(shell) {
 function dialogKey(state, route) {
   if (state.production) return 'prod:' + state.production;
   if (state.confirmDelete) return 'delete:' + state.confirmDelete;
+
+  // Clave fija a proposito: el plan lleva su propia seleccion por dentro y se
+  // repinta solo. Si la clave cambiara, cualquier repintado de la aplicacion
+  // lo reconstruiria y se perderia lo que se llevara elegido.
+  if (state.planOpen) return 'plan';
 
   if (state.settingsOpen) {
     const changes = repo.localChanges();
@@ -537,6 +553,31 @@ function buildProduction(state) {
     recipe: escalarReceta(recipe, state.factor),
     factor: state.factor,
     onClose: () => setState({ production: null }),
+  });
+}
+
+/**
+ * Plan de produccion del dia.
+ *
+ * Al pedir imprimir se guarda el plan en el estado y se cierra la ventana: la
+ * hoja se genera en `renderPrint` y `window.print()` se llama despues del
+ * repintado, para que el navegador encuentre la hoja ya montada. Sin esa
+ * espera se imprimiria lo que hubiera antes.
+ */
+function buildPlan(state) {
+  return openPlan({
+    recipes: state.recipes,
+    onClose: () => setState({ planOpen: false, planPrint: null }),
+    onPrint: (plan) => {
+      setState({ planOpen: false, planPrint: plan });
+      window.requestAnimationFrame(() => {
+        window.print();
+        // El plan deja de estar pendiente en cuanto se manda a imprimir: si
+        // se quedara, la siguiente impresion sacaria el plan en vez de la
+        // receta que se estuviera viendo.
+        setState({ planPrint: null });
+      });
+    },
   });
 }
 

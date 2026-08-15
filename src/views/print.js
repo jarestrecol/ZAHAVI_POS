@@ -134,6 +134,71 @@ export function renderIndexSheet(params) {
   ]);
 }
 
+/**
+ * Hoja del plan de produccion del dia.
+ *
+ * Dos partes: que se produce (con cuantas tandas de cada receta) y la lista
+ * consolidada de todo lo que hay que pesar. La primera parte importa tanto
+ * como la segunda: sin ella, quien reciba el papel no sabe de donde salen esas
+ * cantidades ni puede comprobarlas.
+ *
+ * @param {object} plan el resultado de `core/plan.js`
+ * @returns {HTMLElement}
+ */
+export function renderPlanSheet(plan) {
+  const fecha = new Date().toLocaleDateString('es', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  return el('div', { class: 'sheet' }, [
+    el('header', { class: 'sheet__head' }, [
+      el('div', { class: 'sheet__meta' }, [
+        el('span', { text: 'Zahavi · Plan de producción' }),
+        el('span', { text: fecha }),
+      ]),
+      el('h1', { class: 'sheet__title', text: 'Producción del día' }),
+      el('p', {
+        class: 'sheet__yield',
+        text: `${plan.recetas.length} ${plan.recetas.length === 1 ? 'receta' : 'recetas'} · ${plan.totalLineas} ${plan.totalLineas === 1 ? 'ingrediente' : 'ingredientes'}`,
+      }),
+    ]),
+    el('hr', { class: 'sheet__rule' }),
+
+    el('section', { class: 'sheet__component' }, [
+      el('h2', { class: 'sheet__section', text: 'Qué se produce' }),
+      ...plan.recetas.map((receta) =>
+        el('div', { class: 'sheet__item' }, [
+          el('span', { class: 'sheet__item-name', text: titleCase(splitName(receta.nombre).base) }),
+          el('span', { class: 'sheet__item-qty' }, [
+            String(receta.factor).replace('.', ','),
+            el('span', { class: 'sheet__item-unit', text: receta.factor === 1 ? ' tanda' : ' tandas' }),
+          ]),
+        ]),
+      ),
+    ]),
+
+    el('section', { class: 'sheet__component' }, [
+      el('h2', { class: 'sheet__section', text: 'Todo lo que hay que pesar' }),
+      ...plan.lineas.map((linea) =>
+        el('div', { class: 'sheet__item' }, [
+          el('span', { class: 'sheet__item-name', text: titleCase(linea.ingrediente) }),
+          el('span', { class: 'sheet__item-qty' }, [
+            formatQty(linea.cantidad),
+            el('span', { class: 'sheet__item-unit', text: ' ' + linea.unidad.toLowerCase() }),
+          ]),
+        ]),
+      ),
+    ]),
+
+    // Se dice en el papel, no solo en pantalla: la hoja se lleva al obrador y
+    // ahi ya no hay nada que lo explique.
+    plan.conflictos > 0
+      ? el('p', {
+          class: 'sheet__empty',
+          text: 'Hay ingredientes que aparecen con unidades distintas y van en líneas separadas: no se pueden sumar entre sí.',
+        })
+      : null,
+  ]);
+}
+
 function groupByCategory(recipes) {
   const groups = [];
   for (const category of PRINT_ORDER) {

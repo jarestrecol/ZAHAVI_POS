@@ -61,6 +61,7 @@ const SHELL = [
   './src/core/search.js',
   './src/core/scale.js',
   './src/core/audit.js',
+  './src/core/plan.js',
   './src/views/window.js',
   './src/views/login.js',
   './src/views/header.js',
@@ -71,6 +72,7 @@ const SHELL = [
   './src/views/confirm.js',
   './src/views/print.js',
   './src/views/production.js',
+  './src/views/plan.js',
   './data/recipes.json',
 ];
 self.addEventListener('install', (event) => {

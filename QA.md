@@ -112,6 +112,43 @@ Entrar con `zahavi` / `zahavi2026`.
 | 33 | Imprimir sin receta abierta | Sale el índice completo, respetando el filtro |
 | 34 | **Editar** | Abre el editor con los datos cargados |
 
+### 2.4b Escalar la tanda
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 34a | Pulsar ×2 en una receta | Todas las cantidades se duplican en pantalla |
+| 34b | El rendimiento de la ficha técnica | También se duplica |
+| 34c | Aviso de tanda escalada | Visible mientras el factor no sea el original |
+| 34d | Receta con medida en `cm` (molde) | **No** se multiplica, y se avisa |
+| 34e | Escribir una cantidad concreta en "Quiero" | El factor se calcula solo |
+| 34f | Pulsar "Original" | Vuelve a las cifras de la fórmula |
+| 34g | Abrir **Pesar** con la tanda escalada | Muestra las cantidades escaladas y el aviso `TANDA ×N` |
+| 34h | **Imprimir** con la tanda escalada | La hoja lleva el aviso en recuadro negro |
+| 34i | Cambiar a otra receta | El factor **vuelve solo** al original |
+| 34j | Escribir 0 o un número negativo | Vuelve al original, no vacía la receta |
+
+### 2.4c Revisión de datos (Ajustes)
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 34k | Abrir Ajustes → Revisión de datos | Lista los valores por revisar |
+| 34l | Aparece la Sacher Torte ×8 | Con el valor esperado de 1008 GR |
+| 34m | Aparecen las Berlinas | Señalando que `MG` es la única vez en el recetario |
+| 34n | Pulsar "Ver" en un hallazgo | Abre esa receta y cierra Ajustes |
+| 34o | Ningún botón cambia datos | Solo hay enlaces para ir a mirar |
+
+### 2.4d Plan del día
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 34p | Pulsar "Plan del día" | Abre la ventana con las dos mitades |
+| 34q | Buscar y añadir una receta | Aparece en la izquierda con 1 tanda |
+| 34r | Añadir una segunda que comparta ingrediente | Ese ingrediente sale **sumado en una sola línea** |
+| 34s | Subir las tandas de una receta | Las cantidades se recalculan |
+| 34t | Un ingrediente con dos unidades distintas | **Dos líneas separadas**, marcadas, con aviso |
+| 34u | Imprimir la lista | Sale la hoja del plan, no la receta abierta |
+| 34v | Cerrar y volver a abrir | El plan está vacío: no se guarda, y así se anuncia |
+
 ### 2.5 Crear y editar (con recetas `QA-TEST-`)
 
 | # | Comprobación | Esperado |

@@ -44,8 +44,10 @@ Este sistema sustituye ese flujo por un único punto de consulta:
 | Sin conexión, sin recetas | Funciona igual con la red caída |
 
 **Alcance de la Fase 1**: consultar, crear y editar recetas con sus componentes,
-ingredientes y métodos. El escalado de tandas, el costeo y el control de
-inventario quedan fuera de esta fase por decisión de producto.
+ingredientes y métodos; escalar tandas y planear la producción del día. El
+costeo y el control de inventario quedan fuera de esta fase por decisión de
+producto: ambos necesitan datos (precios, existencias) que hoy no están en
+ningún sitio.
 
 ---
 
@@ -70,16 +72,29 @@ inventario quedan fuera de esta fase por decisión de producto.
 
 ### Producción
 
+- **Escalar la tanda**: multiplicador (×0,5 a ×4) o cantidad concreta, y las
+  cifras se recalculan. Es una transformación de lectura: **no modifica ninguna
+  receta**, y el factor se pierde al cambiar de receta. Lo heredan el Modo Pesar
+  y la impresión, ambos con aviso permanente de que la tanda está escalada. Las
+  medidas de molde y los tiempos no se multiplican.
 - **Modo Pesar**: pantalla completa, un ingrediente a la vez, cifra gigante. La
   barra espaciadora da por pesado y avanza, para no tocar la pantalla con las
   manos ocupadas.
-- **Impresión A4** de la ficha individual o del índice completo, con la
-  maquetación calculada aparte de la pantalla.
+- **Plan del día**: se eligen varias recetas con sus tandas y sale una lista
+  consolidada de todo lo que hay que pesar, con cada ingrediente sumado una sola
+  vez. **Nunca suma unidades distintas**: 500 gr de harina y 2 und de huevo van
+  en líneas separadas, y se avisa cuando un ingrediente aparece con dos unidades.
+- **Impresión A4** de la ficha individual, del índice completo o del plan del
+  día, con la maquetación calculada aparte de la pantalla.
 
 ### Edición
 
 - **Editor de recetas** con componentes múltiples y autocompletado desde el
   catálogo de 159 ingredientes ya existentes.
+- **Revisión de datos**: señala valores que se salen del patrón — una cantidad
+  que no cuadra con la de sus variantes escaladas, una unidad usada una sola vez
+  en 1.282 líneas, un ingrediente escrito de dos formas. **Solo señala, nunca
+  corrige**: decidir cuánto chocolate lleva una torta es del negocio.
 - **Publicación explícita**: lo editado queda en el equipo hasta que alguien
   publica. La cabecera indica en todo momento cuántos cambios hay pendientes.
 - **Control de concurrencia**: si otra sede publicó mientras tanto, el sistema
@@ -491,12 +506,12 @@ node scripts/verificar.mjs
 ```
 
 ```
-Sintaxis de los modulos…        ok (29 archivos)
-Resolucion de importaciones…    ok (26 modulos)
-Coherencia del CSS…             ok (207 clases)
+Sintaxis de los modulos…        ok (33 archivos)
+Resolucion de importaciones…    ok (30 modulos)
+Coherencia del CSS…             ok (253 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
-Alta y baja masiva…             ok (56 comprobaciones)
+Alta y baja masiva…             ok (118 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, 187 componentes, 1282 items)
 Archivo offline…                ok
 ```
@@ -506,7 +521,7 @@ Archivo offline…                ok
 | `check-css.mjs` | Valores CSS corrompidos, hexadecimales inválidos, llaves sin cerrar, tokens sin definir, clases sin estilo, y que todo módulo esté declarado en el service worker y en el empaquetador |
 | `test-datos.mjs` | Arranque limpio, integridad, edición, borrado, recarga con cambios pendientes, conflicto de versiones, descarte y ausencia de red |
 | `test-api.mjs` | Que el recetario real pasa la validación del servidor sin alterarse, que se rechazan los envíos que lo destruirían, y que cliente y servidor coinciden sobre los datos reales |
-| `test-qa.mjs` | Alta y baja masiva: crea 20 recetas y 5 usuarios, comprueba que se guardan y sobreviven a una recarga, los borra todos y verifica que el recetario vuelve exactamente a su estado inicial |
+| `test-qa.mjs` | Alta y baja masiva (crea 20 recetas y 5 usuarios, comprueba que sobreviven a una recarga, los borra y verifica que el recetario vuelve a su estado inicial), más escalado, revisión de datos y plan de producción. Las pruebas de la revisión están **ancladas a los dos errores reales conocidos**: si un cambio dejara de detectarlos, falla |
 
 La comprobación de integridad incluye el **sha256 del archivo de recetas**: si
 una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
@@ -572,6 +587,9 @@ src/
     store.js               Estado de la aplicación y suscripciones
     router.js              Enrutado por hash
     search.js              Filtrado, orden y recuentos (funciones puras)
+    scale.js               Escalado de tanda (transformación de lectura)
+    audit.js               Revisión de datos: señala, no corrige
+    plan.js                Consolidación del plan de producción
   lib/
     dom.js                 Construcción de DOM sin innerHTML
     format.js              Formato de texto y cifras
@@ -583,6 +601,7 @@ src/
     detail.js              Ficha de receta
     editor.js              Editor de recetas
     production.js          Modo Pesar
+    plan.js                Plan de producción del día
     settings.js            Ajustes
     confirm.js             Confirmación de borrado en tres pasos
     window.js              Carcasa de ventana modal
@@ -684,13 +703,20 @@ información completa.
 ### Incidencias detectadas en los datos, no corregidas
 
 Se reportan y **no se tocan**, porque corregir una fórmula es una decisión del
-negocio, no de quien migró los datos:
+negocio, no de quien migró los datos. Las tres las señala hoy **Ajustes →
+Revisión de datos** de forma automática:
 
 - `SACHER TORTE x 8` lleva `CHOCOLATE 70%: 10008 GR`. Las variantes ×1, ×5 y ×6
   escalan de forma exacta, así que el valor esperado sería `1008`. Son nueve
   kilos de chocolate de diferencia.
-- `BERLINAS` mide la leche en `MG` (miligramos). Casi con seguridad debería ser
-  `ML`.
+- `BERLINAS` mide la leche en `MG` (miligramos). Es la **única línea en MG de
+  las 1.282**; casi con seguridad debería ser `ML`.
+- `ROLLOS DE CANELA X 40` lleva `MANTEQUILLA: 100 GR`, cuando su variante ×20
+  sitúa el valor esperado en `140`.
+
+El primero es también el mejor argumento de por qué existe el escalado: esa
+receta solo se escribió a mano porque no había forma de multiplicar la tanda, y
+en la copia se coló el error.
 
 ---
 
@@ -699,13 +725,22 @@ negocio, no de quien migró los datos:
 | Fase | Alcance | Estado |
 |---|---|---|
 | **1** | Consulta, edición y publicación de fórmulas | **En producción** |
-| **2** | Escalado de tandas y costeo por receta | Requiere normalizar ingredientes por código |
+| **1.5** | Escalado de tandas, revisión de datos y plan del día | **En producción** |
+| **2** | Costeo por receta y margen | Requiere precios por ingrediente y normalizar por código |
 | **3** | Inventario y órdenes de producción | Requiere base de datos real |
 | **4** | Control integral del restaurante | — |
 
 El salto a la Fase 2 es el punto donde conviene revisar la decisión de almacenar
 en un archivo: el costeo introduce precios que cambian a diario, y ese patrón de
 escritura sí justifica una base de datos.
+
+Antes de entrar en la Fase 2 hay dos trabajos que no son de software:
+
+1. **Escribir los métodos.** Las 121 recetas tienen el campo vacío. Sin ellos, el
+   sistema entrega cantidades pero no consistencia.
+2. **Reunir los precios.** Son 159 ingredientes, de los cuales 64 se usan en una
+   sola receta: mantener esa lista tiene un costo operativo que conviene medir
+   antes de comprometerse.
 
 ---
 

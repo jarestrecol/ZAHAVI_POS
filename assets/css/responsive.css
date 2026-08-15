@@ -338,8 +338,21 @@
   .editor__identity,
   .editor__panes,
   .settings__grid,
-  .settings__grid--3 {
+  .settings__grid--3,
+  .plan {
     grid-template-columns: 1fr;
+  }
+
+  /* El plan pasa a una columna: primero se elige, y debajo aparece la lista
+     que sale de eso. Se conserva la separacion con un borde arriba, ya que el
+     lateral deja de tener sentido apilado. */
+  .plan__pane {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .plan__pane--resultado {
+    border-left: none;
+    border-top: 1px solid var(--line);
   }
 
   .editor__pane {

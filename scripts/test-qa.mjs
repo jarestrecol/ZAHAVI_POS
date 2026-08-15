@@ -419,6 +419,91 @@ function peso(g) {
   return { alta: 3, media: 2, baja: 1 }[g] || 0;
 }
 
+/* ---------------------------------------------------------------------------
+ *  PLAN DE PRODUCCION
+ *
+ *  Lo critico aqui no es que sume, es que NO sume lo que no debe: juntar
+ *  gramos con unidades daria una lista de compra sin sentido.
+ * ------------------------------------------------------------------------ */
+
+console.log('\n5f. Plan de produccion');
+const planificador = await import(pathToFileURL(repoRoot + '/src/core/plan.js').href);
+
+const rA = {
+  id: 'P1', nombre: 'RECETA A X 1 UND', categoria: 'PANADERÍA', metodo: '',
+  componentes: [{ nombre: 'MASA', items: [
+    { ingrediente: 'HARINA', cantidad: 100, unidad: 'GR' },
+    { ingrediente: 'HUEVOS', cantidad: 2, unidad: 'UND' },
+  ] }],
+};
+const rB = {
+  id: 'P2', nombre: 'RECETA B X 1 UND', categoria: 'PASTELERÍA', metodo: '',
+  componentes: [{ nombre: 'MASA', items: [
+    { ingrediente: 'HARINA', cantidad: 250, unidad: 'GR' },
+    { ingrediente: 'LECHE', cantidad: 500, unidad: 'ML' },
+  ] }],
+};
+
+const plan1 = planificador.consolidar([{ recipe: rA, factor: 1 }, { recipe: rB, factor: 1 }]);
+const harina = plan1.lineas.find((l) => l.ingrediente === 'HARINA');
+comprobar('suma el mismo ingrediente de dos recetas', harina && harina.cantidad === 350, harina ? String(harina.cantidad) : 'no aparece');
+comprobar('y anota de que recetas viene', harina && harina.recetas.length === 2);
+// Cuatro lineas de ingrediente entre las dos recetas, pero la harina aparece
+// en ambas: consolidadas quedan tres. Eso es justo lo que hace util el plan.
+comprobar('consolida en 3 lineas (harina fusionada)', plan1.totalLineas === 3, String(plan1.totalLineas));
+comprobar(
+  'y estan las tres esperadas',
+  ['HARINA', 'HUEVOS', 'LECHE'].every((n) => plan1.lineas.some((l) => l.ingrediente === n)),
+);
+
+// Multiplicar tandas.
+const plan2 = planificador.consolidar([{ recipe: rA, factor: 3 }]);
+const harina3 = plan2.lineas.find((l) => l.ingrediente === 'HARINA');
+comprobar('tres tandas multiplican por 3', harina3 && harina3.cantidad === 300, harina3 ? String(harina3.cantidad) : '');
+
+// LA REGLA QUE NO SE PUEDE ROMPER: no mezclar unidades.
+const rC = {
+  id: 'P3', nombre: 'RECETA C X 1 UND', categoria: 'PANADERÍA', metodo: '',
+  componentes: [{ nombre: 'MASA', items: [{ ingrediente: 'HARINA', cantidad: 5, unidad: 'UND' }] }],
+};
+const plan3 = planificador.consolidar([{ recipe: rA, factor: 1 }, { recipe: rC, factor: 1 }]);
+const enGr = plan3.lineas.filter((l) => l.ingrediente === 'HARINA' && l.unidad === 'GR');
+const enUnd = plan3.lineas.filter((l) => l.ingrediente === 'HARINA' && l.unidad === 'UND');
+comprobar('NO suma gramos con unidades', enGr.length === 1 && enUnd.length === 1);
+comprobar('los gramos quedan intactos', enGr[0].cantidad === 100, String(enGr[0].cantidad));
+comprobar('las unidades quedan intactas', enUnd[0].cantidad === 5, String(enUnd[0].cantidad));
+comprobar('y lo reporta como conflicto', plan3.conflictos === 1, String(plan3.conflictos));
+comprobar(
+  'la interfaz puede detectarlo',
+  planificador.tieneVariasUnidades(plan3.lineas, 'HARINA') === true,
+);
+comprobar(
+  'y no marca los que solo tienen una unidad',
+  planificador.tieneVariasUnidades(plan1.lineas, 'LECHE') === false,
+);
+
+// Sobre el catalogo real, con recetas de verdad.
+const tresReales = repo.findAll().slice(0, 3).map((r) => ({ recipe: r, factor: 1 }));
+const planReal = planificador.consolidar(tresReales);
+comprobar('funciona con recetas reales', planReal.totalLineas > 0, `${planReal.totalLineas} ingredientes`);
+comprobar(
+  'consolida: menos lineas que la suma de las tres',
+  planReal.totalLineas <= tresReales.reduce((n, e) => n + countItemsDe(e.recipe), 0),
+);
+comprobar('ordenado alfabeticamente', estaOrdenado(planReal.lineas.map((l) => l.ingrediente)));
+comprobar('un plan vacio no rompe', planificador.consolidar([]).totalLineas === 0);
+comprobar(
+  'planificar no altera el recetario',
+  JSON.stringify(repo.findAll()) === JSON.stringify(publicado.recipes),
+);
+
+function countItemsDe(r) {
+  return r.componentes.reduce((n, c) => n + c.items.length, 0);
+}
+function estaOrdenado(lista) {
+  return lista.every((v, i) => i === 0 || lista[i - 1].localeCompare(v, 'es') <= 0);
+}
+
 console.log('\n6. Las 121 recetas reales quedan como estaban');
 const idsReales = publicado.recipes.map((r) => r.id).sort();
 const idsAhora = repo.findAll().map((r) => r.id).sort();

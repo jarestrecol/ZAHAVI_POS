@@ -14,6 +14,7 @@ import { effectiveTheme, toggleTheme } from '../core/theme.js';
  * @param {Object} options
  * @param {boolean} options.canEdit
  * @param {() => void} options.onNewRecipe
+ * @param {() => void} options.onPlan
  * @param {() => void} options.onSettings
  * @returns {HTMLElement}
  */
@@ -35,6 +36,16 @@ export function renderHeader(options) {
 
     el('div', { class: 'topbar__actions' }, [
       renderThemeToggle(),
+
+      // Planear el dia es una tarea de jornada, no de receta: por eso vive en
+      // la barra y no dentro de una ficha.
+      el('button', {
+        type: 'button',
+        class: 'btn btn--dark-ghost',
+        text: 'Plan del día',
+        on: { click: options.onPlan },
+      }),
+
       options.canEdit
         ? el('button', {
             type: 'button',

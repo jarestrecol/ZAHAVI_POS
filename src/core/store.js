@@ -15,6 +15,8 @@
  * @property {string|null} confirmDelete id pendiente de confirmar
  * @property {string|null} production id de la receta abierta en modo produccion
  * @property {number} factor multiplicador de la tanda que se esta viendo
+ * @property {boolean} planOpen plan de produccion abierto
+ * @property {object|null} planPrint plan pendiente de imprimir
  * @property {boolean} online hay conexion en este momento
  * @property {boolean} settingsOpen
  * @property {string} notice mensaje visible para la persona usuaria
@@ -34,6 +36,10 @@ const INITIAL = Object.freeze({
   // receta: no se guarda en ningun sitio y vuelve a 1 al cambiar de receta.
   // Ver `core/scale.js` para el porque.
   factor: 1,
+  // Plan de produccion abierto. Tampoco se guarda: se pierde al cerrarlo.
+  planOpen: false,
+  // Plan pendiente de imprimir, si se pidio imprimirlo.
+  planPrint: null,
   online: true,
   settingsOpen: false,
   notice: '',
