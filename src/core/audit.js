@@ -89,6 +89,13 @@ export function revisar(recipes) {
  * siempre es un dedazo al escribir.
  *
  * Es la regla que detecta el error de los nueve kilos de chocolate.
+ *
+ * SE COMPARA DENTRO DE CADA COMPONENTE, no en toda la receta. Un mismo
+ * ingrediente aparece a menudo en dos componentes de la misma receta con
+ * cantidades distintas: los Rollos de Canela llevan mantequilla en la masa y
+ * otra vez en el relleno. Comparando por nombre suelto, el relleno de la
+ * variante grande se media contra la masa de la pequena y salia un falso
+ * positivo, aunque las dos escalaran perfecto.
  */
 function cantidadesFueraDePatron(recipes) {
   const hallazgos = [];
@@ -105,29 +112,32 @@ function cantidadesFueraDePatron(recipes) {
       const proporcion = variante.rinde / base.rinde;
       if (!Number.isFinite(proporcion) || proporcion <= 0) continue;
 
-      for (const item of lineas(variante.recipe)) {
-        const equivalente = lineas(base.recipe).find(
-          (otro) => normalize(otro.ingrediente) === normalize(item.ingrediente),
-        );
-        if (!equivalente) continue;
+      for (const componente of variante.recipe.componentes) {
+        const componenteBase = componenteEquivalente(base.recipe, componente.nombre);
+        if (!componenteBase) continue;
 
-        const esperado = numero(equivalente.cantidad) * proporcion;
-        const real = numero(item.cantidad);
-        if (!Number.isFinite(esperado) || !Number.isFinite(real) || esperado === 0) continue;
+        for (const item of componente.items) {
+          const equivalente = unicaCoincidencia(componenteBase.items, item.ingrediente);
+          if (!equivalente) continue;
 
-        const desvio = Math.abs(real - esperado) / esperado;
-        if (desvio <= TOLERANCIA) continue;
+          const esperado = numero(equivalente.cantidad) * proporcion;
+          const real = numero(item.cantidad);
+          if (!Number.isFinite(esperado) || !Number.isFinite(real) || esperado === 0) continue;
 
-        hallazgos.push({
-          tipo: 'Cantidad fuera de patrón',
-          gravedad: desvio > 2 ? 'alta' : 'media',
-          recetaId: variante.recipe.id,
-          recetaNombre: variante.recipe.nombre,
-          detalle: `${item.ingrediente}: ${redondear(real)} ${item.unidad}`,
-          sugerencia:
-            `Sus variantes escalan a ${redondear(esperado)} ${item.unidad}. ` +
-            `Comparar con ${base.recipe.nombre}.`,
-        });
+          const desvio = Math.abs(real - esperado) / esperado;
+          if (desvio <= TOLERANCIA) continue;
+
+          hallazgos.push({
+            tipo: 'Cantidad fuera de patrón',
+            gravedad: desvio > 2 ? 'alta' : 'media',
+            recetaId: variante.recipe.id,
+            recetaNombre: variante.recipe.nombre,
+            detalle: `${item.ingrediente}: ${redondear(real)} ${item.unidad}`,
+            sugerencia:
+              `En ${base.recipe.nombre} escala a ${redondear(esperado)} ${item.unidad}` +
+              (variante.recipe.componentes.length > 1 ? ` (componente ${componente.nombre}).` : '.'),
+          });
+        }
       }
     }
   }
@@ -307,6 +317,41 @@ function cantidadesImposibles(recipes) {
 /** Todas las lineas de ingrediente de una receta, sin importar el componente. */
 function lineas(recipe) {
   return recipe.componentes.flatMap((component) => component.items);
+}
+
+/**
+ * Busca en una receta el componente que se llama igual que otro.
+ *
+ * Si la receta tiene un solo componente se devuelve ese, sin comparar nombres:
+ * en las recetas de un unico bloque el nombre suele variar ("PRINCIPAL",
+ * "MASA", el nombre del producto) sin que eso signifique nada.
+ *
+ * @param {object} recipe
+ * @param {string} nombre
+ * @returns {object|null}
+ */
+function componenteEquivalente(recipe, nombre) {
+  if (recipe.componentes.length === 1) return recipe.componentes[0];
+  return recipe.componentes.find((c) => normalize(c.nombre) === normalize(nombre)) || null;
+}
+
+/**
+ * Devuelve la linea de un ingrediente SOLO si aparece una vez.
+ *
+ * Si el mismo ingrediente esta repetido dentro del mismo componente no hay
+ * forma de saber cual corresponde a cual, y comparar a ciegas produciria un
+ * aviso falso. En la duda, no se avisa: una revision que da falsas alarmas se
+ * deja de mirar a la tercera.
+ *
+ * @param {Array} items
+ * @param {string} ingrediente
+ * @returns {object|null}
+ */
+function unicaCoincidencia(items, ingrediente) {
+  const coincidencias = items.filter(
+    (otro) => normalize(otro.ingrediente) === normalize(ingrediente),
+  );
+  return coincidencias.length === 1 ? coincidencias[0] : null;
 }
 
 /** Convierte a numero admitiendo coma decimal. */

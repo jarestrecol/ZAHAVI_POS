@@ -703,20 +703,19 @@ información completa.
 ### Incidencias detectadas en los datos, no corregidas
 
 Se reportan y **no se tocan**, porque corregir una fórmula es una decisión del
-negocio, no de quien migró los datos. Las tres las señala hoy **Ajustes →
+negocio, no de quien migró los datos. Las dos las señala hoy **Ajustes →
 Revisión de datos** de forma automática:
 
-- `SACHER TORTE x 8` lleva `CHOCOLATE 70%: 10008 GR`. Las variantes ×1, ×5 y ×6
-  escalan de forma exacta, así que el valor esperado sería `1008`. Son nueve
-  kilos de chocolate de diferencia.
+- `SACHER TORTE x 8` lleva `CHOCOLATE 70%: 10008 GR`. Las variantes escalan
+  exactas (126 → 630 → 756), así que el valor esperado sería `1008`. Son nueve
+  kilos de chocolate de diferencia, y es un cero de más al teclear.
 - `BERLINAS` mide la leche en `MG` (miligramos). Es la **única línea en MG de
-  las 1.282**; casi con seguridad debería ser `ML`.
-- `ROLLOS DE CANELA X 40` lleva `MANTEQUILLA: 100 GR`, cuando su variante ×20
-  sitúa el valor esperado en `140`.
+  las 1.282**; 160 mg son 0,16 gramos, imposible para 18 berlinas. Casi con
+  seguridad debería ser `ML`.
 
 El primero es también el mejor argumento de por qué existe el escalado: esa
-receta solo se escribió a mano porque no había forma de multiplicar la tanda, y
-en la copia se coló el error.
+variante solo se escribió a mano porque no había forma de multiplicar la tanda,
+y en la copia se coló el error.
 
 ---
 

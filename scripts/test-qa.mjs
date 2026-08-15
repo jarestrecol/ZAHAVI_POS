@@ -360,6 +360,16 @@ comprobar(
   String(hallazgos.length),
 );
 
+// Los Rollos de Canela llevan mantequilla en la masa Y en el relleno, y las dos
+// escalan exactas (70->140 y 50->100). Comparando por nombre suelto, sin mirar
+// el componente, el relleno de la variante grande se media contra la masa de la
+// pequena y salia un aviso falso. Se fija aqui para que no reaparezca.
+comprobar(
+  'no da falso positivo con la mantequilla de los Rollos de Canela',
+  !hallazgos.some((h) => /ROLLOS DE CANELA/i.test(h.recetaNombre) && /MANTEQUILLA/i.test(h.detalle)),
+  hallazgos.filter((h) => /ROLLOS/i.test(h.recetaNombre)).map((h) => h.detalle).join(', ') || 'ninguno',
+);
+
 // Error conocido 1: la Sacher Torte x8 con nueve kilos de chocolate de mas.
 const sacher = hallazgos.find(
   (h) => /SACHER/i.test(h.recetaNombre) && /CHOCOLATE/i.test(h.detalle),
