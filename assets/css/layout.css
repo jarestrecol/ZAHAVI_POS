@@ -361,12 +361,18 @@
 .chip[data-category='PANADERÍA'] .chip__dot { background: var(--cat-panaderia-rail); }
 .chip[data-category='GALLETAS'] .chip__dot { background: var(--cat-galletas-rail); }
 
+/* En mayusculas, con algo mas de espaciado entre letras: sin el, las palabras
+   largas ("PASTELERÍA") se apelmazan y cuesta leerlas de un vistazo.
+   `text-transform` cubre ademas cualquier categoria que llegara en minusculas
+   desde datos importados, para que la columna no mezcle dos estilos. */
 .chip__label {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .chip__count {

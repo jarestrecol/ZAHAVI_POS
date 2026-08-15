@@ -129,9 +129,14 @@ function renderSearch(query, focusSearch) {
  * si a uno le faltara el punto, su nombre arrancaria desplazado respecto a los
  * demas y la columna dejaria de leerse recta.
  *
+ * El nombre se muestra tal cual viene en los datos, en MAYUSCULAS, igual que
+ * la etiqueta de categoria de la ficha de receta.
+ *
  * El nombre accesible se declara entero en `aria-label` y los tres hijos se
  * ocultan con `aria-hidden`, para que el lector de pantalla diga "pastelería
- * (66 recetas)" en vez de encadenar los trozos sueltos y repetir la cifra.
+ * (66 recetas)" en vez de encadenar los trozos sueltos y repetir la cifra. Ese
+ * texto va en minusculas a proposito: algunos lectores de pantalla deletrean
+ * letra por letra lo que esta todo en mayusculas.
  *
  * @param {string} name nombre de la categoria, o TODAS
  * @param {number} count cuantas recetas tiene
@@ -152,7 +157,7 @@ function renderCategoryChip(name, count, activeCategory) {
     on: { click: () => navigate({ name: 'index', id: null, category: name }) },
   }, [
     el('span', { class: 'chip__dot', attrs: { 'aria-hidden': 'true' } }),
-    el('span', { class: 'chip__label', attrs: { 'aria-hidden': 'true' }, text: name.toLowerCase() }),
+    el('span', { class: 'chip__label', attrs: { 'aria-hidden': 'true' }, text: name }),
     el('span', { class: 'chip__count', attrs: { 'aria-hidden': 'true' }, text: String(count) }),
   ]);
 }
