@@ -61,10 +61,25 @@
      apagar el texto (12,1:1 con la tinta principal). */
   --selected-bg: #fde8cd;
 
-  /* Estructura oscura: barra superior y diálogos */
+  /* Estructura oscura: barra superior, listado de recetas y diálogos */
   --rail: #1a1714;
   --rail-2: #262019;
   --rail-line: #3a3128;
+
+  /*
+   * Colores del listado, que va sobre estructura oscura en LOS DOS temas.
+   * Se definen una sola vez, fuera de los bloques de tema, precisamente
+   * porque no cambian: el listado es oscuro siempre.
+   *
+   * Las categorias necesitan aqui su version clara. Las de `--cat-*` del tema
+   * claro son tonos profundos pensados para leerse sobre blanco, y sobre el
+   * listado oscuro desaparecerian.
+   */
+  --rail-selected: #4b2d18;   /* receta abierta: ambar profundo, 11:1 */
+  --cat-pasteleria-rail: #d58fb0;
+  --cat-panaderia-rail: #dda471;
+  --cat-galletas-rail: #83bc96;
+  --cat-otros-rail: #a39d98;
   /* Version semitransparente del rail para el vidrio esmerilado de la barra:
      deja pasar el color del panel de detras mientras conserva legibilidad. */
   --rail-glass: rgba(26, 23, 20, 0.78);
@@ -233,74 +248,81 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    /* Mismo escalonado que en claro, invertido: el listado es el plano mas
-       oscuro y las tarjetas el mas claro. */
-    --surface-panel: #100d0a;
-    --surface-sunk: #14110d;
-    --surface: #16130f;
-    --surface-card: #221d17;
-    --surface-hover: #2f281f;
+    /*
+     * PALETA OSCURA
+     *
+     * Croma muy bajo en todas las superficies (0,005 a 0,009 en OKLCH): grises
+     * calidos, casi neutros. La version anterior las tenia mucho mas saturadas
+     * y, sumado a unas categorias de croma 0,16, el conjunto se veia
+     * fluorescente. Aqui el color solo aparece donde significa algo.
+     *
+     * Escalonado de superficies, de mas hundido a mas elevado:
+     */
+    --surface-panel: #151311;
+    --surface-sunk: #191615;
+    --surface: #1f1c1a;
+    --surface-card: #292524;
+    --surface-hover: #36302e;
 
-    /* Ambar profundo: se reconoce como naranja de marca y deja la tinta
-       principal a 12,1:1 encima. */
-    --selected-bg: #3d2a14;
+    /* Receta abierta: ambar profundo, se reconoce como naranja de marca y deja
+       la tinta principal a 11,8:1 encima. */
+    --selected-bg: #472b18;
 
-    --rail: #100e0b;
-    --rail-2: #1e1a15;
-    --rail-line: #332b22;
-    --rail-glass: rgba(16, 14, 11, 0.82);
+    --rail: #100e0c;
+    --rail-2: #1f1c1a;
+    --rail-line: #36322f;
+    --rail-glass: rgba(16, 14, 12, 0.82);
 
-    --ink: #f6f1e8;
-    --ink-2: #ded5c6;
-    --ink-3: #b8ad9b;
-    --ink-4: #968c7c;
+    /* Tintas neutras calidas. Sobre la superficie mas clara (tarjeta):
+       13,9:1 / 9,9:1 / 6,0:1 / 4,5:1. */
+    --ink: #f5f5f4;
+    --ink-2: #d3d1cd;
+    --ink-3: #a8a29e;
+    --ink-4: #918b86;
 
-    --on-rail: #f6f1e8;
-    --on-rail-2: #b8ad9b;
+    --on-rail: #f5f5f4;
+    --on-rail-2: #a8a29e;
 
-    /* El naranja de marca ya contrasta de sobra sobre fondo oscuro, así que
-       aquí sí puede usarse tal cual también para texto. */
-    --amber: var(--brand);
-    --amber-text: #f9a94a;
-    --amber-deep: #f68a1e;
-    --amber-soft: #2f2214;
-    --amber-on-rail: #f9a94a;
+    /* Acento: el naranja puro de marca resulta chillon sobre estos grises, asi
+       que baja de croma sin perder identidad. */
+    --amber: #e7813b;
+    --amber-text: #eba66d;
+    --amber-deep: #e7813b;
+    --amber-soft: #3d281a;
+    --amber-on-rail: #eba66d;
 
-    /* Solo hasta --brand, no hasta --brand-deep: el tramo final oscuro bajaba
-       el contraste del texto oscuro por debajo de 4,5:1 en botones y chips. */
-    --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 100%);
+    --brand-gradient: linear-gradient(135deg, #eba66d 0%, #e7813b 100%);
 
-    /* Los mismos tres tonos del modo claro, subidos de claridad para que
-       contrasten sobre fondo oscuro: 7,3:1 el rosa, 7,9:1 el ambar y 8,5:1 el
-       verde sobre la superficie de tarjeta. Aqui si se separan tambien por
-       luminancia (0,39 / 0,43 / 0,46), porque sobre fondo oscuro el techo de
-       contraste deja margen para hacerlo. */
-    --cat-pasteleria: #f087b0;
-    --cat-panaderia: #e0a355;
-    --cat-galletas: #5fc79b;
-    --cat-otros: #b0a696;
+    /* Categorias apagadas: mismo reparto de tono que en claro (rosa, ambar,
+       verde) pero con casi la mitad de croma. Sobre la tarjeta dan 6,1:1,
+       7,0:1 y 6,9:1, y sobre el panel del listado suben a 7,4 / 8,5 / 8,5. */
+    --cat-pasteleria: #d58fb0;
+    --cat-panaderia: #dda471;
+    --cat-galletas: #83bc96;
+    --cat-otros: #a39d98;
 
-    --danger: #eb7070;
-    --danger-soft: #2c1616;
-    --ok: #53c672;
-    --ok-soft: #16261a;
+    --danger: #df746d;
+    --danger-soft: #3f2220;
+    --ok: #68b986;
+    --ok-soft: #1d3124;
 
-    /* La cifra de cantidad usa el dorado del icono de marca: es el color con
-       mas contraste de todo el sistema oscuro (12,6:1) y el mas alejado en tono
-       del resto, asi que el dato critico salta sin competir con nada. */
-    --qty-color: var(--brand-gold);
+    /* La cifra de cantidad va en un dorado calido, no en el amarillo puro de
+       la marca, que sobre estos grises quedaba electrico. Sigue siendo el
+       valor con mas contraste del tema (9,8:1) para que el dato critico salte
+       sin competir con nada. */
+    --qty-color: #f7ca6a;
 
-    --line: #2e2820;
+    --line: #393431;
     /* Mas claro que en modo claro, no mas oscuro: sobre fondo casi negro un
        borde sutil desaparece. */
-    --line-strong: #8a8172;
+    --line-strong: #6e6863;
 
     /* Sobre fondo oscuro el mismo 10% no se percibe: hace falta más presencia. */
-    --glow: rgba(246, 138, 30, 0.22);
+    --glow: rgba(231, 129, 59, 0.18);
 
     --focus: #f6f1e8;
     --focus-on-dark: #f6f1e8;
-    --focus-glow: 0 0 0 4px rgba(249, 169, 74, 0.3);
+    --focus-glow: 0 0 0 4px rgba(231, 129, 59, 0.35);
 
     /* Sobre fondo oscuro las sombras no separan: la elevación la dan las
        superficies más claras y los bordes. Se mantiene una sombra de contacto
@@ -308,70 +330,68 @@
     --shadow-xs: 0 1px 2px -1px rgba(0, 0, 0, 0.4);
     --shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.45), 0 16px 32px -16px rgba(0, 0, 0, 0.6);
     --shadow-lg: 0 8px 16px -8px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.75);
-    --shadow-glow: 0 0 0 1px rgba(249, 169, 74, 0.22), 0 16px 40px -14px rgba(249, 169, 74, 0.4);
+    --shadow-glow: 0 0 0 1px rgba(231, 129, 59, 0.22), 0 16px 40px -14px rgba(231, 129, 59, 0.4);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --surface-panel: #100d0a;
-  --surface-sunk: #14110d;
-  --surface: #16130f;
-  --surface-card: #221d17;
-  --surface-hover: #2f281f;
-  --selected-bg: #3d2a14;
-
-  --rail: #100e0b;
-  --rail-2: #1e1a15;
-  --rail-line: #332b22;
-  --rail-glass: rgba(16, 14, 11, 0.82);
-
-  --ink: #f6f1e8;
-  --ink-2: #ded5c6;
-  --ink-3: #b8ad9b;
-  --ink-4: #968c7c;
-
-  --on-rail: #f6f1e8;
-  --on-rail-2: #b8ad9b;
-
-  --amber: var(--brand);
-  --amber-text: #f9a94a;
-  --amber-deep: #f68a1e;
-  --amber-soft: #2f2214;
-  --amber-on-rail: #f9a94a;
-
-  /* Solo hasta --brand, no hasta --brand-deep: el tramo final oscuro bajaba
-     el contraste del texto oscuro por debajo de 4,5:1 en botones y chips. */
-  --brand-gradient: linear-gradient(135deg, #ff9f3d 0%, var(--brand) 100%);
-
   /* Mismos valores que el bloque automatico de arriba: ver alli el detalle de
-     contrastes. */
-  --cat-pasteleria: #f087b0;
-  --cat-panaderia: #e0a355;
-  --cat-galletas: #5fc79b;
-  --cat-otros: #b0a696;
+     croma y contrastes. */
+  --surface-panel: #151311;
+  --surface-sunk: #191615;
+  --surface: #1f1c1a;
+  --surface-card: #292524;
+  --surface-hover: #36302e;
+  --selected-bg: #472b18;
 
-  --danger: #eb7070;
-  --danger-soft: #2c1616;
-  --ok: #53c672;
-  --ok-soft: #16261a;
+  --rail: #100e0c;
+  --rail-2: #1f1c1a;
+  --rail-line: #36322f;
+  --rail-glass: rgba(16, 14, 12, 0.82);
 
-  --qty-color: var(--brand-gold);
+  --ink: #f5f5f4;
+  --ink-2: #d3d1cd;
+  --ink-3: #a8a29e;
+  --ink-4: #918b86;
 
-  --line: #2e2820;
-  --line-strong: #8a8172;
+  --on-rail: #f5f5f4;
+  --on-rail-2: #a8a29e;
 
-  --glow: rgba(246, 138, 30, 0.22);
+  --amber: #e7813b;
+  --amber-text: #eba66d;
+  --amber-deep: #e7813b;
+  --amber-soft: #3d281a;
+  --amber-on-rail: #eba66d;
+
+  --brand-gradient: linear-gradient(135deg, #eba66d 0%, #e7813b 100%);
+
+  --cat-pasteleria: #d58fb0;
+  --cat-panaderia: #dda471;
+  --cat-galletas: #83bc96;
+  --cat-otros: #a39d98;
+
+  --danger: #df746d;
+  --danger-soft: #3f2220;
+  --ok: #68b986;
+  --ok-soft: #1d3124;
+
+  --qty-color: #f7ca6a;
+
+  --line: #393431;
+  --line-strong: #6e6863;
+
+  --glow: rgba(231, 129, 59, 0.18);
 
   --focus: #f6f1e8;
   --focus-on-dark: #f6f1e8;
-  --focus-glow: 0 0 0 4px rgba(249, 169, 74, 0.3);
+  --focus-glow: 0 0 0 4px rgba(231, 129, 59, 0.35);
 
   --shadow-xs: 0 1px 2px -1px rgba(0, 0, 0, 0.4);
   --shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.45), 0 16px 32px -16px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 8px 16px -8px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.75);
-  --shadow-glow: 0 0 0 1px rgba(249, 169, 74, 0.22), 0 16px 40px -14px rgba(249, 169, 74, 0.4);
+  --shadow-glow: 0 0 0 1px rgba(231, 129, 59, 0.22), 0 16px 40px -14px rgba(231, 129, 59, 0.4);
 }
 
 /* El interruptor fuerza claro incluso con el sistema operativo en oscuro: sin

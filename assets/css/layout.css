@@ -99,6 +99,12 @@
   color: var(--on-rail-2);
 }
 
+/* Empuja las acciones al extremo derecho. Hace falta desde que el buscador
+   dejo la barra: sin el, marca y acciones quedaban pegadas a la izquierda. */
+.topbar__spacer {
+  flex: 1 1 auto;
+}
+
 .topbar__actions {
   display: flex;
   align-items: center;
@@ -131,22 +137,24 @@
   stroke-linejoin: round;
 }
 
-/* ---- Buscador ---- */
+/* ---- Buscador ----
+   Vive dentro del listado (ver `.sidebar__search`), que va sobre estructura
+   oscura, asi que todos sus colores son los del rail. El icono, la tecla de
+   atajo y el boton de borrar se colocan en posicion absoluta sobre el campo,
+   descontando el relleno del contenedor. */
 
 .search {
   position: relative;
-  flex: 1 1 18rem;
-  max-width: 30rem;
 }
 
 .search__field {
   width: 100%;
-  min-height: var(--tap-min);
+  min-height: var(--tap-row);
   padding: var(--space-2) 2.5rem var(--space-2) 2.25rem;
   font-family: var(--font-ui);
   font-size: var(--text-base);
   color: var(--on-rail);
-  background: rgba(245, 241, 234, 0.08);
+  background: rgba(245, 241, 234, 0.06);
   border: 1px solid var(--rail-line);
   border-radius: var(--radius-pill);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
@@ -154,13 +162,13 @@
 }
 
 .search__field:hover {
-  background: rgba(245, 241, 234, 0.13);
+  background: rgba(245, 241, 234, 0.12);
 }
 
 .search__field:focus {
   background: rgba(245, 241, 234, 0.16);
   border-color: var(--amber-on-rail);
-  box-shadow: 0 0 0 4px rgba(249, 169, 74, 0.18);
+  box-shadow: 0 0 0 4px rgba(231, 129, 59, 0.22);
   outline: none;
 }
 
@@ -171,7 +179,7 @@
 
 .search__icon {
   position: absolute;
-  left: 0.85rem;
+  left: calc(var(--space-3) + 0.7rem);
   top: 50%;
   width: 15px;
   height: 15px;
@@ -184,7 +192,7 @@
 
 .search__key {
   position: absolute;
-  right: 0.55rem;
+  right: calc(var(--space-3) + 0.5rem);
   top: 50%;
   transform: translateY(-50%);
   padding: 0.1rem 0.45rem;
@@ -228,36 +236,45 @@
   min-height: 0;
 }
 
-/* ---- Lista de recetas ----
-   El listado va sobre superficie HUNDIDA y la ficha sobre superficie de
-   trabajo: son dos planos distintos, no dos mitades del mismo. Asi, con una
-   receta abierta, se ve de un vistazo que el panel de la izquierda es el
-   indice y el de la derecha es donde se trabaja. Antes ambos eran claros y
-   solo los separaba una linea de un pixel. */
+/* =============================================================================
+ *  LISTA DE RECETAS
+ * =============================================================================
+ *
+ *  El listado va sobre ESTRUCTURA OSCURA, igual que la barra superior, en los
+ *  dos temas. No es un capricho: es el principio que el sistema ya seguia
+ *  arriba, llevado hasta el final. La estructura (barra, indice, navegacion)
+ *  enmarca en oscuro; el trabajo (la receta) ocurre sobre superficie clara.
+ *
+ *  Antes el listado era claro como la ficha y toda la pantalla se leia como un
+ *  unico bloque plano. Ahora hay dos zonas que no se pueden confundir, y la
+ *  receta abierta destaca de verdad porque es la unica pieza calida sobre un
+ *  fondo oscuro.
+ *
+ *  Los colores del listado (--rail-*, --cat-*-rail) se declaran una sola vez
+ *  en tokens.css, fuera de los bloques de tema, porque aqui es oscuro siempre.
+ *
+ *  Orden de la columna, de arriba abajo:
+ *      filtros de categoria  ->  buscador  ->  recuento  ->  listado
+ * ========================================================================== */
 
 .sidebar {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  /* Cuatro filas: filtros, buscador, recuento y la lista, que se queda con
+     todo el alto sobrante y es la unica que se desplaza. */
+  grid-template-rows: auto auto auto 1fr;
   min-height: 0;
-  background: var(--surface-panel);
-  border-right: 1px solid var(--line);
+  background: var(--rail);
+  border-right: 1px solid var(--rail-line);
 }
 
-/*
- * Filtro de categoria, tratado como control segmentado de panel, no como
- * pastillas sueltas. Sin radios de pildora ni rebote al pulsar: eso lee como
- * filtro decorativo de blog, y esto tiene que leerse como instrumento de un
- * sistema de trabajo.
+/* ---- Filtros de categoria ----
+ * Control segmentado, no pastillas sueltas: sin radios de pildora ni rebote al
+ * pulsar, que leen como filtro decorativo de blog en vez de instrumento.
  *
- * Cuadricula de dos columnas en vez de una fila que se parte sola: con cuatro
- * filtros de ancho distinto ("todas 121", "pastelería 66", "panadería 34",
- * "galletas 21") el reparto flexible los dejaba desalineados y cambiando de
- * sitio segun el ancho del panel. En rejilla quedan siempre en dos columnas
- * parejas, y si algun dia aparece una categoria mas, solo anade una fila.
- *
- * `align-items: stretch` mas `grid-auto-rows: 1fr` es lo que los deja de
- * verdad rectos: todos los segmentos miden exactamente igual de alto aunque
- * uno tenga el nombre mas largo o el conteo de tres cifras.
+ * Rejilla de dos columnas con grid-auto-rows: 1fr. Es lo que los deja de
+ * verdad rectos, todos del mismo alto, aunque uno tenga el nombre mas largo o
+ * el conteo de tres cifras. En fila flexible se desalineaban y cambiaban de
+ * sitio segun el ancho del panel.
  */
 .sidebar__filters {
   display: grid;
@@ -266,8 +283,8 @@
   align-items: stretch;
   gap: var(--space-1);
   padding: var(--space-3);
-  background: var(--surface-card);
-  border-bottom: 1px solid var(--line);
+  background: var(--rail-2);
+  border-bottom: 1px solid var(--rail-line);
 }
 
 /* Tres zonas fijas: punto, nombre y cifra. El nombre se estira y la cifra
@@ -284,8 +301,8 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-align: left;
-  color: var(--ink-3);
-  background: var(--surface-sunk);
+  color: var(--on-rail-2);
+  background: rgba(245, 241, 234, 0.04);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -294,41 +311,39 @@
 }
 
 .chip:hover {
-  background: var(--surface-hover);
-  border-color: var(--line);
-  color: var(--ink);
+  background: rgba(245, 241, 234, 0.1);
+  color: var(--on-rail);
 }
 
 .chip:active {
-  background: var(--surface-hover);
+  background: rgba(245, 241, 234, 0.14);
 }
 
-/* Categoria activa: barra del color de la categoria pegada al borde
-   izquierdo, mas superficie elevada y negrita. La barra va con `inset
-   box-shadow` y no con `border-left`, porque un borde que crece de 1 a 4px
-   desplazaria el contenido del segmento cada vez que se cambia de filtro. */
+/* Categoria activa: barra de su color pegada al borde izquierdo. Va con inset
+   box-shadow y no con border-left, porque un borde que crece de 1 a 4px
+   desplazaria el contenido cada vez que se cambia de filtro. */
 .chip[aria-pressed='true'] {
-  color: var(--ink);
-  background: var(--surface-card);
-  border-color: var(--line);
-  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-otros);
+  color: var(--on-rail);
+  background: rgba(245, 241, 234, 0.14);
+  border-color: var(--rail-line);
+  box-shadow: inset 4px 0 0 0 var(--cat-otros-rail);
   font-weight: 700;
 }
 
 .chip[data-category='TODAS'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--brand);
+  box-shadow: inset 4px 0 0 0 var(--amber-on-rail);
 }
 
 .chip[data-category='PASTELERÍA'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-pasteleria);
+  box-shadow: inset 4px 0 0 0 var(--cat-pasteleria-rail);
 }
 
 .chip[data-category='PANADERÍA'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-panaderia);
+  box-shadow: inset 4px 0 0 0 var(--cat-panaderia-rail);
 }
 
 .chip[data-category='GALLETAS'][aria-pressed='true'] {
-  box-shadow: var(--shadow-xs), inset 4px 0 0 0 var(--cat-galletas);
+  box-shadow: inset 4px 0 0 0 var(--cat-galletas-rail);
 }
 
 .chip__dot {
@@ -336,15 +351,15 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--cat-otros);
+  background: var(--cat-otros-rail);
 }
 
 /* "Todas" tambien lleva punto, en color de marca: sin el, su nombre empezaba
    dos posiciones antes que el de las demas y rompia la columna. */
-.chip[data-category='TODAS'] .chip__dot { background: var(--brand); }
-.chip[data-category='PASTELERÍA'] .chip__dot { background: var(--cat-pasteleria); }
-.chip[data-category='PANADERÍA'] .chip__dot { background: var(--cat-panaderia); }
-.chip[data-category='GALLETAS'] .chip__dot { background: var(--cat-galletas); }
+.chip[data-category='TODAS'] .chip__dot { background: var(--amber-on-rail); }
+.chip[data-category='PASTELERÍA'] .chip__dot { background: var(--cat-pasteleria-rail); }
+.chip[data-category='PANADERÍA'] .chip__dot { background: var(--cat-panaderia-rail); }
+.chip[data-category='GALLETAS'] .chip__dot { background: var(--cat-galletas-rail); }
 
 .chip__label {
   flex: 1 1 auto;
@@ -359,11 +374,23 @@
   font-family: var(--font-num);
   font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
-  color: var(--ink-4);
+  color: var(--on-rail-2);
 }
 
 .chip[aria-pressed='true'] .chip__count {
-  color: var(--ink-3);
+  color: var(--on-rail);
+}
+
+/* ---- Buscador ----
+   Vive aqui, debajo de los filtros, y no en la barra superior: buscar y
+   filtrar son la misma tarea (acotar el listado), asi que sus dos controles
+   van juntos y justo encima de lo que afectan. */
+
+.sidebar__search {
+  position: relative;
+  padding: var(--space-3);
+  background: var(--rail-2);
+  border-bottom: 1px solid var(--rail-line);
 }
 
 .sidebar__count {
@@ -372,9 +399,9 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-4);
-  background: var(--surface-sunk);
-  border-bottom: 1px solid var(--line);
+  color: var(--on-rail-2);
+  background: var(--rail);
+  border-bottom: 1px solid var(--rail-line);
 }
 
 .sidebar__list {
@@ -384,31 +411,28 @@
   padding: var(--space-2);
 }
 
-/* Separador de letra inicial. Va en su propia franja, con linea debajo y el
-   fondo hundido del panel, para que se lea como un corte entre grupos y no
-   como una receta mas de la lista. Queda pegado arriba al desplazar, asi que
+/* Separador de letra inicial. Queda pegado arriba al desplazar, asi que
    siempre se sabe por que letra se va. */
 .sidebar__letter {
   position: sticky;
   top: 0;
   z-index: 1;
-  margin: var(--space-3) 0 var(--space-2);
+  margin: var(--space-4) 0 var(--space-2);
   padding: var(--space-1) var(--space-2);
   font-family: var(--font-num);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.16em;
-  color: var(--ink-4);
-  background: var(--surface-sunk);
-  border-bottom: 1px solid var(--line);
+  color: var(--amber-on-rail);
+  background: var(--rail);
+  border-bottom: 1px solid var(--rail-line);
 }
 
 .sidebar__letter:first-child {
   margin-top: 0;
 }
 
-/* Fila de receta, tratada como tarjeta blanca sobre el panel hundido: cada
-   receta es una pieza, no un renglon de una tabla. */
+/* Fila de receta: tarjeta sobre el listado oscuro. */
 .recipe-link {
   display: flex;
   align-items: center;
@@ -418,44 +442,41 @@
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-base);
   line-height: 1.3;
-  color: var(--ink-2);
+  color: var(--on-rail);
   text-decoration: none;
-  background: var(--surface-card);
+  background: var(--rail-2);
   border-radius: var(--radius);
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
 .recipe-link:hover {
-  background: var(--surface-hover);
-  border-color: var(--amber);
-  color: var(--ink);
+  background: rgba(245, 241, 234, 0.1);
+  border-color: var(--rail-line);
   transform: translateX(2px);
-  box-shadow: var(--shadow-xs);
 }
 
 /* Receta abierta ahora mismo.
-   Tres señales a la vez, porque en una lista de 121 filas iguales una sola no
-   basta: fondo teñido, texto en negrita y una barra de marca pegada al borde
-   izquierdo. La barra va con `inset box-shadow` y no con `border-left`, para
-   que activarla no ensanche la fila ni desplace el texto medio pixel. */
+   Tres senales a la vez, porque en una lista de 121 filas iguales una sola no
+   basta: fondo ambar, borde de marca y una barra naranja pegada al borde
+   izquierdo. Es la unica pieza calida de toda la columna. */
 .recipe-link.is-active {
-  background: var(--selected-bg);
-  color: var(--ink);
+  background: var(--rail-selected);
+  color: var(--on-rail);
   font-weight: 700;
-  border-color: var(--amber);
-  box-shadow: var(--shadow), inset 4px 0 0 0 var(--brand);
+  border-color: var(--amber-on-rail);
+  box-shadow: inset 4px 0 0 0 var(--amber-on-rail);
 }
 
 .recipe-link.is-active .recipe-link__yield {
-  color: var(--amber-text);
+  color: var(--amber-on-rail);
 }
 
-/* El punto de categoria de la receta abierta gana un anillo del color de
-   fondo, para que no se confunda con los de las filas de al lado. */
+/* El punto de la receta abierta gana un anillo del propio fondo, para que no
+   se confunda con los de las filas de al lado. */
 .recipe-link.is-active .recipe-link__dot {
-  box-shadow: 0 0 0 3px var(--selected-bg);
+  box-shadow: 0 0 0 3px var(--rail-selected);
 }
 
 /* Punto de categoria: presente en todas las filas. */
@@ -464,12 +485,12 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--cat-otros);
+  background: var(--cat-otros-rail);
 }
 
-.recipe-link[data-category='PASTELERÍA'] .recipe-link__dot { background: var(--cat-pasteleria); }
-.recipe-link[data-category='PANADERÍA'] .recipe-link__dot { background: var(--cat-panaderia); }
-.recipe-link[data-category='GALLETAS'] .recipe-link__dot { background: var(--cat-galletas); }
+.recipe-link[data-category='PASTELERÍA'] .recipe-link__dot { background: var(--cat-pasteleria-rail); }
+.recipe-link[data-category='PANADERÍA'] .recipe-link__dot { background: var(--cat-panaderia-rail); }
+.recipe-link[data-category='GALLETAS'] .recipe-link__dot { background: var(--cat-galletas-rail); }
 
 .recipe-link__name {
   flex: 1 1 auto;
@@ -480,7 +501,7 @@
   flex-shrink: 0;
   font-family: var(--font-num);
   font-size: var(--text-2xs);
-  color: var(--ink-4);
+  color: var(--on-rail-2);
 }
 
 .sidebar__empty {
@@ -491,7 +512,7 @@
 .sidebar__empty p {
   margin-bottom: var(--space-3);
   font-size: var(--text-base);
-  color: var(--ink-3);
+  color: var(--on-rail-2);
 }
 
 /* ---- Panel de trabajo ---- */

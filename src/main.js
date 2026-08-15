@@ -34,8 +34,8 @@ import { emptyRecipe } from './core/schema.js';
 import { getEditKey } from './core/remote.js';
 import { saveRecipe, deleteRecipe, publish, discardChanges } from './app/commands.js';
 import { renderLogin } from './views/login.js';
-import { renderHeader, renderBadges, SEARCH_ID } from './views/header.js';
-import { renderSidebar } from './views/sidebar.js';
+import { renderHeader, renderBadges } from './views/header.js';
+import { renderSidebar, SEARCH_ID } from './views/sidebar.js';
 import { renderDetail, renderPlaceholder } from './views/detail.js';
 import { renderSkeleton } from './views/skeleton.js';
 import { openEditor } from './views/editor.js';
@@ -348,20 +348,19 @@ function paint() {
   const shell = el('div', { class: 'app', dataset: { view: recipe ? 'detail' : 'index' } }, [
     // Barra superior: marca, buscador y acciones.
     renderHeader({
-      query: route.query,
       canEdit: true,
-      focusSearch: searchHadFocus,
       onNewRecipe: () => navigate({ name: 'new', id: null }),
       onSettings: () => setState({ settingsOpen: true }),
     }),
 
     el('div', { class: 'workspace' }, [
-      // Izquierda: listado completo, siempre visible en pantallas anchas.
+      // Izquierda: filtros, buscador y listado completo.
       renderSidebar({
         recipes: state.recipes,
         query: route.query,
         category: route.category,
         selectedId: recipe ? recipe.id : null,
+        focusSearch: searchHadFocus,
       }),
 
       // Derecha: la receta abierta, o la bienvenida si no hay ninguna.

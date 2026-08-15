@@ -39,7 +39,7 @@ Este sistema sustituye ese flujo por un único punto de consulta:
 |---|---|
 | Un archivo por sede, divergiendo en silencio | Una sola versión publicada, idéntica en todas partes |
 | Sin historial: un cambio pisaba al anterior | Cada publicación queda registrada y es recuperable |
-| Buscar una fórmula obligaba a recorrer pestañas | Búsqueda por nombre, código o ingrediente |
+| Buscar una fórmula obligaba a recorrer pestañas | Búsqueda por nombre o código |
 | Imprimir daba una tabla ilegible en el obrador | Ficha A4 diseñada para leerse de pie |
 | Sin conexión, sin recetas | Funciona igual con la red caída |
 
@@ -53,12 +53,15 @@ inventario quedan fuera de esta fase por decisión de producto.
 
 ### Consulta
 
-- **Listado permanente** en el panel izquierdo: cambiar de receta es un clic, sin
-  navegación intermedia.
-- **Búsqueda** simultánea sobre nombre, código de receta e ingredientes, sin
-  distinguir mayúsculas ni acentos.
+- **Listado permanente** en el panel izquierdo, sobre estructura oscura: cambiar
+  de receta es un clic, sin navegación intermedia.
 - **Filtro por categoría** con recuento en vivo: pastelería (66), panadería (34),
   galletas (21).
+- **Búsqueda** por nombre o código, sin distinguir mayúsculas ni acentos. Va
+  junto a los filtros, encima del listado, porque buscar y filtrar son la misma
+  tarea. No busca dentro de los ingredientes: escribir "leche" devolvía decenas
+  de recetas que solo la llevaban como un renglón más y enterraba la que se
+  buscaba por su nombre.
 - **Ficha de receta** con los ingredientes a ancho completo y las cantidades
   tratadas como lectura de báscula: cifra grande, monoespaciada y alineada en
   columna, para localizarla sin leer el renglón entero.
@@ -359,14 +362,39 @@ Tres familias con papeles distintos, auto-hospedadas en `assets/fonts/`
 | **Lora** | Marca y títulos de receta | Da carácter editorial al nombre del producto |
 | **IBM Plex Mono** | Cifras | Tabular: las cantidades deben alinearse siempre en columna |
 
+### Zonas
+
+La pantalla se reparte en dos planos que no se pueden confundir, y esa
+separación es el eje del diseño:
+
+| Zona | Tratamiento | Por qué |
+|---|---|---|
+| **Estructura** (barra superior, filtros, buscador, listado) | Oscura, en los dos temas | Es navegación: enmarca, no compite |
+| **Trabajo** (ficha de receta) | Superficie clara | Es donde se lee y se pesa |
+
+Por eso la receta abierta destaca de verdad: es la única pieza cálida, en
+naranja de marca, sobre una columna oscura.
+
 ### Tokens
 
 Todo el sistema vive en `assets/css/tokens.css`: color, tipografía, ritmo,
 radios, sombras, duraciones. Ningún valor de color o espaciado está escrito a
 mano fuera de ese archivo.
 
-El tema oscuro no es una inversión automática: el fondo no es negro puro porque
-en un obrador a oscuras el texto blanco sobre negro absoluto produce halo.
+Los colores del listado (`--rail-*`, `--cat-*-rail`) se declaran **fuera** de
+los bloques de tema, porque esa columna es oscura siempre y sus valores no
+cambian.
+
+### Tema oscuro
+
+No es una inversión automática. Dos decisiones deliberadas:
+
+- **El fondo no es negro puro**: en un obrador a oscuras, el texto blanco sobre
+  negro absoluto produce halo.
+- **Croma muy bajo en las superficies** (0,005 a 0,009 en OKLCH): grises cálidos
+  casi neutros. Una versión anterior las tenía mucho más saturadas y, sumado a
+  unas categorías de croma 0,16, el conjunto se veía fluorescente. El color solo
+  aparece donde significa algo: categoría, estado, acción.
 
 ---
 
@@ -550,7 +578,7 @@ src/
     a11y.js                Foco atrapado, región viva, inerte
   views/
     login.js               Pantalla de entrada
-    header.js              Barra superior, búsqueda, tema
+    header.js              Barra superior: marca, tema y acciones
     sidebar.js             Listado y filtros de categoría
     detail.js              Ficha de receta
     editor.js              Editor de recetas

@@ -75,7 +75,7 @@ Entrar con `zahavi` / `zahavi2026`.
 | 6 | Pulsar `/` | El cursor salta al buscador |
 | 7 | Buscar por nombre parcial | Filtra según se escribe |
 | 8 | Buscar por código (`R05`) | Encuentra por código |
-| 9 | Buscar un ingrediente (`harina`) | Encuentra recetas que lo contienen |
+| 9 | Buscar un ingrediente (`harina`) | **No** devuelve recetas que solo lo contienen: la búsqueda es por nombre y código |
 | 10 | Buscar sin acentos (`azucar`) | Encuentra igual que con acento |
 | 11 | Buscar algo inexistente | Mensaje claro y botón para limpiar |
 | 12 | Flechas arriba y abajo | Recorren el listado |

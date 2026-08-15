@@ -9,8 +9,15 @@ import { normalize, byName } from '../lib/format.js';
 import { ALL_CATEGORIES } from './router.js';
 
 /**
- * Filtra por categoria y por texto. La busqueda ignora acentos y mayusculas, y
- * mira nombre, codigo e ingredientes.
+ * Filtra por categoria y por texto. La busqueda ignora acentos y mayusculas.
+ *
+ * Mira el NOMBRE y el CODIGO de la receta, no sus ingredientes. Buscar dentro
+ * de los ingredientes existio y se retiro a peticion del negocio: escribir
+ * "leche" devolvia decenas de recetas que solo la llevaban como un renglon
+ * mas, y eso enterraba la que se estaba buscando por su nombre. Si algun dia
+ * hace falta encontrar recetas por lo que llevan (por ejemplo, para saber que
+ * se ve afectado al cambiar un proveedor), conviene que sea una busqueda
+ * aparte y no mezclada con esta.
  *
  * @param {Array} recipes
  * @param {{query: string, category: string}} criteria
@@ -24,10 +31,7 @@ export function filterRecipes(recipes, criteria) {
     if (category !== ALL_CATEGORIES && recipe.categoria !== category) return false;
     if (needle === '') return true;
     if (normalize(recipe.nombre).includes(needle)) return true;
-    if (normalize(recipe.id).includes(needle)) return true;
-    return recipe.componentes.some((component) =>
-      component.items.some((item) => normalize(item.ingrediente).includes(needle)),
-    );
+    return normalize(recipe.id).includes(needle);
   });
 }
 

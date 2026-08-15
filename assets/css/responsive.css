@@ -93,17 +93,11 @@
     display: inline-flex !important;
   }
 
-  /* La barra superior se reparte en dos filas: marca y acciones arriba,
-     buscador debajo ocupando todo el ancho. */
+  /* La barra superior cabe en una sola fila desde que el buscador se movio al
+     listado: solo quedan la marca y las acciones. */
   .topbar {
     flex-wrap: wrap;
     row-gap: var(--space-2);
-  }
-
-  .search {
-    order: 3;
-    flex-basis: 100%;
-    max-width: none;
   }
 
   /* Los ingredientes vuelven a una sola columna: repartirlos en un ancho
@@ -169,24 +163,21 @@
     display: none;
   }
 
-  /* Solo el icono en "Nueva receta": el texto no cabe junto al buscador. */
+  /* Botones mas estrechos: en un celular no caben "Nueva receta" y "Ajustes"
+     con el relleno de escritorio. */
   .topbar__actions .btn {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
   }
 
   /* --- Listado ----------------------------------------------------------
-     Cada fila se trata como tarjeta suelta, no como linea de una tabla: mas
-     aire, sombra propia y separacion real entre una receta y la siguiente.
-     Es la diferencia entre "una lista" y "una lista que se ve bien en el
-     bolsillo". */
+     Cada fila con mas aire: se toca con el pulgar y en movimiento. El color
+     lo pone la seccion del listado en layout.css, que ya es oscuro en los dos
+     temas; aqui solo cambia el ritmo. */
   .recipe-link {
     padding: var(--space-3);
     margin-bottom: var(--space-2);
     font-size: var(--text-md);
-    background: var(--surface-card);
-    border-color: var(--line);
-    box-shadow: var(--shadow-xs);
   }
 
   .recipe-link:hover,
@@ -194,30 +185,13 @@
     transform: none;
   }
 
+  /* Los filtros se quedan en la misma rejilla de dos columnas que en
+     escritorio. Con el listado a todo el ancho de la pantalla, cada segmento
+     dispone de media pantalla: sobra sitio para el punto, el nombre y el
+     conteo, y las cuatro categorias caben en dos filas sin necesidad de
+     desplazamiento horizontal. */
   .sidebar__filters {
-    /* Los filtros se desplazan en horizontal en vez de apilarse en tres filas
-       y comerse media pantalla. `scroll-snap` los deja encajados en vez de a
-       medio camino cuando el dedo suelta. */
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-  }
-
-  .sidebar__filters::-webkit-scrollbar {
-    display: none;
-  }
-
-  .chip {
-    flex-shrink: 0;
-    scroll-snap-align: start;
-  }
-
-  /* El conteo sobra cuando el ancho aprieta: cada segmento pierde espacio en
-     la fila deslizable, y el punto de color ya distingue las categorias. */
-  .chip__count {
-    display: none;
+    padding: var(--space-3) var(--space-3) var(--space-2);
   }
 
   /* --- Ficha de receta -------------------------------------------------- */

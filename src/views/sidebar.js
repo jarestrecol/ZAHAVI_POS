@@ -16,13 +16,19 @@
  *  ve (ver `data-view` en responsive.css).
  */
 
-import { el } from '../lib/dom.js';
+import { el, svg } from '../lib/dom.js';
 import { titleCase, splitName, indexLetter } from '../lib/format.js';
 import { filterRecipes, sortRecipes, availableCategories, categoryCounts } from '../core/search.js';
 import { navigate, buildHash, getRoute } from '../core/router.js';
 
+/** Espera tras la ultima tecla antes de aplicar la busqueda. */
+const SEARCH_DEBOUNCE_MS = 160;
+
+/** Id del campo de busqueda, para que el atajo de teclado pueda enfocarlo. */
+export const SEARCH_ID = 'search-recipes';
+
 /**
- * @param {{recipes: Array, query: string, category: string, selectedId: string|null}} params
+ * @param {{recipes: Array, query: string, category: string, selectedId: string|null, focusSearch: boolean}} params
  * @returns {HTMLElement}
  */
 export function renderSidebar(params) {
@@ -37,12 +43,82 @@ export function renderSidebar(params) {
       { class: 'sidebar__filters', attrs: { role: 'group', 'aria-label': 'Filtrar por categoría' } },
       categories.map((name) => renderCategoryChip(name, counts[name] || 0, params.category)),
     ),
+    renderSearch(params.query, params.focusSearch),
     el('p', {
       class: 'sidebar__count',
       attrs: { role: 'status' },
       text: `${matches.length} ${word}`,
     }),
     matches.length === 0 ? renderEmpty(params.query) : renderList(matches, params.selectedId),
+  ]);
+}
+
+/**
+ * Buscador del listado.
+ *
+ * Se aplica con un pequeno retardo tras la ultima tecla, para no rehacer el
+ * listado con cada pulsacion. Si mientras corre ese retardo se abre una
+ * receta, la busqueda ya no se aplica: arrastraria a la persona de vuelta al
+ * indice justo despues de haber elegido algo.
+ *
+ * @param {string} query texto actual
+ * @param {boolean} focusSearch si hay que devolver el cursor tras repintar
+ * @returns {HTMLElement}
+ */
+function renderSearch(query, focusSearch) {
+  let debounce = null;
+
+  const field = el('input', {
+    type: 'search',
+    id: SEARCH_ID,
+    class: 'search__field',
+    value: query,
+    placeholder: 'Buscar receta…',
+    autocomplete: 'off',
+    on: {
+      input: (event) => {
+        const value = event.target.value;
+        const routeAtTyping = getRoute();
+        clearTimeout(debounce);
+        debounce = setTimeout(() => {
+          const now = getRoute();
+          if (now.name !== routeAtTyping.name || now.id !== routeAtTyping.id) return;
+          navigate({ name: 'index', id: null, query: value }, { replace: true });
+        }, SEARCH_DEBOUNCE_MS);
+      },
+    },
+  });
+
+  // Cada render reconstruye el listado entero, asi que hay que devolver el
+  // cursor a quien estuviera escribiendo: un evento ajeno, como perder la
+  // conexion, no debe sacarle el foco a media palabra.
+  if (focusSearch) {
+    window.requestAnimationFrame(() => {
+      if (!field.isConnected) return;
+      field.focus();
+      const end = field.value.length;
+      field.setSelectionRange(end, end);
+    });
+  }
+
+  return el('div', { class: 'sidebar__search search' }, [
+    el('label', { class: 'sr-only', for: SEARCH_ID, text: 'Buscar receta' }),
+    svg('svg', { class: 'search__icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, [
+      svg('circle', { cx: 11, cy: 11, r: 7 }),
+      svg('line', { x1: 21, y1: 21, x2: 16.65, y2: 16.65 }),
+    ]),
+    field,
+    query
+      ? el('button', {
+          type: 'button',
+          class: 'search__clear',
+          text: '×',
+          attrs: { 'aria-label': 'Borrar la búsqueda' },
+          on: { click: () => navigate({ name: 'index', id: null, query: '' }, { replace: true }) },
+        })
+      : // La tecla de atajo se anuncia solo cuando el campo esta vacio, para no
+        // taparla con el boton de borrar.
+        el('kbd', { class: 'search__key', text: '/', attrs: { 'aria-hidden': 'true' } }),
   ]);
 }
 

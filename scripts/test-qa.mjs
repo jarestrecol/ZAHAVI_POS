@@ -223,6 +223,38 @@ comprobar('y la categoria a la vez', router.parseHash(conBusqueda).category === 
 const sinFiltro = router.buildHash({ name: 'detail', id: 'R010', query: '', category: 'TODAS' });
 comprobar('sin filtro no ensucia la direccion', !sinFiltro.includes('cat='), sinFiltro);
 
+/* ---------------------------------------------------------------------------
+ *  La busqueda mira nombre y codigo, ya no los ingredientes
+ * ------------------------------------------------------------------------ */
+
+console.log('\n5c. La busqueda solo mira el nombre y el codigo');
+const busqueda = await import(pathToFileURL(repoRoot + '/src/core/search.js').href);
+const todas = repo.findAll();
+
+const porNombre = busqueda.filterRecipes(todas, { query: 'torta', category: 'TODAS' });
+comprobar('encuentra por nombre', porNombre.length > 0, `${porNombre.length} resultados`);
+comprobar(
+  'y todas las devueltas llevan el texto en el nombre',
+  porNombre.every((r) => r.nombre.toLowerCase().includes('torta')),
+);
+
+const porCodigo = busqueda.filterRecipes(todas, { query: 'R01', category: 'TODAS' });
+comprobar('encuentra por codigo', porCodigo.length > 0, `${porCodigo.length} resultados`);
+
+// "HARINA" es un ingrediente muy comun pero no aparece en ningun nombre de
+// receta: es la comprobacion de que ya no se busca dentro de los ingredientes.
+const nombresConHarina = todas.filter((r) => r.nombre.toUpperCase().includes('HARINA')).length;
+const porIngrediente = busqueda.filterRecipes(todas, { query: 'harina', category: 'TODAS' });
+comprobar(
+  'ya NO busca dentro de los ingredientes',
+  porIngrediente.length === nombresConHarina,
+  `${porIngrediente.length} resultados, ${nombresConHarina} recetas con "harina" en el nombre`,
+);
+
+const conCategoria = busqueda.filterRecipes(todas, { query: '', category: 'GALLETAS' });
+comprobar('el filtro de categoria sigue funcionando', conCategoria.length === 21, String(conCategoria.length));
+comprobar('y todas son de esa categoria', conCategoria.every((r) => r.categoria === 'GALLETAS'));
+
 console.log('\n6. Las 121 recetas reales quedan como estaban');
 const idsReales = publicado.recipes.map((r) => r.id).sort();
 const idsAhora = repo.findAll().map((r) => r.id).sort();
