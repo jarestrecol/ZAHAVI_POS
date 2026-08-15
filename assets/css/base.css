@@ -266,20 +266,31 @@ button {
   color: var(--surface-card);
 }
 
-/* Texto oscuro sobre el naranja de marca, no blanco: el blanco se queda en
-   2,45:1 y falla. El logo si usa blanco, pero un logotipo esta exento de la
-   norma y un boton no. */
+/*
+ * Accion principal: naranja de marca PLANO, sin degradado.
+ *
+ * El degradado naranja-a-dorado que habia aqui era lo que hacia que el boton
+ * se leyera como fluorescente: dos tonos saturados moviendose dentro de una
+ * pieza de 3 cm. En plano, el mismo color se lee como marca y no como reclamo.
+ *
+ * Texto oscuro sobre el naranja, no blanco: el blanco se queda en 2,45:1 y
+ * falla. Con `--brand-ink` da 7,6:1. El logo si usa blanco, pero un logotipo
+ * esta exento de la norma y un boton no.
+ *
+ * Es el UNICO boton con relleno de color de la interfaz. Si hubiera mas, este
+ * dejaria de significar "esta es la accion principal".
+ */
 .btn--accent {
-  background: var(--brand-gradient);
+  background: var(--brand);
   color: var(--brand-ink);
   border-color: var(--amber-deep);
   font-weight: 700;
 }
 
 .btn--accent:hover {
-  background: var(--brand-gradient);
-  color: var(--brand-ink);
-  box-shadow: var(--shadow-glow);
+  background: var(--amber-deep);
+  color: #fff;
+  border-color: var(--amber-deep);
 }
 
 /* Icono de dentro de un boton. Hereda el color del texto (`currentColor`), asi

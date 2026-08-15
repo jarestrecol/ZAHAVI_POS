@@ -343,6 +343,36 @@
     grid-template-columns: 1fr;
   }
 
+  /* --- Validador de ingredientes ---------------------------------------
+     Las cuatro cifras del resumen pasan a dos columnas, y la fila deja la
+     columna de totales para ganar el ancho que hace falta al nombre. El total
+     se sigue viendo: baja a su propia linea debajo. */
+  .ings__resumen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ings {
+    --ings-cols: minmax(0, 1fr) 5rem;
+  }
+
+  .ings__encabezado span:nth-child(2) {
+    display: none;
+  }
+
+  .ings__fila {
+    grid-template-columns: minmax(0, 1fr) 5rem;
+    gap: var(--space-2);
+  }
+
+  .ings__totales {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: var(--space-3);
+  }
+
   /* El plan pasa a una columna: primero se elige, y debajo aparece la lista
      que sale de eso. Se conserva la separacion con un borde arriba, ya que el
      lateral deja de tener sentido apilado. */

@@ -124,69 +124,58 @@
   padding-right: var(--space-4);
 }
 
-/* Imprimir: verde, el mismo de "correcto". Es la accion que saca la receta del
-   sistema al papel del obrador, y conviene reconocerla sin leer. */
-.btn--print {
-  color: var(--ok);
-  background: var(--ok-soft);
-  border-color: var(--ok);
-}
+/*
+ * Las tres acciones secundarias van sobre superficie BLANCA, con el color solo
+ * en el icono. Antes cada una llevaba su propio relleno de color (verde,
+ * ambar, rojo) y la barra parecia un semaforo: cuatro piezas gritando a la vez,
+ * ninguna destacando.
+ *
+ * Se siguen distinguiendo sin leer el texto, por tres vias:
+ *   - el icono, con forma y color propios
+ *   - el tinte al pasar por encima, de la familia de cada accion
+ *   - Pesar, que es la unica con relleno, se separa sola del resto
+ *
+ * Los tintes de hover son los mismos colores suaves que antes eran el relleno
+ * en reposo: se conservan, pero solo aparecen cuando el cursor esta encima.
+ */
 
+/* Imprimir: verde, el de "correcto". Saca la receta al papel del obrador. */
 .btn--print .btn__icon {
   color: var(--ok);
 }
 
 .btn--print:hover {
-  background: var(--ok);
+  background: var(--ok-soft);
   border-color: var(--ok);
-  color: #fff;
-}
-
-.btn--print:hover .btn__icon {
-  color: #fff;
+  color: var(--ink);
 }
 
 /* Editar: ambar, la familia de la marca, porque modifica sin destruir. */
-.btn--edit {
-  color: var(--amber-text);
-  background: var(--amber-soft);
-  border-color: var(--amber);
-}
-
 .btn--edit .btn__icon {
   color: var(--amber-text);
 }
 
 .btn--edit:hover {
-  background: var(--amber);
-  border-color: var(--amber-deep);
-  color: var(--brand-ink);
+  background: var(--amber-soft);
+  border-color: var(--amber);
+  color: var(--ink);
 }
 
-.btn--edit:hover .btn__icon {
-  color: var(--brand-ink);
-}
-
-/* Eliminar: rojo ya en reposo, no solo al pasar por encima. Es la unica accion
-   irreversible de la ficha y conviene que se anuncie sola. */
-.btn--danger.btn--action {
-  color: var(--danger);
-  background: var(--danger-soft);
-  border-color: var(--danger);
-}
-
+/* Eliminar: es la unica accion irreversible de la ficha, asi que se anuncia ya
+   en reposo con el texto Y el icono en rojo, no solo al pasar por encima. */
 .btn--danger .btn__icon {
   color: var(--danger);
 }
 
-.btn--danger.btn--action:hover {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #fff;
+.btn--danger.btn--action {
+  color: var(--danger);
+  border-color: var(--line-strong);
 }
 
-.btn--danger.btn--action:hover .btn__icon {
-  color: #fff;
+.btn--danger.btn--action:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 /* ---- Ficha técnica ---- */
@@ -313,9 +302,12 @@
   color: var(--ink);
 }
 
+/* El segmento activo va en tinta oscura, no en naranja pleno: un control que
+   esta permanentemente en pantalla no puede llevar el color de la accion
+   principal, o compite con ella. El naranja se queda para Pesar. */
 .scaler__btn[aria-pressed='true'] {
-  color: var(--brand-ink);
-  background: var(--amber);
+  color: var(--surface-card);
+  background: var(--ink);
 }
 
 .scaler__custom {

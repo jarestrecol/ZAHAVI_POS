@@ -116,12 +116,17 @@ export function openIngredients(options) {
     const estaAbierto = abierto === ingrediente.nombre;
     const variasUnidades = ingrediente.totales.length > 1;
 
-    const fila = el('li', { class: 'ings__item' + (variasUnidades ? ' ings__item--unidades' : '') }, [
+    return el('li', { class: 'ings__item' + (variasUnidades ? ' ings__item--unidades' : '') }, [
+      // Toda la fila es UN SOLO boton con tres columnas por dentro: nombre,
+      // total y recetas. Antes el nombre y el recuento iban dentro del boton y
+      // los totales en un parrafo aparte, asi que cada bloque se alineaba por
+      // su cuenta y la lista se veia torcida al recorrerla en vertical. Con una
+      // sola rejilla, las tres columnas quedan a plomo en las 159 filas.
       el(
         'button',
         {
           type: 'button',
-          class: 'ings__cabecera',
+          class: 'ings__fila',
           attrs: {
             'aria-expanded': String(estaAbierto),
             'aria-label': `${ingrediente.nombre}, en ${ingrediente.recetas} ${
@@ -138,6 +143,18 @@ export function openIngredients(options) {
         [
           el('span', { class: 'ings__nombre', text: titleCase(ingrediente.nombre) }),
 
+          // Total gastado, con una cifra por unidad. Nunca se suman entre si.
+          el(
+            'span',
+            { class: 'ings__totales' },
+            ingrediente.totales.map((t) =>
+              el('span', { class: 'ings__total' }, [
+                el('span', { class: 'ings__total-num', text: formatQty(t.total) }),
+                el('span', { class: 'ings__total-unidad', text: t.unidad.toLowerCase() }),
+              ]),
+            ),
+          ),
+
           // Cuantas recetas lo llevan: es la medida de su peso real en la
           // produccion, mas util que el numero de lineas.
           el('span', { class: 'ings__recetas' }, [
@@ -148,18 +165,6 @@ export function openIngredients(options) {
             }),
           ]),
         ],
-      ),
-
-      // Total gastado, con una cifra por unidad. Nunca se suman entre si.
-      el(
-        'p',
-        { class: 'ings__totales' },
-        ingrediente.totales.map((t) =>
-          el('span', { class: 'ings__total' }, [
-            el('span', { class: 'ings__total-num', text: formatQty(t.total) }),
-            el('span', { class: 'ings__total-unidad', text: t.unidad.toLowerCase() }),
-          ]),
-        ),
       ),
 
       // Marca de que este ingrediente se mide de dos formas distintas. Hoy es
@@ -174,8 +179,6 @@ export function openIngredients(options) {
 
       estaAbierto ? renderRecetas(ingrediente) : null,
     ]);
-
-    return fila;
   }
 
   /** Las recetas que usan un ingrediente, desplegadas bajo su fila. */
@@ -227,6 +230,16 @@ export function openIngredients(options) {
     ]),
 
     contador,
+
+    // Encabezado de columnas: comparte la misma rejilla que las filas, asi que
+    // cada rotulo cae justo encima de su columna. Es lo que convierte una lista
+    // de 159 lineas en algo que se lee como tabla.
+    el('div', { class: 'ings__encabezado', attrs: { 'aria-hidden': 'true' } }, [
+      el('span', { text: 'Ingrediente' }),
+      el('span', { text: 'Total' }),
+      el('span', { text: 'Recetas' }),
+    ]),
+
     lista,
   ]);
 

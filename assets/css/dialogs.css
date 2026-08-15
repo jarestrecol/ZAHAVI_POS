@@ -534,10 +534,13 @@
 }
 
 /* Cifras de cabecera: cuantos productos distintos se manejan de verdad. */
+/* Cuatro tarjetas de ANCHO IGUAL. En fila flexible cada una media segun el
+   largo de su texto ("distintos" contra "en una sola receta") y quedaban
+   descuadradas; en rejilla de cuatro columnas iguales forman un bloque recto. */
 .ings__resumen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
   margin-bottom: var(--space-4);
 }
 
@@ -613,9 +616,11 @@
   color: var(--ink);
 }
 
+/* Mismo criterio que el control de tanda: el segmento activo en tinta oscura,
+   no en naranja pleno. */
 .ings__orden-btn[aria-pressed='true'] {
-  color: var(--brand-ink);
-  background: var(--amber);
+  color: var(--surface-card);
+  background: var(--ink);
 }
 
 .ings__contador {
@@ -627,14 +632,46 @@
   color: var(--ink-4);
 }
 
-/* ---- Filas ---- */
+/* ---- Filas ----
+ *
+ * REJILLA COMPARTIDA. El encabezado y las 159 filas usan exactamente las
+ * mismas tres columnas, declaradas una sola vez en `--ings-cols`. Es lo que
+ * deja los rotulos a plomo sobre sus cifras y las cifras a plomo entre si al
+ * recorrer la lista en vertical.
+ *
+ * Antes el nombre y el recuento vivian dentro del boton y los totales en un
+ * parrafo aparte, asi que cada bloque se alineaba por su cuenta y la lista se
+ * veia torcida.
+ */
+
+.ings {
+  --ings-cols: minmax(0, 1fr) minmax(8rem, 16rem) 6rem;
+}
+
+.ings__encabezado {
+  display: grid;
+  grid-template-columns: var(--ings-cols);
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--ink-4);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+/* Total y Recetas se rotulan a la derecha, sobre la columna de cifras. */
+.ings__encabezado span:nth-child(2),
+.ings__encabezado span:nth-child(3) {
+  text-align: right;
+}
 
 .ings__lista {
   min-width: 0;
 }
 
 .ings__item {
-  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -650,13 +687,17 @@
   margin-left: calc(var(--space-3) * -1);
 }
 
-.ings__cabecera {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
+/* La fila entera es un boton con las tres columnas por dentro.
+   `align-items: center` y no `baseline`: el nombre y la cifra de recetas
+   tienen tamanos muy distintos y la linea base los descuadraba. */
+.ings__fila {
+  display: grid;
+  grid-template-columns: var(--ings-cols);
+  align-items: center;
+  gap: var(--space-4);
   width: 100%;
-  padding: 0;
+  min-height: var(--tap-row);
+  padding: var(--space-2) 0;
   font-family: var(--font-ui);
   text-align: left;
   background: none;
@@ -666,51 +707,35 @@
 
 .ings__nombre {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--ink);
 }
 
-.ings__cabecera:hover .ings__nombre {
+.ings__fila:hover .ings__nombre {
   color: var(--amber-text);
 }
 
-.ings__recetas {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  flex-shrink: 0;
-}
-
-.ings__recetas-num {
-  font-family: var(--font-num);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--qty-color);
-  font-variant-numeric: tabular-nums;
-}
-
-.ings__recetas-label {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-
-/* ---- Totales por unidad ---- */
+/* ---- Columna de totales ----
+   Alineada a la derecha para que las cifras formen columna. Cuando hay dos o
+   tres unidades se apilan, nunca se suman. */
 
 .ings__totales {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  margin-top: var(--space-1);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
 .ings__total {
   display: inline-flex;
   align-items: baseline;
   gap: 0.3rem;
+  white-space: nowrap;
 }
 
 .ings__total-num {
@@ -729,8 +754,34 @@
   color: var(--ink-4);
 }
 
+/* ---- Columna de recetas ---- */
+
+.ings__recetas {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.ings__recetas-num {
+  font-family: var(--font-num);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--qty-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.ings__recetas-label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
 .ings__aviso {
-  margin-top: var(--space-2);
+  margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--amber-text);
@@ -742,7 +793,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
   gap: var(--space-1) var(--space-4);
-  margin-top: var(--space-3);
+  margin: 0 0 var(--space-3);
   padding: var(--space-3);
   background: var(--surface-sunk);
   border-radius: var(--radius-sm);
