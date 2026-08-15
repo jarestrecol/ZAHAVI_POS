@@ -121,6 +121,15 @@
   .booting__main {
     display: none;
   }
+
+  /* La columna de cifras del plan cede ancho al nombre del ingrediente, que es
+     el que se queda sin sitio primero. Empieza aqui y no en el corte de celular
+     porque en tablet el plan CONSERVA sus dos mitades: cada una se queda en la
+     mitad del ancho y es justo donde mas aprieta. Se toca el token y no cada
+     rejilla: el encabezado, las lineas y el desglose lo comparten. */
+  .plan__resultado {
+    --plan-cols: minmax(0, 1fr) 5.5rem;
+  }
 }
 
 /* ===========================================================================

@@ -138,23 +138,33 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34q | Buscar y añadir una receta | Aparece en la izquierda con 1 tanda |
 | 34r | Añadir una segunda que comparta ingrediente | Ese ingrediente sale **sumado en una sola línea** |
 | 34s | Subir las tandas de una receta | Las cantidades se recalculan |
-| 34t | Un ingrediente con dos unidades distintas | **Dos líneas separadas**, marcadas, con aviso |
+| 34t | Un ingrediente con dos unidades distintas | **Dos líneas separadas**, marcadas, y el aviso **los nombra** |
 | 34u | Imprimir la lista | Sale la hoja del plan, no la receta abierta |
 | 34v | Cerrar y volver a abrir | El plan está vacío: no se guarda, y así se anuncia |
+| 34w | Pulsar una línea de la lista consolidada | Despliega **de qué recetas sale** y cuánto pone cada una |
+| 34x | Sumar a mano el desglose | Cuadra exactamente con el total de la línea |
+| 34y | Volver a pulsar la misma línea | Se cierra y **el foco sigue en esa fila** |
+| 34z | Vaciar el campo de tandas y salir | **No borra la receta**: vuelve al valor anterior y lo explica en pantalla |
+| 34aa | Escribir 0 en las tandas | Igual que el anterior: nota visible remitiendo al botón de quitar |
+| 34ab | Escribir 500 tandas | Se ajusta a 100 **a la vista**, con la nota del rango; las dos mitades muestran la misma cifra |
+| 34ac | Escribir en el buscador | El recuento de coincidencias se anuncia (`role="status"`) |
+| 34ad | Quitar una receta con el botón × | El foco vuelve al buscador, no al principio del documento |
+| 34ae | Recorrer la ventana con `Tab` | Todo alcanzable; las flechas del campo de tandas no pierden el foco |
 
 ### 2.4e Validador de ingredientes
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 34w | Pulsar "Validador" | Abre el validador con 159 ingredientes distintos |
-| 34x | Cifras de cabecera | 159 distintos · 1282 líneas · 64 en una sola receta · 15 con varias unidades |
-| 34y | Orden por defecto | Harina de trigo primera, en 86 recetas |
-| 34z | Pulsar "A–Z" | Se reordena alfabéticamente |
-| 34aa | Buscar `azucar` sin acento | Encuentra "Azúcar" |
-| 34ab | Un ingrediente con varias unidades (leche) | Muestra **un total por unidad**, nunca sumados, y avisa |
-| 34ac | Pulsar sobre un ingrediente | Despliega las recetas donde se usa |
-| 34ad | Pulsar una de esas recetas | La abre y cierra el catálogo |
-| 34ae | Ningún botón cambia datos | Es solo de consulta |
+| 34af | Pulsar "Validador" | Abre el validador con 159 ingredientes distintos |
+| 34ag | Cifras de cabecera | 159 distintos · 1282 líneas · 64 en una sola receta · 15 con varias unidades |
+| 34ah | Orden por defecto | Harina de trigo primera, en 86 recetas |
+| 34ai | Pulsar "A–Z" | Se reordena alfabéticamente |
+| 34aj | Buscar `azucar` sin acento | Encuentra "Azúcar" |
+| 34ak | Un ingrediente con varias unidades (leche) | Muestra **un total por unidad**, nunca sumados, y avisa |
+| 34al | Pulsar sobre un ingrediente | Despliega las recetas donde se usa |
+| 34am | Volver a pulsarlo | Se cierra y **el foco sigue en esa fila** |
+| 34an | Pulsar una de esas recetas | La abre y cierra el catálogo |
+| 34ao | Ningún botón cambia datos | Es solo de consulta |
 
 ### 2.5 Crear y editar (con recetas `QA-TEST-`)
 

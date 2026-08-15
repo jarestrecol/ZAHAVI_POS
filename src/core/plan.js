@@ -32,12 +32,17 @@ import { escalarReceta, normalizarFactor } from './scale.js';
 /**
  * Consolida las recetas elegidas en una sola lista de ingredientes.
  *
+ * Cada linea guarda ademas de donde sale cada gramo: no solo en que recetas
+ * entra el ingrediente, sino cuanto pone cada una. Es lo que permite responder
+ * "de los 4.500 GR de harina, cuanto es del pan" sin rehacer la cuenta a mano,
+ * y lo que convierte una cifra consolidada en una cifra comprobable.
+ *
  * @param {Array<{recipe: object, factor: number}>} seleccion recetas y cuanto
  *   se produce de cada una
  * @returns {{lineas: Array, recetas: Array, totalLineas: number, conflictos: number}}
  */
 export function consolidar(seleccion) {
-  /** @type {Map<string, {ingrediente: string, unidad: string, cantidad: number, recetas: Set<string>}>} */
+  /** @type {Map<string, {ingrediente: string, unidad: string, cantidad: number, recetas: Map<string, number>}>} */
   const acumulado = new Map();
 
   for (const entrada of seleccion) {
@@ -51,7 +56,13 @@ export function consolidar(seleccion) {
 
         const unidad = String(item.unidad || '').trim().toUpperCase();
         const cantidad = numero(item.cantidad);
-        if (!Number.isFinite(cantidad)) continue;
+        // Se descarta lo que no es una cantidad que se pueda pesar. El cero no
+        // aporta nada a una lista de lo que hay que sacar del almacen, y una
+        // cantidad negativa restaria del total sin que nada lo indicara: la
+        // lista saldria corta y no habria forma de notarlo mirandola. Hoy no
+        // hay ninguna en las 1.282 lineas del catalogo; esto es la red por si
+        // entra una al editar.
+        if (!Number.isFinite(cantidad) || cantidad <= 0) continue;
 
         // La clave incluye la unidad a proposito: es lo que impide sumar
         // gramos con unidades. Dos entradas distintas para el mismo
@@ -63,19 +74,31 @@ export function consolidar(seleccion) {
             ingrediente: nombre,
             unidad,
             cantidad: 0,
-            recetas: new Set(),
+            recetas: new Map(),
           });
         }
 
         const linea = acumulado.get(clave);
         linea.cantidad += cantidad;
-        linea.recetas.add(entrada.recipe.nombre);
+
+        // Una misma receta puede repetir el ingrediente en dos componentes (la
+        // harina de la masa y la del espolvoreado). Se suma su aporte, no se
+        // pisa: si no, el desglose no cuadraria con el total de la linea.
+        const yaPuesto = linea.recetas.get(entrada.recipe.nombre) || 0;
+        linea.recetas.set(entrada.recipe.nombre, yaPuesto + cantidad);
       }
     }
   }
 
   const lineas = [...acumulado.values()]
-    .map((linea) => ({ ...linea, recetas: [...linea.recetas] }))
+    .map((linea) => ({
+      ...linea,
+      // De mayor a menor aporte: quien lee el desglose busca primero quien pone
+      // el grueso de la cifra, no el orden alfabetico.
+      recetas: [...linea.recetas]
+        .map(([nombre, cantidad]) => ({ nombre, cantidad }))
+        .sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre, 'es')),
+    }))
     .sort((a, b) => a.ingrediente.localeCompare(b.ingrediente, 'es'));
 
   return {
@@ -91,23 +114,40 @@ export function consolidar(seleccion) {
 }
 
 /**
- * Cuenta los ingredientes que aparecen con mas de una unidad.
+ * Nombres de los ingredientes que aparecen con mas de una unidad.
  *
  * No es un error del plan: es informacion que hay que dar. Puede ser legitimo
  * (agua en GR en una masa y en ML en un almibar) o senal de un dato mal puesto.
  * El plan los lista por separado en cualquier caso y deja la lectura a quien
  * sabe de esto.
  *
+ * Devuelve los nombres y no solo cuantos son porque el aviso tiene que poder
+ * decir CUALES: con cuarenta ingredientes en pantalla, "3 ingredientes aparecen
+ * con unidades distintas" obliga a buscarlos a ojo uno por uno.
+ *
+ * @param {Array} lineas
+ * @returns {Array<string>} en el mismo orden alfabetico que las lineas
+ */
+export function ingredientesConVariasUnidades(lineas) {
+  /** @type {Map<string, {nombre: string, lineas: number}>} */
+  const porIngrediente = new Map();
+  for (const linea of lineas) {
+    const clave = normalize(linea.ingrediente);
+    const visto = porIngrediente.get(clave);
+    if (visto) visto.lineas += 1;
+    else porIngrediente.set(clave, { nombre: linea.ingrediente, lineas: 1 });
+  }
+  return [...porIngrediente.values()].filter((i) => i.lineas > 1).map((i) => i.nombre);
+}
+
+/**
+ * Cuantos ingredientes aparecen con mas de una unidad.
+ *
  * @param {Array} lineas
  * @returns {number}
  */
 function contarIngredientesConVariasUnidades(lineas) {
-  const porIngrediente = new Map();
-  for (const linea of lineas) {
-    const clave = normalize(linea.ingrediente);
-    porIngrediente.set(clave, (porIngrediente.get(clave) || 0) + 1);
-  }
-  return [...porIngrediente.values()].filter((n) => n > 1).length;
+  return ingredientesConVariasUnidades(lineas).length;
 }
 
 /**

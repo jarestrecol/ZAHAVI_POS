@@ -83,7 +83,10 @@ ningún sitio.
 - **Plan del día**: se eligen varias recetas con sus tandas y sale una lista
   consolidada de todo lo que hay que pesar, con cada ingrediente sumado una sola
   vez. **Nunca suma unidades distintas**: 500 gr de harina y 2 und de huevo van
-  en líneas separadas, y se avisa cuando un ingrediente aparece con dos unidades.
+  en líneas separadas, y el aviso **nombra** los ingredientes afectados en vez de
+  limitarse a contarlos. Cada línea se despliega para ver **de qué recetas sale
+  la cifra y cuánto pone cada una**: una cantidad consolidada que no se puede
+  descomponer es una cantidad que hay que creerse, y aquí se comprueba.
 - **Impresión A4** de la ficha individual, del índice completo o del plan del
   día, con la maquetación calculada aparte de la pantalla.
 
@@ -203,6 +206,8 @@ comprobar nada. El servidor lo rechaza antes de tocar GitHub.
 | **Concurrencia optimista** | `core/remote.js` + `api/recipes.js` | El `sha` de GitHub detecta escrituras simultáneas entre sedes. |
 | **Construcción de DOM sin `innerHTML`** | `lib/dom.js` | Todo el texto pasa por `textContent`. Los nombres de receta y el método son texto libre. |
 | **Funciones puras** | `core/search.js`, `lib/format.js` | Filtrado, orden y formato se comprueban sin navegador. |
+| **Transformación de lectura** | `core/scale.js`, `core/plan.js` | Escalar una tanda y consolidar un plan no escriben nada: derivan una vista de los datos y viven solo mientras se miran. Por eso ninguna de las dos puede corromper el recetario. |
+| **Límites del núcleo, públicos** | `core/scale.js` (`FACTOR_MIN`, `FACTOR_MAX`) | `normalizarFactor` recorta en silencio. Cualquier pantalla que deje escribir un factor a mano necesita esos números para avisar **antes** del recorte; si no, enseña una cifra y consolida otra. |
 
 ---
 
@@ -322,12 +327,24 @@ Se declara explícitamente para que nadie construya sobre supuestos falsos:
 Objetivo **WCAG 2.2 nivel AA**, con AAA en el texto de lectura porque se lee de
 pie, a distancia de brazo y con posible reflejo.
 
-- Contrastes verificados y anotados en el propio código, valor por valor.
+- Contrastes verificados y anotados en el propio código, valor por valor, **contra
+  la superficie real sobre la que se pinta**: un mismo tono no da lo mismo sobre
+  blanco que sobre `--surface-sunk`, y el panel derecho del plan es hundido.
 - Los tres colores de categoría se reparten el círculo cromático (rosa 330°,
   ámbar 35°, verde 165°) y nunca son la única señal: siempre van acompañados del
   nombre.
 - Navegación completa por teclado, con foco visible de alto contraste.
 - Foco atrapado y restaurado en cada diálogo.
+- **El foco sobrevive al repintado.** Las listas que se despliegan (plan del día,
+  validador) se reconstruyen enteras al abrir una fila, lo que destruye el botón
+  pulsado. Ambas lo devuelven a su sitio buscándolo por `data-*` después de
+  redibujar. Sin eso, abrir una fila entre 159 manda el foco al principio del
+  documento.
+- **Nada se corrige solo en silencio.** Cuando el plan rechaza o ajusta un número
+  tecleado, lo dice en un nodo visible que además es `role="status"`: el mismo
+  texto sirve para quien lo ve y para quien lo escucha, sin duplicar el mensaje.
+  Un aviso que solo existe en la región viva deja sin explicación a quien ve el
+  valor volver atrás.
 - Región viva para anunciar el resultado de guardar, eliminar y publicar.
 - `prefers-reduced-motion` respetado: toda la animación sale de variables CSS que
   la propia hoja de estilos deja en `0ms`, sin comprobaciones dispersas.
@@ -338,10 +355,10 @@ pie, a distancia de brazo y con posible reflejo.
 |---|---|
 | Dependencias en tiempo de ejecución | 0 |
 | Peticiones a terceros | 0 |
-| JavaScript (sin comprimir) | ~165 KB |
-| CSS (sin comprimir) | ~87 KB |
+| JavaScript (sin comprimir) | ~228 KB |
+| CSS (sin comprimir) | ~108 KB |
 | Tipografías (subconjunto latino) | ~290 KB |
-| Datos | 230 KB |
+| Datos | 225 KB |
 | Paso de compilación | Ninguno |
 
 El repintado reconstruye el árbol completo en cada cambio. Con 121 recetas son
@@ -349,6 +366,13 @@ unos cientos de nodos y el navegador lo resuelve sin esfuerzo, así que no hace
 falta comparar árboles ni llevar registro de qué cambió. La única excepción son
 los diálogos, que se conservan montados para no borrar lo que alguien está
 escribiendo.
+
+Dentro de esos diálogos hay una excepción más, y no es por rendimiento: el campo
+de tandas del plan se actualiza **sobre sí mismo** en vez de redibujar su fila.
+Redibujarla destruía el control que tenía el foco, así que cada pulsación de las
+flechas del contador se llevaba por delante la flecha que se estaba pulsando. La
+regla que sale de ahí es general: se puede reconstruir todo salvo lo que la
+persona está usando en ese instante.
 
 ---
 
@@ -524,7 +548,7 @@ Archivo offline…                ok
 | `check-css.mjs` | Valores CSS corrompidos, hexadecimales inválidos, llaves sin cerrar, tokens sin definir, clases sin estilo, y que todo módulo esté declarado en el service worker y en el empaquetador |
 | `test-datos.mjs` | Arranque limpio, integridad, edición, borrado, recarga con cambios pendientes, conflicto de versiones, descarte y ausencia de red |
 | `test-api.mjs` | Que el recetario real pasa la validación del servidor sin alterarse, que se rechazan los envíos que lo destruirían, y que cliente y servidor coinciden sobre los datos reales |
-| `test-qa.mjs` | Alta y baja masiva (crea 20 recetas y 5 usuarios, comprueba que sobreviven a una recarga, los borra y verifica que el recetario vuelve a su estado inicial), más escalado, revisión de datos y plan de producción. Las pruebas de la revisión están **ancladas a los dos errores reales conocidos**: si un cambio dejara de detectarlos, falla |
+| `test-qa.mjs` | Alta y baja masiva (crea 20 recetas y 5 usuarios, comprueba que sobreviven a una recarga, los borra y verifica que el recetario vuelve a su estado inicial), más escalado, catálogo de ingredientes y plan de producción. Del plan se comprueba lo que no se puede romper: que **nunca** suma unidades distintas, que el desglose por receta **cuadra exactamente** con el total de cada línea, que las cantidades cero o negativas se descartan, y que consolidar no altera ni una cifra del recetario |
 
 La comprobación de integridad incluye el **sha256 del archivo de recetas**: si
 una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
@@ -532,7 +556,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 97 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 130 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Versión de un solo archivo
@@ -597,7 +621,7 @@ src/
     a11y.js                Foco atrapado, región viva, inerte
   views/
     login.js               Pantalla de entrada
-    header.js              Barra superior: marca, tema y acciones
+    header.js              Barra superior: marca, acciones y avisos de estado
     sidebar.js             Listado y filtros de categoría
     detail.js              Ficha de receta
     editor.js              Editor de recetas
@@ -618,7 +642,7 @@ scripts/
   test-qa.mjs              Alta y baja masiva de recetas y usuarios
   build-standalone.mjs     Empaquetador de un solo archivo
 
-QA.md                      Lista de verificación manual (97 puntos)
+QA.md                      Lista de verificación manual (130 puntos)
 
 data/
   recipes.json             Recetario publicado
@@ -684,6 +708,21 @@ claramente empuja a proteger de verdad lo que importa: la escritura.
    redactado para mostrarse.
 3. **Ningún color ni espaciado fuera de `tokens.css`.**
 4. **Todo comentado en español**, explicando el porqué y no el qué.
+5. **Una marca lateral en una fila va con `inset box-shadow`, nunca con
+   `border-left`.** El borde forma parte del modelo de caja, así que ensancha esa
+   fila y desplaza su contenido respecto a las demás: justo lo contrario de lo
+   que busca una rejilla compartida. La sombra no participa. Ya se corrigió tres
+   veces por separado (listado, validador, plan) antes de escribirlo aquí.
+6. **Las columnas de una lista se declaran una vez.** El encabezado y las filas
+   comparten una variable (`--ings-cols`, `--plan-cols`) y el sangrado izquierdo
+   se aplica por igual a ambos. Es lo que mantiene los rótulos a plomo sobre sus
+   cifras al recorrer la lista en vertical.
+7. **Se puede reconstruir todo salvo lo que la persona está usando.** El
+   repintado destruye nodos; si uno de ellos tiene el foco, se pierde. O se
+   actualiza en el sitio, o se devuelve el foco después buscándolo por `data-*`.
+8. **Un límite que el núcleo aplique en silencio tiene que ser público.** Si la
+   interfaz deja escribir un valor que el núcleo va a recortar, o avisa antes o
+   acabará enseñando una cifra y calculando otra.
 
 ---
 
@@ -705,8 +744,9 @@ información completa.
 ### Incidencias detectadas en los datos, no corregidas
 
 Se reportan y **no se tocan**, porque corregir una fórmula es una decisión del
-negocio, no de quien migró los datos. Las dos las señala hoy **Ajustes →
-Revisión de datos** de forma automática:
+negocio, no de quien migró los datos. La segunda sigue siendo visible desde el
+**Validador de ingredientes**, que marca la leche como medida en tres unidades
+distintas. La primera se detectó al migrar y se documenta aquí:
 
 - `SACHER TORTE x 8` lleva `CHOCOLATE 70%: 10008 GR`. Las variantes escalan
   exactas (126 → 630 → 756), así que el valor esperado sería `1008`. Son nueve

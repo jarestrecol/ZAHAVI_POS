@@ -46,9 +46,17 @@ export const FACTORES = [0.5, 1, 2, 3, 4];
  */
 const UNIDADES_NO_ESCALABLES = new Set(['CM', 'MM', 'M', 'PULG', '°C', 'C', 'MIN', 'HORA', 'HORAS']);
 
-/** Limites de seguridad: fuera de este rango el factor no tiene sentido. */
-const FACTOR_MIN = 0.05;
-const FACTOR_MAX = 100;
+/**
+ * Limites de seguridad: fuera de este rango el factor no tiene sentido.
+ *
+ * Van exportados porque `normalizarFactor` recorta en silencio, y cualquier
+ * pantalla que deje escribir un factor a mano tiene que poder avisar ANTES de
+ * que el recorte ocurra. Sin esto, el plan de produccion llego a enseñar el
+ * rendimiento de 500 tandas mientras consolidaba 100: dos cifras distintas
+ * para la misma peticion, y una de ellas se imprimia.
+ */
+export const FACTOR_MIN = 0.05;
+export const FACTOR_MAX = 100;
 
 /**
  * Indica si una unidad se multiplica al escalar.

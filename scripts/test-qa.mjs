@@ -446,6 +446,18 @@ const plan1 = planificador.consolidar([{ recipe: rA, factor: 1 }, { recipe: rB, 
 const harina = plan1.lineas.find((l) => l.ingrediente === 'HARINA');
 comprobar('suma el mismo ingrediente de dos recetas', harina && harina.cantidad === 350, harina ? String(harina.cantidad) : 'no aparece');
 comprobar('y anota de que recetas viene', harina && harina.recetas.length === 2);
+
+// El desglose es lo que hace comprobable la cifra consolidada: si no cuadra con
+// el total, la lista dice una cosa y el detalle otra.
+comprobar(
+  'el desglose suma exactamente el total de la linea',
+  harina.recetas.reduce((n, r) => n + r.cantidad, 0) === harina.cantidad,
+);
+comprobar(
+  'y va de mayor a menor aporte',
+  harina.recetas[0].cantidad === 250 && harina.recetas[1].cantidad === 100,
+  harina.recetas.map((r) => r.cantidad).join(' / '),
+);
 // Cuatro lineas de ingrediente entre las dos recetas, pero la harina aparece
 // en ambas: consolidadas quedan tres. Eso es justo lo que hace util el plan.
 comprobar('consolida en 3 lineas (harina fusionada)', plan1.totalLineas === 3, String(plan1.totalLineas));
@@ -479,6 +491,75 @@ comprobar(
   'y no marca los que solo tienen una unidad',
   planificador.tieneVariasUnidades(plan1.lineas, 'LECHE') === false,
 );
+// El aviso tiene que poder decir CUALES, no solo cuantos: con cuarenta lineas
+// en pantalla, un recuento obliga a buscarlos a ojo uno por uno.
+const conflictivos = planificador.ingredientesConVariasUnidades(plan3.lineas);
+comprobar(
+  'nombra los ingredientes en conflicto',
+  conflictivos.length === 1 && conflictivos[0] === 'HARINA',
+  conflictivos.join(', '),
+);
+comprobar(
+  'y no nombra ninguno cuando no los hay',
+  planificador.ingredientesConVariasUnidades(plan1.lineas).length === 0,
+);
+
+// Un mismo ingrediente repetido en dos componentes de la MISMA receta: la
+// harina de la masa y la del espolvoreado son la misma compra.
+const rD = {
+  id: 'P4', nombre: 'RECETA D X 1 UND', categoria: 'PANADERÍA', metodo: '',
+  componentes: [
+    { nombre: 'MASA', items: [{ ingrediente: 'HARINA', cantidad: 400, unidad: 'GR' }] },
+    { nombre: 'ESPOLVOREADO', items: [{ ingrediente: 'HARINA', cantidad: 30, unidad: 'GR' }] },
+  ],
+};
+const plan4 = planificador.consolidar([{ recipe: rD, factor: 1 }]);
+const harinaD = plan4.lineas.find((l) => l.ingrediente === 'HARINA');
+comprobar('suma el ingrediente repetido en dos componentes', harinaD.cantidad === 430, String(harinaD.cantidad));
+comprobar(
+  'y el desglose lo atribuye entero a su receta',
+  harinaD.recetas.length === 1 && harinaD.recetas[0].cantidad === 430,
+  harinaD.recetas.map((r) => `${r.nombre}: ${r.cantidad}`).join(', '),
+);
+
+// Varios conflictos a la vez: es lo que alimenta la frase que los enumera.
+const rE = {
+  id: 'P5', nombre: 'RECETA E X 1 UND', categoria: 'PANADERÍA', metodo: '',
+  componentes: [{ nombre: 'MASA', items: [
+    { ingrediente: 'HUEVOS', cantidad: 300, unidad: 'GR' },
+    { ingrediente: 'LECHE', cantidad: 2, unidad: 'MG' },
+  ] }],
+};
+const plan5 = planificador.consolidar([
+  { recipe: rA, factor: 1 }, { recipe: rB, factor: 1 }, { recipe: rC, factor: 1 }, { recipe: rE, factor: 1 },
+]);
+const variosConflictos = planificador.ingredientesConVariasUnidades(plan5.lineas);
+comprobar(
+  'nombra los tres ingredientes en conflicto',
+  variosConflictos.length === 3,
+  variosConflictos.join(', '),
+);
+comprobar('y el recuento coincide con los nombres', plan5.conflictos === variosConflictos.length);
+
+// Cantidades imposibles: no restan del total ni inflan la lista. En el catalogo
+// real no hay ninguna; esto protege de lo que pueda entrar al editar.
+const rF = {
+  id: 'P6', nombre: 'RECETA F X 1 UND', categoria: 'PANADERÍA', metodo: '',
+  componentes: [{ nombre: 'MASA', items: [
+    { ingrediente: 'HARINA', cantidad: 100, unidad: 'GR' },
+    { ingrediente: 'SAL', cantidad: 0, unidad: 'GR' },
+    { ingrediente: 'AZUCAR', cantidad: -50, unidad: 'GR' },
+  ] }],
+};
+const plan6 = planificador.consolidar([{ recipe: rF, factor: 1 }]);
+comprobar('descarta cantidades cero y negativas', plan6.totalLineas === 1, String(plan6.totalLineas));
+comprobar('y no altera la que si es valida', plan6.lineas[0].cantidad === 100, String(plan6.lineas[0].cantidad));
+
+// El limite que el nucleo aplica en silencio: la interfaz lo necesita para
+// poder avisar ANTES de recortar, en vez de enseñar una cifra y consolidar otra.
+const escalador = await import(pathToFileURL(repoRoot + '/src/core/scale.js').href);
+comprobar('los limites del factor son publicos', escalador.FACTOR_MIN === 0.05 && escalador.FACTOR_MAX === 100);
+comprobar('y normalizarFactor recorta hasta ellos', escalador.normalizarFactor(500) === escalador.FACTOR_MAX);
 
 // Sobre el catalogo real, con recetas de verdad.
 const tresReales = repo.findAll().slice(0, 3).map((r) => ({ recipe: r, factor: 1 }));

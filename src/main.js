@@ -616,9 +616,6 @@ function buildConfirmDelete(state) {
 function buildSettings(state) {
   return openSettings({
     recipeCount: state.recipes.length,
-    // El recetario completo: lo necesita la revision de datos, que compara
-    // unas recetas con otras para detectar valores fuera de patron.
-    recipes: state.recipes,
     withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
     revision: repo.publishedRevision(),
     changes: repo.localChanges(),

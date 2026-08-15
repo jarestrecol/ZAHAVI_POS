@@ -127,16 +127,18 @@ export function openIngredients(options) {
         {
           type: 'button',
           class: 'ings__fila',
+          dataset: { nombre: ingrediente.nombre },
           attrs: {
             'aria-expanded': String(estaAbierto),
             'aria-label': `${ingrediente.nombre}, en ${ingrediente.recetas} ${
               ingrediente.recetas === 1 ? 'receta' : 'recetas'
-            }. Ver cuáles`,
+            }. ${estaAbierto ? 'Ocultar' : 'Ver'} cuáles`,
           },
           on: {
             click: () => {
               abierto = estaAbierto ? null : ingrediente.nombre;
               dibujar();
+              enfocarFila(ingrediente.nombre);
             },
           },
         },
@@ -179,6 +181,24 @@ export function openIngredients(options) {
 
       estaAbierto ? renderRecetas(ingrediente) : null,
     ]);
+  }
+
+  /**
+   * Devuelve el foco a la fila que se acaba de desplegar.
+   *
+   * Redibujar la lista destruye el boton pulsado. Sin esto el foco cae al
+   * principio del documento y quien navega con teclado pierde el sitio entre
+   * 159 filas justo despues de abrir una.
+   *
+   * @param {string} nombre
+   */
+  function enfocarFila(nombre) {
+    for (const boton of lista.querySelectorAll('.ings__fila')) {
+      if (boton.dataset.nombre === nombre) {
+        boton.focus();
+        return;
+      }
+    }
   }
 
   /** Las recetas que usan un ingrediente, desplegadas bajo su fila. */
