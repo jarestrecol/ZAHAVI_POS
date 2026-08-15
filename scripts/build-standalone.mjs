@@ -40,7 +40,6 @@ const MODULES = [
   'core/store.js',
   'core/repository.js',
   'core/users.js',
-  'core/theme.js',
   'views/window.js',
   'views/login.js',
   'views/header.js',
@@ -155,12 +154,6 @@ for (const file of readdirSync(join(root, 'assets/fonts'))) {
   css = css.split(`../fonts/${file}`).join(`data:font/woff2;base64,${data}`);
 }
 
-// El script que aplica el tema guardado tiene que ejecutarse antes que el
-// resto del arranque, para evitar el destello del tema equivocado (ver
-// src/theme-init.js, del que este es un duplicado literal para el archivo
-// suelto).
-const themeInit = readFileSync(join(root, 'src/theme-init.js'), 'utf8');
-
 const wrapped = MODULES.map((file) => {
   // La ruta del logo se cambia por el data URI: en un archivo suelto no hay
   // carpeta desde la que cargarlo.
@@ -207,10 +200,7 @@ const html = `<!doctype html>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Zahavi · Recetario</title>
-    <meta name="color-scheme" content="light dark" />
-    <script>
-${themeInit}
-    </script>
+    <meta name="color-scheme" content="light" />
     <style>
 ${css}
     </style>

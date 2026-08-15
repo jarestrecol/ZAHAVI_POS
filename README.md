@@ -87,7 +87,7 @@ ningún sitio.
 - **Impresión A4** de la ficha individual, del índice completo o del plan del
   día, con la maquetación calculada aparte de la pantalla.
 
-### Ingredientes
+### Validador de ingredientes
 
 - **Catálogo de ingredientes**: los 159 productos distintos que se usan en las
   1.282 líneas del recetario, con en cuántas recetas entra cada uno y cuánto se
@@ -115,8 +115,6 @@ ningún sitio.
 
 - **Sin conexión**: la aplicación arranca y se consulta con la red caída.
 - **Instalable** como aplicación (PWA) en escritorio y móvil.
-- **Tema claro y oscuro**, automático por sistema operativo o manual. Las
-  jornadas empiezan de madrugada y una pantalla blanca a brillo alto deslumbra.
 - **Adaptado** a escritorio, tableta y teléfono, con recorridos distintos en cada
   uno, no un simple reajuste de anchos.
 
@@ -170,12 +168,11 @@ importa nada de `views/`.
 ### Flujo de una carga
 
 ```
-1. theme-init.js    aplica el tema guardado (antes del CSS, evita el destello)
-2. main.js boot()   prepara usuarios y carga las recetas
-3. repository       intenta el servidor → si falla, el archivo publicado
+1. main.js boot()   prepara usuarios y carga las recetas
+2. repository       intenta el servidor → si falla, el archivo publicado
                                         → si falla, la copia local
-4. render()         pinta según estado y ruta
-5. sw.js            registra el service worker para el uso sin conexión
+3. render()         pinta según estado y ruta
+4. sw.js            registra el service worker para el uso sin conexión
 ```
 
 A partir de ahí, cualquier cambio de estado o de dirección vuelve a llamar a
@@ -393,7 +390,7 @@ separación es el eje del diseño:
 
 | Zona | Tratamiento | Por qué |
 |---|---|---|
-| **Estructura** (barra superior, filtros, buscador, listado) | Oscura, en los dos temas | Es navegación: enmarca, no compite |
+| **Estructura** (barra superior, filtros, buscador, listado) | Oscura | Es navegación: enmarca, no compite |
 | **Trabajo** (ficha de receta) | Superficie clara | Es donde se lee y se pesa |
 
 Por eso la receta abierta destaca de verdad: es la única pieza cálida, en
@@ -405,20 +402,17 @@ Todo el sistema vive en `assets/css/tokens.css`: color, tipografía, ritmo,
 radios, sombras, duraciones. Ningún valor de color o espaciado está escrito a
 mano fuera de ese archivo.
 
-Los colores del listado (`--rail-*`, `--cat-*-rail`) se declaran **fuera** de
-los bloques de tema, porque esa columna es oscura siempre y sus valores no
-cambian.
+Los colores del listado (`--rail-*`, `--cat-*-rail`) son los de esa estructura
+oscura, distintos de los del área de trabajo.
 
-### Tema oscuro
+### Un solo tema
 
-No es una inversión automática. Dos decisiones deliberadas:
+Hubo un modo oscuro con interruptor propio y **se retiró**: mantener dos paletas
+coherentes costaba el doble de trabajo en cada cambio y duplicaba cada valor de
+color en el archivo de tokens.
 
-- **El fondo no es negro puro**: en un obrador a oscuras, el texto blanco sobre
-  negro absoluto produce halo.
-- **Croma muy bajo en las superficies** (0,005 a 0,009 en OKLCH): grises cálidos
-  casi neutros. Una versión anterior las tenía mucho más saturadas y, sumado a
-  unas categorías de croma 0,16, el conjunto se veía fluorescente. El color solo
-  aparece donde significa algo: categoría, estado, acción.
+La estructura oscura (barra superior y listado lateral) **no era el tema oscuro**
+y se queda: no es una preferencia, es una decisión de composición.
 
 ---
 
@@ -582,7 +576,6 @@ assets/
   fonts/                   Plus Jakarta Sans, Lora, IBM Plex Mono (OFL)
 
 src/
-  theme-init.js            Aplica el tema guardado antes del primer pintado
   main.js                  Arranque y orquestación
   app/
     commands.js            Casos de uso: guardar, eliminar, publicar, descartar
@@ -592,7 +585,6 @@ src/
     repository.js          Única puerta a los datos
     remote.js              Cliente de /api/recipes
     users.js               Usuarios y sesión de este dispositivo
-    theme.js               Tema claro/oscuro
     store.js               Estado de la aplicación y suscripciones
     router.js              Enrutado por hash
     search.js              Filtrado, orden y recuentos (funciones puras)
@@ -611,7 +603,7 @@ src/
     editor.js              Editor de recetas
     production.js          Modo Pesar
     plan.js                Plan de producción del día
-    ingredients.js         Catálogo de ingredientes
+    ingredients.js         Validador de ingredientes
     settings.js            Ajustes
     confirm.js             Confirmación de borrado en tres pasos
     window.js              Carcasa de ventana modal

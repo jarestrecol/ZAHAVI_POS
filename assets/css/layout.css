@@ -112,31 +112,6 @@
   flex-shrink: 0;
 }
 
-/* ---- Interruptor de tema ---- */
-
-.theme-toggle {
-  color: var(--on-rail-2);
-}
-
-.theme-toggle:hover {
-  background: var(--rail-2);
-  color: var(--amber-on-rail);
-}
-
-.theme-toggle:active {
-  transform: scale(0.9);
-}
-
-.theme-toggle__icon {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 /* ---- Buscador ----
    Vive dentro del listado (ver `.sidebar__search`), que va sobre estructura
    oscura, asi que todos sus colores son los del rail. El icono, la tecla de
@@ -240,18 +215,17 @@
  *  LISTA DE RECETAS
  * =============================================================================
  *
- *  El listado va sobre ESTRUCTURA OSCURA, igual que la barra superior, en los
- *  dos temas. No es un capricho: es el principio que el sistema ya seguia
- *  arriba, llevado hasta el final. La estructura (barra, indice, navegacion)
- *  enmarca en oscuro; el trabajo (la receta) ocurre sobre superficie clara.
+ *  El listado va sobre ESTRUCTURA OSCURA, igual que la barra superior. No es
+ *  un capricho: es el principio que el sistema ya seguia arriba, llevado hasta
+ *  el final. La estructura (barra, indice, navegacion) enmarca en oscuro; el
+ *  trabajo (la receta) ocurre sobre superficie clara.
  *
  *  Antes el listado era claro como la ficha y toda la pantalla se leia como un
  *  unico bloque plano. Ahora hay dos zonas que no se pueden confundir, y la
  *  receta abierta destaca de verdad porque es la unica pieza calida sobre un
  *  fondo oscuro.
  *
- *  Los colores del listado (--rail-*, --cat-*-rail) se declaran una sola vez
- *  en tokens.css, fuera de los bloques de tema, porque aqui es oscuro siempre.
+ *  Los colores del listado (--rail-*, --cat-*-rail) se declaran en tokens.css.
  *
  *  Orden de la columna, de arriba abajo:
  *      filtros de categoria  ->  buscador  ->  recuento  ->  listado

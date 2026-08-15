@@ -142,11 +142,11 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34u | Imprimir la lista | Sale la hoja del plan, no la receta abierta |
 | 34v | Cerrar y volver a abrir | El plan está vacío: no se guarda, y así se anuncia |
 
-### 2.4e Ingredientes
+### 2.4e Validador de ingredientes
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 34w | Pulsar "Ingredientes" | Abre el catálogo con 159 distintos |
+| 34w | Pulsar "Validador" | Abre el validador con 159 ingredientes distintos |
 | 34x | Cifras de cabecera | 159 distintos · 1282 líneas · 64 en una sola receta · 15 con varias unidades |
 | 34y | Orden por defecto | Harina de trigo primera, en 86 recetas |
 | 34z | Pulsar "A–Z" | Se reordena alfabéticamente |
@@ -244,13 +244,10 @@ Entrar con `zahavi` / `zahavi2026`.
 | 88 | Celular: filtros de categoría | Se deslizan en horizontal |
 | 89 | Cualquier tamaño | Sin desplazamiento horizontal de la página |
 
-### 2.11 Tema y accesibilidad
+### 2.11 Accesibilidad
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 90 | Interruptor de tema | Cambia entre claro y oscuro |
-| 91 | Recargar tras elegir tema | Se mantiene, **sin destello del tema anterior** |
-| 92 | Sistema operativo en oscuro, sin elección previa | Arranca en oscuro |
 | 93 | Recorrer todo con `Tab` | Todo alcanzable, foco siempre visible |
 | 94 | Abrir un diálogo y tabular | El foco no se escapa detrás |
 | 95 | Cerrar un diálogo | El foco vuelve donde estaba |

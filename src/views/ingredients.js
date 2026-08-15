@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- *  INGREDIENTES
+ *  VALIDADOR DE INGREDIENTES
  * =============================================================================
  *
  *  La lista de todos los ingredientes distintos que se usan en el recetario,
@@ -231,7 +231,7 @@ export function openIngredients(options) {
   ]);
 
   return createWindow({
-    title: 'Ingredientes',
+    title: 'Validador de ingredientes',
     meta: `${cuenta.distintos} distintos en ${cuenta.lineas} líneas`,
     size: 'wide',
     onClose: options.onClose,

@@ -21,18 +21,13 @@
       content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#1a1714" />
 
     <!-- Todas las rutas son relativas: el sitio debe funcionar igual servido
          desde una subruta o abierto desde el disco. -->
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="./manifest.webmanifest" />
-
-    <!-- Script clasico, no modulo, antes de cualquier hoja de estilo: aplica
-         el tema guardado a <html> para que el CSS ya lo vea al aplicarse y no
-         haya un destello del tema equivocado. Ver src/theme-init.js. -->
-    <script src="./src/theme-init.js"></script>
 
     <link rel="stylesheet" href="./assets/css/fonts.css" />
     <link rel="stylesheet" href="./assets/css/tokens.css" />

@@ -20,11 +20,11 @@
  *   - IBM Plex Mono       monoespaciada tabular para las cifras, que deben
  *                        alinearse siempre
  *
- * El modo oscuro no es cosmético: las panaderías arrancan a las tres o cuatro
- * de la madrugada y una pantalla blanca a brillo alto en un obrador a oscuras
- * deslumbra. Además del automático por sistema operativo, hay un interruptor
- * explícito en la barra superior (ver core/theme.js): `data-theme` en <html>
- * gana siempre sobre la preferencia del sistema.
+ * UN SOLO TEMA, el claro. Hubo un modo oscuro con interruptor propio y se
+ * retiro: mantener dos paletas coherentes costaba el doble de trabajo en cada
+ * cambio y duplicaba cada valor de color en el archivo. La estructura oscura
+ * (barra superior y listado lateral, los tokens `--rail-*`) se queda: no es un
+ * tema, es una decision de composicion.
  */
 
 :root {
@@ -56,9 +56,7 @@
   --surface-card: #ffffff;
   --surface-hover: #fdf2e3;
 
-  /* Fondo de la receta abierta en el listado. Naranja de marca muy diluido en
-     claro; en oscuro, un ambar profundo que se reconoce como naranja sin
-     apagar el texto (12,1:1 con la tinta principal). */
+  /* Fondo de la receta abierta en el listado: naranja de marca muy diluido. */
   --selected-bg: #fde8cd;
 
   /* Estructura oscura: barra superior, listado de recetas y diálogos */
@@ -67,13 +65,11 @@
   --rail-line: #3a3128;
 
   /*
-   * Colores del listado, que va sobre estructura oscura en LOS DOS temas.
-   * Se definen una sola vez, fuera de los bloques de tema, precisamente
-   * porque no cambian: el listado es oscuro siempre.
+   * Colores del listado, que va sobre estructura oscura.
    *
-   * Las categorias necesitan aqui su version clara. Las de `--cat-*` del tema
-   * claro son tonos profundos pensados para leerse sobre blanco, y sobre el
-   * listado oscuro desaparecerian.
+   * Las categorias necesitan aqui su version clara: las de `--cat-*` son tonos
+   * profundos pensados para leerse sobre blanco y sobre el listado oscuro
+   * desaparecerian.
    */
   --rail-selected: #4b2d18;   /* receta abierta: ambar profundo, 11:1 */
   --cat-pasteleria-rail: #d58fb0;
@@ -147,8 +143,8 @@
      util para quien navega solo con teclado en un obrador con poca luz. */
   --focus-glow: 0 0 0 4px rgba(246, 138, 30, 0.25);
 
-  /* Color de la cifra de cantidad. En claro el dorado no sirve (1,3:1), asi que
-     se usa el naranja profundo para mantener la misma familia cromatica. */
+  /* Color de la cifra de cantidad: tinta principal. El dorado de marca no
+     sirve sobre blanco (1,3:1). */
   --qty-color: var(--ink);
 
   /* ---- Elevación ----
@@ -232,175 +228,6 @@
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-/*
- * Variables del modo oscuro. Se definen una sola vez aqui y se aplican en dos
- * sitios: automatico por preferencia del sistema, y explicito cuando alguien
- * usa el interruptor de la barra superior. CSS no tiene mixins sin un
- * preprocesador, y este proyecto no usa ninguno a proposito (cero dependencias,
- * cero paso de compilacion), asi que el bloque se repite literalmente en vez
- * de generarse: es el precio de mantener el sitio en HTML y CSS planos.
- */
-
-@media (prefers-color-scheme: dark) {
-  /* `:not([data-theme="light"])` deja que el interruptor fuerce claro incluso
-     con el sistema operativo en oscuro. */
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-
-    /*
-     * PALETA OSCURA
-     *
-     * Croma muy bajo en todas las superficies (0,005 a 0,009 en OKLCH): grises
-     * calidos, casi neutros. La version anterior las tenia mucho mas saturadas
-     * y, sumado a unas categorias de croma 0,16, el conjunto se veia
-     * fluorescente. Aqui el color solo aparece donde significa algo.
-     *
-     * Escalonado de superficies, de mas hundido a mas elevado:
-     */
-    --surface-panel: #151311;
-    --surface-sunk: #191615;
-    --surface: #1f1c1a;
-    --surface-card: #292524;
-    --surface-hover: #36302e;
-
-    /* Receta abierta: ambar profundo, se reconoce como naranja de marca y deja
-       la tinta principal a 11,8:1 encima. */
-    --selected-bg: #472b18;
-
-    --rail: #100e0c;
-    --rail-2: #1f1c1a;
-    --rail-line: #36322f;
-    --rail-glass: rgba(16, 14, 12, 0.82);
-
-    /* Tintas neutras calidas. Sobre la superficie mas clara (tarjeta):
-       13,9:1 / 9,9:1 / 6,0:1 / 4,5:1. */
-    --ink: #f5f5f4;
-    --ink-2: #d3d1cd;
-    --ink-3: #a8a29e;
-    --ink-4: #918b86;
-
-    --on-rail: #f5f5f4;
-    --on-rail-2: #a8a29e;
-
-    /* Acento: el naranja puro de marca resulta chillon sobre estos grises, asi
-       que baja de croma sin perder identidad. */
-    --amber: #e7813b;
-    --amber-text: #eba66d;
-    --amber-deep: #e7813b;
-    --amber-soft: #3d281a;
-    --amber-on-rail: #eba66d;
-
-    --brand-gradient: linear-gradient(135deg, #eba66d 0%, #e7813b 100%);
-
-    /* Categorias apagadas: mismo reparto de tono que en claro (rosa, ambar,
-       verde) pero con casi la mitad de croma. Sobre la tarjeta dan 6,1:1,
-       7,0:1 y 6,9:1, y sobre el panel del listado suben a 7,4 / 8,5 / 8,5. */
-    --cat-pasteleria: #d58fb0;
-    --cat-panaderia: #dda471;
-    --cat-galletas: #83bc96;
-    --cat-otros: #a39d98;
-
-    --danger: #df746d;
-    --danger-soft: #3f2220;
-    --ok: #68b986;
-    --ok-soft: #1d3124;
-
-    /* La cifra de cantidad va en un dorado calido, no en el amarillo puro de
-       la marca, que sobre estos grises quedaba electrico. Sigue siendo el
-       valor con mas contraste del tema (9,8:1) para que el dato critico salte
-       sin competir con nada. */
-    --qty-color: #f7ca6a;
-
-    --line: #393431;
-    /* Mas claro que en modo claro, no mas oscuro: sobre fondo casi negro un
-       borde sutil desaparece. */
-    --line-strong: #6e6863;
-
-    /* Sobre fondo oscuro el mismo 10% no se percibe: hace falta más presencia. */
-    --glow: rgba(231, 129, 59, 0.18);
-
-    --focus: #f6f1e8;
-    --focus-on-dark: #f6f1e8;
-    --focus-glow: 0 0 0 4px rgba(231, 129, 59, 0.35);
-
-    /* Sobre fondo oscuro las sombras no separan: la elevación la dan las
-       superficies más claras y los bordes. Se mantiene una sombra de contacto
-       fina para que los dialogos no queden pegados al fondo. */
-    --shadow-xs: 0 1px 2px -1px rgba(0, 0, 0, 0.4);
-    --shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.45), 0 16px 32px -16px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 8px 16px -8px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.75);
-    --shadow-glow: 0 0 0 1px rgba(231, 129, 59, 0.22), 0 16px 40px -14px rgba(231, 129, 59, 0.4);
-  }
-}
-
-:root[data-theme='dark'] {
-  color-scheme: dark;
-
-  /* Mismos valores que el bloque automatico de arriba: ver alli el detalle de
-     croma y contrastes. */
-  --surface-panel: #151311;
-  --surface-sunk: #191615;
-  --surface: #1f1c1a;
-  --surface-card: #292524;
-  --surface-hover: #36302e;
-  --selected-bg: #472b18;
-
-  --rail: #100e0c;
-  --rail-2: #1f1c1a;
-  --rail-line: #36322f;
-  --rail-glass: rgba(16, 14, 12, 0.82);
-
-  --ink: #f5f5f4;
-  --ink-2: #d3d1cd;
-  --ink-3: #a8a29e;
-  --ink-4: #918b86;
-
-  --on-rail: #f5f5f4;
-  --on-rail-2: #a8a29e;
-
-  --amber: #e7813b;
-  --amber-text: #eba66d;
-  --amber-deep: #e7813b;
-  --amber-soft: #3d281a;
-  --amber-on-rail: #eba66d;
-
-  --brand-gradient: linear-gradient(135deg, #eba66d 0%, #e7813b 100%);
-
-  --cat-pasteleria: #d58fb0;
-  --cat-panaderia: #dda471;
-  --cat-galletas: #83bc96;
-  --cat-otros: #a39d98;
-
-  --danger: #df746d;
-  --danger-soft: #3f2220;
-  --ok: #68b986;
-  --ok-soft: #1d3124;
-
-  --qty-color: #f7ca6a;
-
-  --line: #393431;
-  --line-strong: #6e6863;
-
-  --glow: rgba(231, 129, 59, 0.18);
-
-  --focus: #f6f1e8;
-  --focus-on-dark: #f6f1e8;
-  --focus-glow: 0 0 0 4px rgba(231, 129, 59, 0.35);
-
-  --shadow-xs: 0 1px 2px -1px rgba(0, 0, 0, 0.4);
-  --shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.45), 0 16px 32px -16px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 8px 16px -8px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.75);
-  --shadow-glow: 0 0 0 1px rgba(231, 129, 59, 0.22), 0 16px 40px -14px rgba(231, 129, 59, 0.4);
-}
-
-/* El interruptor fuerza claro incluso con el sistema operativo en oscuro: sin
-   esta regla, `:root[data-theme="light"]` no bastaria para ganarle a la media
-   query de arriba, porque ambas tendrian el mismo peso y ganaria la que
-   aparece despues en el archivo. Declararla vacia con mayor especificidad no
-   es necesario: basta con que las variables de `:root` de la cabecera del
-   archivo ya sean las claras, y el selector `:not([data-theme="light"])` de
-   la media query se encarga de cederle el paso. */
 
 @media (prefers-reduced-motion: reduce) {
   :root {
