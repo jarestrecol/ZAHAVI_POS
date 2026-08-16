@@ -10,9 +10,26 @@
  *  COMO ESTA REPARTIDA LA PANTALLA
  *  -------------------------------
  *
- *      IDENTIDAD      arriba, a todo el ancho: nombre y categoria
+ *      IDENTIDAD      arriba, a todo el ancho: nombre, rendimiento y categoria
  *      INGREDIENTES   panel izquierdo: componentes, cada uno con sus lineas
  *      METODO         panel derecho: texto libre
+ *
+ *  EL RENDIMIENTO NO SE TECLEA DENTRO DEL NOMBRE
+ *  ---------------------------------------------
+ *  El dato llego del Excel escrito dentro del nombre ("ALMOJABANA X 15 UND"), y
+ *  ahi se sigue almacenando. Pero PEDIRLO asi obligaba a acordarse de la
+ *  formula exacta al crear cada receta, y de ese descuido salen los 13 nombres
+ *  que hoy llevan `x` minuscula o "2UND" sin espacio. Peor: el escalado y el
+ *  plan del dia leen esa cifra para saber cuanto rinde una tanda, asi que un
+ *  nombre mal escrito deja a la receta sin rendimiento y sin que nadie se
+ *  entere.
+ *
+ *  Aqui son tres controles: nombre, cantidad (campo numerico) y unidad (lista).
+ *  Al abrir se separan con `splitYield` y al guardar se vuelven a juntar con
+ *  `composeName`. La regla que protege los datos ya publicados: si nadie toco
+ *  el rendimiento, el nombre se guarda BYTE A BYTE como estaba, sin pasar por
+ *  la forma canonica. Reescribirlo cambiaria la identidad con la que la receta
+ *  aparece en el plan, en el catalogo de ingredientes y en las busquedas.
  *
  *  Se edita sobre una COPIA, nunca sobre la receta original. Mientras la
  *  ventana esta abierta, el recetario no se entera de nada: solo al pulsar
@@ -30,6 +47,7 @@
 
 import { el, clear } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
+import { splitYield, composeName, yieldUnitList } from '../lib/format.js';
 import { CATEGORIES, UNITS, validateRecipe } from '../core/schema.js';
 import { createWindow } from './window.js';
 
@@ -38,6 +56,44 @@ const CATALOG_ID = 'catalogo-ingredientes';
 
 /** Id del datalist de unidades. */
 const UNITS_ID = 'catalogo-unidades';
+
+/**
+ * Unidades de rendimiento que ofrece la lista.
+ *
+ * Salen de las 121 recetas reales: 73 en UND, 5 en CAJAS y 8 sin unidad. PAQ. y
+ * PORCIONES estan porque el separador de nombres ya las reconoce, asi que una
+ * receta escrita con ellas se sigue leyendo bien.
+ */
+const UNIDADES_RINDE = ['UND', 'PAQ.', 'CAJAS', 'PORCIONES'];
+
+/** Id de la aclaracion que acompaña al campo del nombre. */
+const HINT_ID = 'recipe-name-hint';
+
+/**
+ * Detecta un rendimiento ESCONDIDO dentro del nombre, que el separador no supo
+ * extraer porque no esta al final.
+ *
+ * Son 15 de las 121, como `TORTA ... X 1 UND ( SIN AZUCAR )` o `TORTA SUIZA x 2
+ * GRANDES O 4 PEQUEÑAS`. En esas, el editor deja el nombre entero en el campo
+ * de nombre y el de rinde vacio, asi que rellenar el rinde produciria un
+ * "... X 1 UND ( SIN AZUCAR ) X 1 UND" con el rendimiento por duplicado. Es
+ * exactamente donde el formulario nuevo invita a equivocarse, asi que se avisa.
+ */
+const RINDE_ESCONDIDO = /[Xx]\s*\d/;
+
+/**
+ * Texto de apoyo bajo el campo del nombre.
+ *
+ * @param {string} nombreOriginal
+ * @param {{cantidad: string}} partes
+ * @returns {string}
+ */
+function pistaNombre(nombreOriginal, partes) {
+  if (partes.cantidad === '' && RINDE_ESCONDIDO.test(nombreOriginal)) {
+    return 'Ojo: este nombre parece llevar el rendimiento dentro. Quítalo del nombre y escríbelo en «rinde», o quedará repetido.';
+  }
+  return 'Solo el nombre. El rendimiento va en los campos de al lado.';
+}
 
 /**
  * Abre el editor sobre una copia del borrador. El original no se toca hasta guardar.
@@ -54,6 +110,15 @@ export function openEditor(options) {
   // Copia profunda: cancelar debe dejar la receta original intacta.
   const draft = JSON.parse(JSON.stringify(options.draft));
   const unitByIngredient = buildUnitLookup(options.ingredientes);
+
+  /**
+   * El nombre tal y como estaba al abrir, y sus tres partes editables.
+   *
+   * `nombreOriginal` es la referencia que permite devolverlo intacto cuando
+   * nadie tocó el rendimiento.
+   */
+  const nombreOriginal = draft.nombre || '';
+  const partes = splitYield(nombreOriginal);
 
   const errorBox = el('p', { class: 'form-error', attrs: { role: 'alert' } });
   const componentsHost = el('div', { class: 'editor__components' });
@@ -250,6 +315,23 @@ export function openEditor(options) {
    *  3. LA VENTANA COMPLETA
    * ==================================================================== */
 
+  /**
+   * ¿Las tres partes siguen siendo las que se leyeron al abrir la ventana?
+   *
+   * Se compara parte por parte y no el nombre entero: comparar los nombres
+   * exigiria componer primero, que es justamente lo que hay que evitar.
+   *
+   * @returns {boolean}
+   */
+  function rindeSinCambios() {
+    const original = splitYield(nombreOriginal);
+    return (
+      String(partes.base).trim() === original.base.trim() &&
+      String(partes.cantidad).trim() === original.cantidad.trim() &&
+      String(partes.unidad).trim() === original.unidad.trim()
+    );
+  }
+
   const body = el('div', { class: 'editor' }, [
     el('div', { class: 'editor__identity' }, [
       el('div', { class: 'editor__name' }, [
@@ -258,17 +340,73 @@ export function openEditor(options) {
           type: 'text',
           id: 'recipe-name',
           class: 'field field--title',
-          value: draft.nombre,
-          placeholder: 'Ej. Torta de banano x 2 und',
-          attrs: { required: true, autocomplete: 'off' },
+          value: partes.base,
+          placeholder: 'Ej. Torta de banano',
+          attrs: { required: true, autocomplete: 'off', 'aria-describedby': HINT_ID },
           on: {
             input: (event) => {
-              draft.nombre = event.target.value;
+              partes.base = event.target.value;
             },
           },
         }),
+        // `id` mas `aria-describedby` en el campo: sin eso la aclaracion la ve
+        // quien mira la pantalla y no la oye quien usa lector de pantalla, y es
+        // justo la instruccion que evita volver a meter el rendimiento dentro
+        // del nombre.
+        el('p', {
+          class: 'field-hint',
+          id: HINT_ID,
+          text: pistaNombre(nombreOriginal, partes),
+        }),
       ]),
-      el('div', null, [
+
+      // Rendimiento en dos controles. La cantidad es `type="number"`, asi que
+      // no admite letras ni el separador equivocado; la unidad se elige, no se
+      // escribe. Es lo que garantiza que la cifra que lee el escalado sea
+      // siempre un numero.
+      //
+      // Van dentro de un `fieldset`: por separado, "rinde" y "unidad" son dos
+      // etiquetas de una palabra, y quien tabula directo al desplegable oye
+      // "unidad" sin saber de que. La leyenda los une en una sola pregunta.
+      el('fieldset', { class: 'editor__rinde' }, [
+        el('legend', { class: 'sr-only', text: 'Rendimiento de la receta' }),
+        el('div', { class: 'editor__rinde-cantidad' }, [
+          el('label', { class: 'label', for: 'recipe-yield-qty', text: 'rinde' }),
+          el('input', {
+            type: 'number',
+            id: 'recipe-yield-qty',
+            class: 'field field--num',
+            value: partes.cantidad,
+            min: '0',
+            step: 'any',
+            placeholder: '—',
+            attrs: { autocomplete: 'off' },
+            on: {
+              input: (event) => {
+                partes.cantidad = event.target.value;
+              },
+            },
+          }),
+        ]),
+        el('div', { class: 'editor__rinde-unidad' }, [
+          el('label', { class: 'label', for: 'recipe-yield-unit', text: 'unidad' }),
+          el(
+            'select',
+            {
+              id: 'recipe-yield-unit',
+              class: 'field',
+              on: {
+                change: (event) => {
+                  partes.unidad = event.target.value;
+                },
+              },
+            },
+            yieldUnitOptions(partes.unidad),
+          ),
+        ]),
+      ]),
+
+      el('div', { class: 'editor__categoria' }, [
         el('label', { class: 'label', for: 'recipe-category', text: 'categoría' }),
         el(
           'select',
@@ -337,6 +475,13 @@ export function openEditor(options) {
    * nunca en un `alert()` del navegador.
    */
   const save = () => {
+    // El nombre almacenado se arma aqui, en el ultimo momento, a partir de las
+    // tres partes. Si ninguna cambio respecto a como se abrio la ventana, se
+    // devuelve el original SIN TOCAR: 13 de las 121 recetas usan `x` minuscula
+    // o "2UND" sin espacio, y componer la forma canonica las reescribiria por
+    // el simple hecho de haber abierto el editor a mirar.
+    draft.nombre = rindeSinCambios() ? nombreOriginal : composeName(partes.base, partes.cantidad, partes.unidad);
+
     const result = validateRecipe(draft);
     if (!result.ok) {
       errorBox.textContent = result.message;
@@ -394,6 +539,29 @@ function categoryOptions(selected) {
   return known.filter(Boolean).map((name) =>
     el('option', { value: name, text: name, selected: name === selected }),
   );
+}
+
+/**
+ * Opciones de la unidad de rendimiento.
+ *
+ * Si la receta trae una unidad que no esta en la lista, se añade como opcion
+ * propia en vez de descartarla. Hoy pasa con una sola receta, `BAGUEL NORMAL X
+ * 32 UND O 8 PAQ.`, cuyo rendimiento es doble. Sin esta linea, abrir esa receta
+ * y guardarla le borraria la mitad del rendimiento en silencio.
+ *
+ * @param {string} selected unidad actual, cadena vacia si no declara ninguna
+ * @returns {Array<HTMLElement>}
+ */
+function yieldUnitOptions(selected) {
+  const actual = String(selected || '').trim();
+  const conocidas = yieldUnitList(UNIDADES_RINDE, actual);
+
+  return [
+    el('option', { value: '', text: 'sin unidad', selected: actual === '' }),
+    ...conocidas.map((unidad) =>
+      el('option', { value: unidad, text: unidad.toLowerCase(), selected: unidad === actual }),
+    ),
+  ];
 }
 
 /**

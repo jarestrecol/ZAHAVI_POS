@@ -126,7 +126,9 @@ button {
   color: var(--ink);
   background: var(--surface-card);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
+  /* Misma geometria que los botones: campos y controles pertenecen a la misma
+     familia y deben leerse como piezas del mismo sistema, no como dos. */
+  border-radius: var(--radius-control);
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
@@ -221,29 +223,31 @@ button {
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   border: 1px solid var(--line-strong);
   background: var(--surface-card);
   color: var(--ink-2);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+    color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-/* Levantamiento sutil al pasar el cursor y una pequeña compresion al pulsar:
-   es la diferencia entre "una caja que cambia de color" y "un boton que
-   responde al tacto". `translateY` y `scale` van por el compositor, asi que
-   no cuestan calculo de layout. */
+/*
+ * El boton responde cambiando de superficie, no moviendose de sitio.
+ *
+ * Antes se levantaba un pixel al pasar el cursor. En una barra de herramientas
+ * con cuatro botones seguidos eso convierte cada barrido del raton en una fila
+ * de piezas saltando, que es exactamente lo que separa una aplicacion de
+ * gestion de una pagina de producto. Se conserva la compresion al pulsar,
+ * que si informa de algo: que el control recibio la pulsacion.
+ */
 .btn:hover {
   background: var(--surface-hover);
   border-color: var(--ink-4);
   color: var(--ink);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-xs);
 }
 
 .btn:active {
-  transform: translateY(0) scale(0.98);
-  box-shadow: none;
+  transform: scale(0.99);
 }
 
 .btn--primary {
@@ -259,33 +263,34 @@ button {
 }
 
 /*
- * Accion principal: naranja de marca PLANO, sin degradado.
+ * Accion principal: ambar PROFUNDO y plano.
  *
- * El degradado naranja-a-dorado que habia aqui era lo que hacia que el boton
- * se leyera como fluorescente: dos tonos saturados moviendose dentro de una
- * pieza de 3 cm. En plano, el mismo color se lee como marca y no como reclamo.
+ * Tercera y ultima parada de este boton. Empezo con un degradado naranja-a-
+ * dorado, paso a naranja de marca plano, y sigue leyendose como fluorescente
+ * por la razon de fondo: el naranja de marca es un color de maxima saturacion
+ * Y maxima claridad, y ninguna de las dos cosas baja por quitarle el degradado.
+ * En una barra de herramientas, al lado de tres botones neutros, esa pieza es
+ * lo unico que se ve de la pantalla.
  *
- * Texto oscuro sobre el naranja, no blanco: el blanco se queda en 2,45:1 y
- * falla. Con `--brand-ink` da 7,6:1. El logo si usa blanco, pero un logotipo
- * esta exento de la norma y un boton no.
+ * `--brand-strong` conserva el matiz y baja la claridad. Gana dos cosas: deja
+ * de gritar, y admite texto BLANCO a 5,9:1, asi que desaparece la rareza de
+ * leer tinta negra sobre naranja, que es lo que hacia que el boton pareciera
+ * una etiqueta de advertencia y no una accion.
  *
- * Es el UNICO boton con relleno de color de la interfaz. Si hubiera mas, este
- * dejaria de significar "esta es la accion principal".
+ * Sigue siendo el UNICO boton con relleno de color de la interfaz. Si hubiera
+ * mas, este dejaria de significar "esta es la accion principal".
  */
 .btn--accent {
-  background: var(--brand);
-  color: var(--brand-ink);
-  border-color: var(--amber-deep);
-  font-weight: 700;
+  background: var(--brand-strong);
+  color: #fff;
+  border-color: var(--brand-strong);
+  font-weight: 600;
 }
 
-/* Un tono mas oscuro que `--amber-deep`, escrito a mano igual que en
-   `.btn--destructive:hover`: sobre `--amber-deep` el blanco se queda en
-   4,58:1, que cumple por los pelos; asi sube a 5,9:1. */
 .btn--accent:hover {
-  background: #995107;
+  background: var(--brand-strong-hover);
   color: #fff;
-  border-color: #995107;
+  border-color: var(--brand-strong-hover);
 }
 
 /* Icono de dentro de un boton. Hereda el color del texto (`currentColor`), asi
@@ -329,19 +334,28 @@ button {
   color: #fff;
 }
 
-/* Boton sobre la barra oscura (Ajustes). Lleva el ambar de marca en el texto y
-   en el borde: sin color quedaba como una caja vacia al lado de "Nueva
-   receta", y no se distinguia del fondo de la barra. */
+/*
+ * Botones de la barra oscura (Plan del día, Ingredientes, Ajustes).
+ *
+ * Iban en ambar sobre ambar: tres piezas naranjas seguidas mas la principal
+ * hacian cuatro reclamos a la vez en la misma barra, y ninguno destacaba. Pasan
+ * a neutro sobre el rail, que es lo que hace una barra de herramientas de
+ * verdad: las acciones frecuentes se leen sin ruido y el color queda libre para
+ * decir "esta es la principal".
+ *
+ * `--on-rail` sobre `--rail` es 15,9:1; el relleno translucido apenas mueve ese
+ * numero y da al control un cuerpo visible sobre la barra.
+ */
 .btn--dark-ghost {
-  background: rgba(249, 169, 74, 0.1);
-  color: var(--amber-on-rail);
-  border-color: rgba(249, 169, 74, 0.45);
+  background: rgba(245, 241, 234, 0.06);
+  color: var(--on-rail);
+  border-color: rgba(245, 241, 234, 0.22);
 }
 
 .btn--dark-ghost:hover {
-  background: rgba(249, 169, 74, 0.2);
-  color: var(--amber-on-rail);
-  border-color: var(--amber-on-rail);
+  background: rgba(245, 241, 234, 0.14);
+  color: var(--on-rail);
+  border-color: rgba(245, 241, 234, 0.4);
 }
 
 .btn--block {

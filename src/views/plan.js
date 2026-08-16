@@ -30,7 +30,7 @@
  */
 
 import { el, clear } from '../lib/dom.js';
-import { titleCase, splitName, formatQty, normalize } from '../lib/format.js';
+import { titleCase, splitName, formatQty, normalize, yieldLabel } from '../lib/format.js';
 import { announce } from '../lib/a11y.js';
 import { rendimientoBase, normalizarFactor, FACTOR_MIN, FACTOR_MAX } from '../core/scale.js';
 import { consolidar, tieneVariasUnidades, ingredientesConVariasUnidades } from '../core/plan.js';
@@ -165,6 +165,12 @@ export function openPlan(options) {
           }, [
             el('span', { class: 'plan__sugerencia-dot', attrs: { 'aria-hidden': 'true' } }),
             el('span', { text: titleCase(base) }),
+            // Distingue las que comparten nombre base: buscar "sacher" ofrecia
+            // cuatro sugerencias identicas entre las que no habia forma de
+            // elegir la tanda correcta.
+            yieldLabel(receta.nombre)
+              ? el('span', { class: 'plan__sugerencia-rinde', text: yieldLabel(receta.nombre) })
+              : null,
           ]),
         ]),
       );
@@ -282,7 +288,12 @@ export function openPlan(options) {
 
     return el('li', { class: 'plan__elegida', attrs: { 'data-category': receta.categoria } }, [
       el('div', { class: 'plan__elegida-main' }, [
-        el('p', { class: 'plan__elegida-nombre', text: nombreLegible }),
+        el('p', { class: 'plan__elegida-nombre' }, [
+          nombreLegible,
+          yieldLabel(receta.nombre)
+            ? el('span', { class: 'plan__elegida-rinde-base', text: ' ' + yieldLabel(receta.nombre) })
+            : null,
+        ]),
         rindeNode,
       ]),
 
@@ -430,10 +441,15 @@ export function openPlan(options) {
             { class: 'plan__origen' },
             linea.recetas.map((origen) =>
               el('li', { class: 'plan__origen-item' }, [
-                el('span', {
-                  class: 'plan__origen-nombre',
-                  text: titleCase(splitName(origen.nombre).base),
-                }),
+                el('span', { class: 'plan__origen-nombre' }, [
+                  titleCase(splitName(origen.nombre).base),
+                  // Sin el rendimiento, un desglose con dos Pan Brioche mostraba
+                  // dos filas de igual nombre y cifras distintas: parecia un
+                  // error de la consolidacion cuando era el dato correcto.
+                  yieldLabel(origen.nombre)
+                    ? el('span', { class: 'plan__origen-rinde', text: ' ' + yieldLabel(origen.nombre) })
+                    : null,
+                ]),
                 el('span', { class: 'plan__origen-qty' }, [
                   el('span', { class: 'plan__origen-num', text: formatQty(origen.cantidad) }),
                   el('span', { class: 'plan__origen-unidad', text: unidad }),

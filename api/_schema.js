@@ -51,8 +51,21 @@ const MAX_ITEMS = 500;
 /** Longitud maxima de un campo de texto libre. */
 const MAX_TEXT = 20000;
 
-/** Tope del envio completo, ya serializado. */
-export const MAX_BYTES = 4 * 1024 * 1024;
+/**
+ * Tope del envio completo, ya serializado.
+ *
+ * 900 KB, no 4 MB. El limite de verdad no es este: la API de contenidos de
+ * GitHub deja de entregar el archivo a partir de 1 MB, asi que un recetario
+ * mayor se PUBLICA sin problema y despues no se puede volver a leer por el
+ * mismo camino. Y el sintoma no ayuda: la lectura devuelve la metadata sin
+ * contenido, `JSON.parse` falla y el servidor responde "el archivo de recetas
+ * del repositorio no es un JSON valido", que manda a buscar una corrupcion de
+ * datos que no existe.
+ *
+ * Mejor rechazar al publicar, que es cuando hay alguien delante leyendo el
+ * mensaje. Hoy son 225 KB, asi que el margen sigue siendo enorme.
+ */
+export const MAX_BYTES = 900 * 1024;
 
 /**
  * Valida y normaliza el recetario recibido.

@@ -30,7 +30,7 @@
  *  dejan tal cual y se marcan para que la interfaz pueda avisarlo.
  */
 
-import { splitName } from '../lib/format.js';
+import { splitName, splitYield, formatQty } from '../lib/format.js';
 
 /** Factor sin escalado: la receta tal como esta escrita. */
 export const FACTOR_ORIGINAL = 1;
@@ -88,18 +88,48 @@ export function normalizarFactor(value) {
  *
  * "TORTA DE BANANO X 2 UND" -> 2. Sirve para poder pedir "quiero 6" en vez de
  * pensar en multiplicadores. Devuelve null cuando el nombre no lo declara: son
- * 19 de las 121 recetas, y para esas solo se ofrece el multiplicador.
+ * 34 de las 121 recetas, y para esas solo se ofrece el multiplicador.
+ *
+ * Se apoya en `splitYield` en vez de volver a buscar la cifra con una expresion
+ * propia. Antes tenia la suya, sin anclar al principio, y coincidia con la de
+ * `splitYield` solo por casualidad: el dia que se aflojara el patron de
+ * rendimiento para leer los nombres que hoy no se leen, las dos habrian
+ * empezado a devolver cosas distintas sin que nada lo avisara.
  *
  * @param {string} nombre
  * @returns {number|null}
  */
 export function rendimientoBase(nombre) {
-  const { rinde } = splitName(nombre);
-  if (!rinde) return null;
-  const match = String(rinde).match(/\d[\d.,]*/);
-  if (!match) return null;
-  const parsed = parseFloat(match[0].replace(',', '.'));
+  const { cantidad } = splitYield(nombre);
+  if (!cantidad) return null;
+  const parsed = parseFloat(cantidad.replace(',', '.'));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * Rendimiento ya escalado, listo para mostrarse: "6 und".
+ *
+ * Vive aqui y no en una vista porque es una REGLA, no una decoracion. Estaba
+ * escrita dentro de `views/detail.js`, asi que la pantalla la aplicaba y la
+ * hoja impresa no: con la tanda al triple, la pantalla decia "Rinde 6 und" y el
+ * papel que se lleva al obrador seguia diciendo "Rinde 2 und" con las
+ * cantidades ya multiplicadas debajo. Exactamente lo que prohibe la regla 8:
+ * enseñar una cifra y calcular otra.
+ *
+ * @param {string} nombre nombre ORIGINAL de la receta, sin escalar
+ * @param {number} factor
+ * @returns {string} cadena vacia si la receta no declara rendimiento
+ */
+export function rendimientoEscalado(nombre, factor) {
+  const { cantidad, unidad } = splitYield(nombre);
+  if (!cantidad) return '';
+
+  const base = rendimientoBase(nombre);
+  if (factor === FACTOR_ORIGINAL || base === null) {
+    return `${cantidad}${unidad ? ' ' + unidad : ''}`.toLowerCase();
+  }
+
+  return `${formatQty(base * factor)}${unidad ? ' ' + unidad : ''}`.toLowerCase();
 }
 
 /**

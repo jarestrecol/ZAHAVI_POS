@@ -110,13 +110,15 @@
  * Cada uno tiene identidad propia para poder reconocerlo sin leer la palabra,
  * que es lo que hace falta cuando se usa cien veces al dia:
  *
- *     Pesar      relleno naranja de marca (btn--accent)
+ *     Pesar      relleno de tinta (btn--primary)
  *     Imprimir   discreto, icono en gris
  *     Editar     discreto, icono e hover en ambar
  *     Eliminar   discreto, icono e hover en rojo
  *
  * Solo Pesar lleva relleno solido: si los cuatro compitieran, ninguno
- * destacaria.
+ * destacaria. Va en TINTA y no en el ambar de marca: ese esta reservado a la
+ * accion principal de la aplicacion (Nueva receta, en la barra superior), que
+ * en escritorio se ve al mismo tiempo que esta barra.
  */
 .btn--action {
   min-height: var(--tap-row);
@@ -595,14 +597,15 @@
 
 /* ---- Modo producción ---- */
 
+/* Cabecera, barra, cuerpo, aviso de lo que viene, pie y ayuda. */
 .prod {
   position: fixed;
   inset: 0;
   z-index: 120;
   display: grid;
-  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-rows: auto auto 1fr auto auto auto;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 40%, var(--glow), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 38%, var(--glow), transparent 70%),
     var(--rail);
   color: var(--on-rail);
 }
@@ -661,14 +664,19 @@
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--on-rail);
-  background: transparent;
-  border: 1px solid var(--rail-line);
-  border-radius: var(--radius);
+  background: rgba(245, 241, 234, 0.06);
+  /* `--rail-line` da 1,4:1 sobre el rail: como contorno de un control estaba
+     muy por debajo del 3:1 que exige la norma, y el boton se leia como texto
+     suelto. El mismo tratamiento neutro translucido que los botones de la
+     barra superior, y el radio de control, no el de superficie. */
+  border: 1px solid rgba(245, 241, 234, 0.28);
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
 .prod__close:hover {
-  background: var(--rail-2);
+  background: rgba(245, 241, 234, 0.14);
+  border-color: rgba(245, 241, 234, 0.45);
 }
 
 .prod__bar {
@@ -692,17 +700,60 @@
   overflow-y: auto;
 }
 
+/*
+ * El paso actual va sobre un plano propio, no flotando sobre el fondo.
+ *
+ * Antes el nombre y la cifra caian sueltos en el centro de una pantalla oscura
+ * y muy grande, sin nada que dijera donde empieza y donde acaba "lo que estoy
+ * pesando ahora". Una superficie apenas mas clara, con borde de un pixel, basta
+ * para encuadrarlo: la cifra deja de ser texto en el vacio y pasa a ser la
+ * lectura de un instrumento.
+ */
 .prod__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: min(46rem, 100%);
+  padding: var(--space-6) var(--space-5);
   text-align: center;
+  background: rgba(245, 241, 234, 0.04);
+  border: 1px solid var(--rail-line);
+  border-radius: var(--radius-lg);
+}
+
+/* Fila de contexto: de que componente es y si ya se peso. Altura reservada
+   aunque este vacia, para que la cifra no salte al pasar de un paso con
+   componente a otro sin el. */
+.prod__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 1.5rem;
 }
 
 .prod__component {
-  margin-bottom: var(--space-3);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--amber-on-rail);
+}
+
+/* Marca de paso ya pesado, al volver sobre el. Es una insignia legible y no un
+   tachado sobre la cifra: tachar justo el numero que hay que leer era la peor
+   forma posible de decir "esto ya esta". */
+.prod__hecho {
+  padding: 0.15rem 0.55rem;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ok-on-rail);
+  background: var(--ok-on-rail-soft);
+  border: 1px solid var(--ok-on-rail-line);
+  border-radius: var(--radius-pill);
 }
 
 .prod__name {
@@ -710,15 +761,20 @@
   font-size: var(--text-prod-name);
   font-weight: 600;
   line-height: 1.15;
+  text-wrap: balance;
   color: var(--on-rail);
 }
 
+/* Cifra y unidad se separan con una linea fina por encima: es la que convierte
+   el bloque en una lectura de instrumento y marca donde termina el nombre. */
 .prod__qty {
   display: flex;
   align-items: baseline;
   justify-content: center;
   gap: var(--space-3);
-  margin-top: var(--space-4);
+  width: 100%;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rail-line);
 }
 
 .prod__number {
@@ -726,12 +782,12 @@
   font-size: var(--text-prod-qty);
   font-weight: 700;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
   color: #fff;
   font-variant-numeric: tabular-nums lining-nums;
   /* Resplandor apenas perceptible, como una lectura digital de bascula: da
      peso al numero sin convertirlo en un efecto llamativo. */
-  text-shadow: 0 0 28px rgba(249, 169, 74, 0.35);
+  text-shadow: 0 0 32px rgba(249, 169, 74, 0.3);
 }
 
 .prod__unit {
@@ -742,13 +798,83 @@
   color: var(--amber-on-rail);
 }
 
-.prod__step.is-done .prod__number {
-  color: var(--on-rail-2);
-  text-decoration: line-through;
+/* Un paso ya pesado se apaga entero, cifra incluida, pero SIN tachar: la
+   insignia de `.prod__hecho` ya dice que esta hecho, y la cifra se sigue
+   pudiendo leer por si hay que comprobarla. */
+.prod__step.is-done {
+  border-color: var(--ok-on-rail-line);
 }
 
+.prod__step.is-done .prod__number {
+  color: var(--on-rail-2);
+  text-shadow: none;
+}
+
+/* ---- Lo que viene despues ---- */
+
+.prod__siguiente {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-height: 2.25rem;
+  padding: 0 var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--on-rail-2);
+}
+
+.prod__siguiente-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--on-rail-2);
+}
+
+.prod__siguiente-nombre {
+  font-weight: 600;
+  color: var(--on-rail-2);
+}
+
+.prod__siguiente-qty {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--on-rail-2);
+}
+
+.prod__siguiente-fin {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--on-rail-2);
+}
+
+/* ---- Final ---- */
+
 .prod__done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
+}
+
+/* Confirmacion grande y tranquila: se ve desde lejos que la tanda esta
+   completa, que es la unica pregunta que queda en ese momento. */
+.prod__done-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: var(--space-4);
+  font-size: 2.25rem;
+  line-height: 1;
+  color: var(--ok-on-rail);
+  background: var(--ok-on-rail-soft);
+  border: 1px solid var(--ok-on-rail-line);
+  border-radius: 50%;
 }
 
 .prod__done-title {
@@ -756,7 +882,7 @@
   font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 600;
-  color: var(--amber-on-rail);
+  color: var(--on-rail);
 }
 
 .prod__done p {

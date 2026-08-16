@@ -110,7 +110,14 @@ Entrar con `zahavi` / `zahavi2026`.
 | 28 | En Pesar, barra espaciadora | Da por pesado y avanza |
 | 29 | En Pesar, flechas | Se mueve adelante y atrás |
 | 30 | En Pesar, Escape o Salir | Vuelve a la ficha sin cambiar nada |
-| 31 | Al terminar de pesar | Pantalla de "Todo pesado" |
+| 31 | Al terminar de pesar | Pantalla de "Todo pesado" con marca de confirmación |
+| 31a | **Tabular hasta "Salir" y pulsar Intro** | **Cierra**, no da por pesado el ingrediente |
+| 31b | Tabular hasta "← Anterior" y pulsar Intro | Retrocede, no avanza |
+| 31c | En "Todo pesado", tabular a "Salir" e Intro | Cierra la pantalla |
+| 31d | Mirar bajo la cifra | Muestra "Después" con el siguiente ingrediente y su cantidad |
+| 31e | Llegar al último paso | Dice "Es el último" en vez de dejar el hueco vacío |
+| 31f | Volver con la flecha a un paso ya pesado | Insignia "✓ Pesado" y la **cifra sigue legible**, sin tachar |
+| 31g | Imprimir con la tanda ×3 | La hoja dice el rendimiento **multiplicado**, igual que la pantalla |
 | 32 | **Imprimir** | Vista previa con la ficha maquetada en A4 |
 | 33 | Imprimir sin receta abierta | Sale el índice completo, respetando el filtro |
 | 34 | **Editar** | Abre el editor con los datos cargados |
@@ -151,11 +158,11 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34ad | Quitar una receta con el botón × | El foco vuelve al buscador, no al principio del documento |
 | 34ae | Recorrer la ventana con `Tab` | Todo alcanzable; las flechas del campo de tandas no pierden el foco |
 
-### 2.4e Validador de ingredientes
+### 2.4e Ingredientes
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 34af | Pulsar "Validador" | Abre el validador con 159 ingredientes distintos |
+| 34af | Pulsar "Ingredientes" | Abre el catálogo con 159 ingredientes distintos |
 | 34ag | Cifras de cabecera | 159 distintos · 1282 líneas · 64 en una sola receta · 15 con varias unidades |
 | 34ah | Orden por defecto | Harina de trigo primera, en 86 recetas |
 | 34ai | Pulsar "A–Z" | Se reordena alfabéticamente |
@@ -165,6 +172,22 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34am | Volver a pulsarlo | Se cierra y **el foco sigue en esa fila** |
 | 34an | Pulsar una de esas recetas | La abre y cierra el catálogo |
 | 34ao | Ningún botón cambia datos | Es solo de consulta |
+| 34ap | Mirar la lista desplegada | Todas las filas **a la misma altura y alineadas**, una línea por receta |
+| 34aq | Un ingrediente que entre en varias "Sacher Torte" | Cada fila muestra su rendimiento (`×1`, `×5`…) y se distinguen |
+| 34ar | Buscar la harina (86 recetas) | La rejilla se reparte en columnas sin filas torcidas |
+
+### 2.4f Rendimiento en el editor
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 34as | Abrir una receta con rendimiento (`ALMOJÁBANA X 15 UND`) | Nombre sin el rendimiento; "rinde" = 15; unidad = und |
+| 34at | Guardar sin tocar nada | El nombre queda **exactamente igual**, incluida la `x` minúscula si la tenía |
+| 34au | Cambiar el rinde a 20 y guardar | El nombre pasa a `... X 20 UND` |
+| 34av | Abrir `BAGUEL NORMAL X 32 UND O 8 PAQ.` | La unidad compuesta aparece como opción y **no se pierde** al guardar |
+| 34aw | Abrir una receta sin rendimiento | "rinde" vacío, unidad "sin unidad"; guardar no añade ninguna `X` |
+| 34ax | Abrir `TORTA ... X 1 UND ( SIN AZUCAR )` | **Aviso** de que el nombre parece llevar el rendimiento dentro |
+| 34ay | Crear una receta nueva con rinde 12 und | Se guarda como `NOMBRE X 12 UND` y el escalado por cantidad funciona |
+| 34az | Escribir letras en el campo "rinde" | El campo no las admite: es numérico |
 
 ### 2.5 Crear y editar (con recetas `QA-TEST-`)
 

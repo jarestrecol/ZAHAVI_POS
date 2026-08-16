@@ -77,9 +77,13 @@ ningún sitio.
   receta**, y el factor se pierde al cambiar de receta. Lo heredan el Modo Pesar
   y la impresión, ambos con aviso permanente de que la tanda está escalada. Las
   medidas de molde y los tiempos no se multiplican.
-- **Modo Pesar**: pantalla completa, un ingrediente a la vez, cifra gigante. La
-  barra espaciadora da por pesado y avanza, para no tocar la pantalla con las
-  manos ocupadas.
+- **Modo Pesar**: pantalla completa, un ingrediente a la vez, cifra gigante que
+  escala con el tamaño de pantalla. La barra espaciadora da por pesado y avanza,
+  para no tocar la pantalla con las manos ocupadas. El paso actual va sobre un
+  plano propio, con el siguiente ingrediente siempre anunciado debajo: quien pesa
+  puede ir acercando el próximo producto mientras termina con el actual. Volver
+  sobre un paso ya hecho lo muestra con una insignia, **sin tachar la cifra**,
+  que es justo lo que puede hacer falta comprobar.
 - **Plan del día**: se eligen varias recetas con sus tandas y sale una lista
   consolidada de todo lo que hay que pesar, con cada ingrediente sumado una sola
   vez. **Nunca suma unidades distintas**: 500 gr de harina y 2 und de huevo van
@@ -90,7 +94,7 @@ ningún sitio.
 - **Impresión A4** de la ficha individual, del índice completo o del plan del
   día, con la maquetación calculada aparte de la pantalla.
 
-### Validador de ingredientes
+### Ingredientes
 
 - **Catálogo de ingredientes**: los 159 productos distintos que se usan en las
   1.282 líneas del recetario, con en cuántas recetas entra cada uno y cuánto se
@@ -107,6 +111,14 @@ ningún sitio.
 
 - **Editor de recetas** con componentes múltiples y autocompletado desde el
   catálogo de 159 ingredientes ya existentes.
+- **El rendimiento es un campo, no parte del nombre.** Se captura en dos
+  controles: una cantidad numérica y una unidad de lista. El dato se sigue
+  almacenando dentro del nombre, como llegó del Excel, pero ya no se teclea así:
+  de ese descuido salen las 13 recetas que hoy llevan `x` minúscula o `2UND` sin
+  espacio, y un nombre mal escrito deja a la receta sin rendimiento legible para
+  el escalado y el plan del día, sin que nadie se entere. **Abrir una receta y
+  guardarla sin tocar el rendimiento conserva su nombre byte a byte**: hay una
+  prueba automática que lo comprueba sobre las 121.
 - **Publicación explícita**: lo editado queda en el equipo hasta que alguien
   publica. La cabecera indica en todo momento cuántos cambios hay pendientes.
 - **Control de concurrencia**: si otra sede publicó mientras tanto, el sistema
@@ -165,8 +177,25 @@ Tres capas con una única regla: **cada una solo conoce la de abajo.**
 ```
 
 `main.js` es el único módulo que une las tres: decide qué pintar y llama a los
-casos de uso. Ninguna vista importa nada de otra vista; ningún módulo de `core/`
-importa nada de `views/`.
+casos de uso. **Ningún módulo de `core/` importa nada de `views/`**, y esa es la
+frontera que de verdad no se cruza nunca.
+
+Las otras dos reglas conviene enunciarlas como son y no como suenan mejor, para
+que nadie las "arregle" mal:
+
+- **`views/` lee de `core/` directamente; solo `main.js` y `app/commands.js`
+  escriben.** Una vista puede llamar a `escalarReceta` o a `consolidar`, que son
+  transformaciones de lectura sin efectos. Lo que no puede es guardar, publicar
+  ni borrar.
+- **Una vista sí importa `views/window.js`**, la carcasa de ventana modal, y lo
+  hacen las cinco que abren diálogo. Es una primitiva compartida, no una vista
+  llamando a otra.
+
+Cuando una regla vive en una vista y no en `core/`, el síntoma aparece tarde y
+en otro sitio: el rendimiento escalado estuvo escrito dentro de `views/detail.js`
+y, por eso, la pantalla decía "Rinde 6 und" mientras la hoja impresa que se lleva
+al obrador seguía diciendo "Rinde 2 und" con las cantidades ya multiplicadas
+debajo. Hoy vive en `core/scale.js` y las dos superficies leen lo mismo.
 
 ### Flujo de una carga
 
@@ -300,10 +329,34 @@ respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
 - **Cierre de sesión revoca la clave de edición** en caché, para que quien entre
   después no herede capacidad de publicar.
 - **Solo `PUT`** en la ruta de escritura: obliga a verificación previa de CORS,
-  cerrando la vía de un formulario de otro origen.
-- **Limitación de intentos** de clave fallidos en el servidor.
-- **Cabeceras**: `X-Content-Type-Options`, `X-Frame-Options: DENY`,
-  `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`.
+  cerrando la vía de un formulario de otro origen. Se exige además
+  `Content-Type: application/json`, que es defensa en profundidad para el día
+  que se acepte algún método que sí pueda viajar sin esa verificación previa.
+- **Comparación de la clave en tiempo constante sobre resúmenes SHA-256.** La
+  versión anterior comparaba las cadenas y salía antes de tiempo si las
+  longitudes no coincidían, así que el tiempo de respuesta revelaba la longitud
+  exacta de la clave. Dos resúmenes miden siempre 32 bytes: no queda nada que
+  medir.
+- **Limitación de intentos** de clave fallidos en el servidor, con tope de
+  orígenes vigilados para que el propio registro no sea un consumo de memoria
+  que crezca solo.
+- **Tope de publicación por debajo del techo de lectura** (900 KB frente al
+  megabyte de la API de contenidos de GitHub): impide publicar un recetario que
+  después no se podría volver a leer por el mismo camino.
+- **Cabeceras**: `Strict-Transport-Security`, `X-Content-Type-Options`,
+  `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`,
+  `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`,
+  `frame-ancestors 'none'`, `object-src 'none'` y `upgrade-insecure-requests`.
+
+**Trusted Types, evaluado y no adoptado.** La CSP podría exigir
+`require-trusted-types-for 'script'`, que haría que el navegador impusiera por su
+cuenta la regla número uno del proyecto. Se descartó por ahora: el registro del
+service worker es uno de los sumideros que esa directiva intercepta, el fallo
+sería silencioso porque el registro va dentro de un `catch` vacío, y romperlo
+significa perder el funcionamiento sin conexión sin que nadie lo note. Adoptarlo
+exige declarar una política con nombre y **comprobarlo en un navegador real**;
+hasta entonces la garantía la sostiene la arquitectura, que no tiene un solo
+sumidero de HTML en todo el código.
 
 ### Lo que este sistema NO hace
 
@@ -336,10 +389,25 @@ pie, a distancia de brazo y con posible reflejo.
 - Navegación completa por teclado, con foco visible de alto contraste.
 - Foco atrapado y restaurado en cada diálogo.
 - **El foco sobrevive al repintado.** Las listas que se despliegan (plan del día,
-  validador) se reconstruyen enteras al abrir una fila, lo que destruye el botón
-  pulsado. Ambas lo devuelven a su sitio buscándolo por `data-*` después de
+  ingredientes) se reconstruyen enteras al abrir una fila, lo que destruye el
+  botón pulsado. Ambas lo devuelven a su sitio buscándolo por `data-*` después de
   redibujar. Sin eso, abrir una fila entre 159 manda el foco al principio del
   documento.
+- **Un botón enfocado se activa con su propia semántica.** El Modo Pesar escucha
+  la barra espaciadora en todo el panel para dar por pesado y avanzar, pero
+  ignora la pulsación cuando el foco está sobre un botón. Sin esa guarda,
+  `preventDefault()` cancelaba la activación nativa: pulsar Intro sobre "Salir"
+  daba el ingrediente por pesado en vez de cerrar, y el "Salir" de la pantalla
+  final se quedaba muerto. Con ratón no se notaba nada.
+- **Moverse anuncia qué hay que pesar, no solo cuántos van.** Las flechas del
+  Modo Pesar cambian ingrediente y cifra, y ninguno de los dos vive en una
+  región viva. Se anuncian juntos, en un solo mensaje: la región viva es única y
+  un segundo mensaje borra el primero antes de que termine de leerse.
+- **Una etiqueta accesible dice todas las columnas que sustituye.** El
+  `aria-label` de una fila del catálogo de ingredientes reemplaza a su contenido,
+  así que nombra el ingrediente, **sus totales por unidad** y en cuántas recetas
+  entra. Antes se dejaba fuera el total, que es la cifra que da sentido a esa
+  pantalla.
 - **Nada se corrige solo en silencio.** Cuando el plan rechaza o ajusta un número
   tecleado, lo dice en un nodo visible que además es `role="status"`: el mismo
   texto sirve para quien lo ve y para quien lo escucha, sin duplicar el mensaje.
@@ -355,8 +423,8 @@ pie, a distancia de brazo y con posible reflejo.
 |---|---|
 | Dependencias en tiempo de ejecución | 0 |
 | Peticiones a terceros | 0 |
-| JavaScript (sin comprimir) | ~228 KB |
-| CSS (sin comprimir) | ~108 KB |
+| JavaScript (sin comprimir) | ~247 KB |
+| CSS (sin comprimir) | ~118 KB |
 | Tipografías (subconjunto latino) | ~290 KB |
 | Datos | 225 KB |
 | Paso de compilación | Ninguno |
@@ -427,7 +495,33 @@ radios, sombras, duraciones. Ningún valor de color o espaciado está escrito a
 mano fuera de ese archivo.
 
 Los colores del listado (`--rail-*`, `--cat-*-rail`) son los de esa estructura
-oscura, distintos de los del área de trabajo.
+oscura, distintos de los del área de trabajo. Lo mismo vale para la confirmación:
+`--ok` está pensado para leerse sobre blanco y sobre el rail desaparece, así que
+existe `--ok-on-rail` para el Modo Pesar.
+
+### Controles: geometría propia y un solo acento
+
+Dos decisiones que separan esto de una página de producto y lo acercan a una
+herramienta de gestión:
+
+- **`--radius-control` (6px), aparte de los radios de superficie.** Un botón de
+  tres centímetros con el mismo radio que una ventana de setenta rem se lee como
+  una pastilla, y una barra de herramientas llena de pastillas no parece una
+  herramienta de trabajo. La curva generosa se reserva a las superficies que
+  contienen. Botones y campos comparten esta geometría: pertenecen a la misma
+  familia.
+- **Un único relleno de marca en toda la pantalla.** `--brand-strong` (#995107)
+  sustituyó al naranja de marca en la acción principal. El naranja pleno es un
+  color de máxima saturación **y** máxima claridad a la vez: quitarle el
+  degradado no bajó ninguna de las dos, y por eso seguía leyéndose como
+  fluorescente. El tono profundo conserva el matiz, admite texto blanco a 5,9:1
+  y deja de gritar. Los tres botones de la barra oscura pasaron de ámbar a
+  neutro, y "Pesar" pasó a relleno de tinta: cuatro reclamos simultáneos hacían
+  que ninguno significara nada.
+
+El botón responde cambiando de superficie, no moviéndose de sitio: el
+levantamiento de un píxel al pasar el cursor convertía cada barrido del ratón
+por la barra en una fila de piezas saltando.
 
 ### Un solo tema
 
@@ -556,8 +650,47 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 130 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 148 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
+
+### Auditorías
+
+El sistema se ha sometido a cuatro revisiones independientes, con el alcance y
+los hallazgos que siguen. Se registran aquí porque un defecto encontrado y
+corregido enseña más que la lista de lo que funciona.
+
+| Revisión | Qué buscó | Resultado |
+|---|---|---|
+| **Calidad de código** | Pérdida de datos en el editor, estado desincronizado, regresiones en consumidores | Sin defectos críticos. Verificó contra las 121 recetas reales que abrir y guardar no altera ningún nombre |
+| **Arquitectura** | Coste futuro de las decisiones, fronteras de capa, techo de escala | Cuatro hallazgos reales, tres corregidos (ver abajo) |
+| **Seguridad** | Superficie de servidor, cabeceras, secretos, crecimiento del sistema | Sin secretos ni inyecciones. Un endurecimiento revertido por riesgo de rotura silenciosa |
+| **Accesibilidad y diseño** | WCAG 2.2 AA sobre las tres superficies rediseñadas, contraste calculado | Un fallo de teclado grave y varios de etiquetado, todos corregidos |
+
+**Lo que encontraron y se corrigió**, por orden de gravedad:
+
+1. **El teclado no activaba los botones del Modo Pesar.** El panel escuchaba la
+   barra espaciadora y cancelaba la activación nativa del botón enfocado: Intro
+   sobre "Salir" daba el ingrediente por pesado, y el "Salir" de la pantalla
+   final estaba muerto. Invisible probando con ratón.
+2. **El rendimiento impreso no se escalaba.** Con la tanda al triple, la hoja que
+   se lleva al obrador decía "Rinde 2 und" con las cantidades ya multiplicadas
+   debajo. La regla vivía dentro de una vista y por eso no llegaba al papel.
+3. **14 recetas eran indistinguibles en cuatro listas.** Al mostrar solo el
+   nombre base, un plan con dos "Pan Brioche" o una búsqueda de "sacher"
+   ofrecían filas idénticas.
+4. **El editor invitaba a duplicar el rendimiento** en las 15 recetas que lo
+   llevan enterrado a mitad del nombre. Ahora avisa al abrirlas.
+5. **Se podía publicar un recetario que después no se podría leer**: el tope de
+   envío era cuatro veces mayor que el techo de lectura de GitHub.
+6. **Colores y radios fuera del sistema de diseño**, y cifras desactualizadas en
+   comentarios y documentación (pesos de JS y CSS, recuento de recetas con
+   rendimiento, un módulo retirado que la documentación seguía citando).
+
+**Lo que se decidió NO hacer, y por qué**: adoptar Trusted Types en la CSP
+(rompería el modo sin conexión en silencio y no se puede comprobar sin
+navegador); extraer una abstracción compartida para las listas desplegables (dos
+usos de forma distinta es generalizar antes de tiempo); y migrar el rendimiento a
+un campo propio del esquema, que se analiza en la hoja de ruta.
 
 ### Versión de un solo archivo
 
@@ -627,7 +760,7 @@ src/
     editor.js              Editor de recetas
     production.js          Modo Pesar
     plan.js                Plan de producción del día
-    ingredients.js         Validador de ingredientes
+    ingredients.js         Catálogo y validación de ingredientes
     settings.js            Ajustes
     confirm.js             Confirmación de borrado en tres pasos
     window.js              Carcasa de ventana modal
@@ -642,7 +775,7 @@ scripts/
   test-qa.mjs              Alta y baja masiva de recetas y usuarios
   build-standalone.mjs     Empaquetador de un solo archivo
 
-QA.md                      Lista de verificación manual (130 puntos)
+QA.md                      Lista de verificación manual (148 puntos)
 
 data/
   recipes.json             Recetario publicado
@@ -723,6 +856,16 @@ claramente empuja a proteger de verdad lo que importa: la escritura.
 8. **Un límite que el núcleo aplique en silencio tiene que ser público.** Si la
    interfaz deja escribir un valor que el núcleo va a recortar, o avisa antes o
    acabará enseñando una cifra y calculando otra.
+9. **Una regla de negocio no vive en una vista.** Si vive, la aplicará esa
+   pantalla y ninguna más. Así estuvo el rendimiento escalado: correcto en
+   pantalla, falso en el papel que se lleva al obrador.
+10. **El nombre base de una receta NO es único.** 14 de las 121 comparten base y
+    solo se distinguen por el rendimiento; cuatro se llaman "Sacher Torte". Toda
+    lista que muestre el nombre base tiene que mostrar también el rendimiento, o
+    ofrecerá filas idénticas entre las que no hay forma de elegir.
+11. **Un `aria-label` sustituye al contenido, no lo complementa.** Si se pone en
+    un control con varias piezas de información visible, tiene que nombrarlas
+    todas o esas piezas dejan de existir para quien no ve la pantalla.
 
 ---
 
@@ -740,12 +883,15 @@ información completa.
 | Los ingredientes se referencian por nombre, no por código | Un cambio de nombre no propaga | Antes del costeo (Fase 2) |
 | Borrar los datos de navegación borra los cambios sin publicar | Lo ya publicado se recupera al recargar | Formar al equipo: publicar al terminar |
 | Ninguna de las 121 recetas tiene método escrito | El campo existe y está vacío en origen | Trabajo de contenido, no técnico |
+| 34 de las 121 no declaran rendimiento legible | Para esas solo se ofrece el multiplicador, no "quiero 24 unidades" | Se puede completar desde el editor, receta a receta |
+| En 15 de ellas el rendimiento está escrito **dentro** del nombre pero no al final | El separador no lo encuentra: `TORTA ... X 1 UND ( SIN AZUCAR )` | El editor avisa al abrirlas para que no quede duplicado |
+| 14 recetas comparten nombre base con otra | Se distinguen solo por el rendimiento, que ahora se muestra al lado en todas las listas | Al normalizar nombres, si alguna vez se hace |
 
 ### Incidencias detectadas en los datos, no corregidas
 
 Se reportan y **no se tocan**, porque corregir una fórmula es una decisión del
 negocio, no de quien migró los datos. La segunda sigue siendo visible desde el
-**Validador de ingredientes**, que marca la leche como medida en tres unidades
+**Ingredientes**, que marca la leche como medida en tres unidades
 distintas. La primera se detectó al migrar y se documenta aquí:
 
 - `SACHER TORTE x 8` lleva `CHOCOLATE 70%: 10008 GR`. Las variantes escalan
@@ -774,6 +920,57 @@ y en la copia se coló el error.
 El salto a la Fase 2 es el punto donde conviene revisar la decisión de almacenar
 en un archivo: el costeo introduce precios que cambian a diario, y ese patrón de
 escritura sí justifica una base de datos.
+
+### La señal que hay que vigilar
+
+El techo real no es el número de recetas, es el **tamaño del archivo**: la API de
+contenidos de GitHub deja de entregarlo a partir de 1 MB. Hoy son 225 KB.
+
+- Llenar los 121 métodos de preparación lo deja entre 330 y 470 KB. **No revienta
+  el límite**, al contrario de lo que este documento suponía antes.
+- Con la forma actual y métodos escritos, el techo llega hacia las 300 recetas.
+- Lo que sí lo revienta es el **histórico de precios** de la Fase 2: 159
+  ingredientes con captura diaria llegan a 1 MB en unos dos meses.
+
+**Umbral de acción: 700 KB.** A partir de ahí quedan semanas de margen, y es el
+momento de la base de datos, no antes. Conviene además que la respuesta de
+publicación devuelva el tamaño resultante, para que Ajustes pueda mostrarlo: el
+tamaño de un archivo en un repositorio no lo mira nadie por su cuenta.
+
+### Tres trabajos que conviene hacer antes de la Fase 2
+
+Salieron de la revisión de arquitectura y son baratos hoy, caros después:
+
+1. **Indexar el desglose del plan por `id` y no por nombre** (`core/plan.js`).
+   Hoy funciona porque los nombres son únicos, y son únicos *porque llevan el
+   rendimiento dentro*. El día que eso cambie, cuatro recetas se fundirían en una
+   sola entrada del desglose sin que nada avisara.
+2. **Decidir dónde viven los costes antes de que existan.** El recetario se
+   entrega hoy sin control de lectura, y es una decisión consciente. Los costes de
+   proveedor y los márgenes no admiten el mismo trato: o van a otro sitio con
+   lectura autenticada, o el servidor devuelve solo agregados. Migrar eso después
+   de haberlo publicado es mucho más caro que decidirlo antes.
+3. **Credenciales por persona para publicar.** La clave única compartida es
+   tolerable con dos sedes; con más gente, cada baja obliga a rotarla para todos,
+   y el autor del commit lo declara hoy el navegador sin que el servidor lo
+   compruebe. Con costes de por medio, saber quién cambió un margen deja de ser
+   opcional.
+
+### Migrar el rendimiento a un campo propio
+
+Si alguna vez se decide, el orden importa y no admite atajos, porque **los dos
+esquemas reconstruyen la receta con una lista blanca de campos**: un campo nuevo
+lo descarta en silencio cualquier equipo que aún tenga el código antiguo en
+caché, y basta con que ese equipo publique una vez para borrarlo de las 121.
+
+1. Que ambos esquemas (`core/schema.js` y `api/_schema.js`) acepten el campo.
+2. Desplegar y **subir la versión de caché del service worker**.
+3. Confirmar que las dos sedes han cargado el código nuevo.
+4. Solo entonces migrar los datos, en un commit propio y con aprobación
+   explícita, porque cambia el sha del archivo auditado.
+
+Antes de todo eso hay que arreglar las cuatro vistas que muestran únicamente el
+nombre base, o cuatro recetas pasarían a llamarse igual.
 
 Antes de entrar en la Fase 2 hay dos trabajos que no son de software:
 

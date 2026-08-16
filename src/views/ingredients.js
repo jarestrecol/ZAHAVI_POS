@@ -21,7 +21,7 @@
  */
 
 import { el, clear } from '../lib/dom.js';
-import { titleCase, splitName, formatQty } from '../lib/format.js';
+import { titleCase, splitName, formatQty, yieldLabel } from '../lib/format.js';
 import { navigate } from '../core/router.js';
 import {
   catalogoIngredientes,
@@ -130,7 +130,12 @@ export function openIngredients(options) {
           dataset: { nombre: ingrediente.nombre },
           attrs: {
             'aria-expanded': String(estaAbierto),
-            'aria-label': `${ingrediente.nombre}, en ${ingrediente.recetas} ${
+            // El `aria-label` SUSTITUYE al contenido del boton, asi que tiene
+            // que decir las tres columnas. Antes se dejaba fuera el total por
+            // unidad, que es justo la cifra que da sentido a esta pantalla y la
+            // que sostiene el costeo: quien usa lector de pantalla oia el
+            // nombre y el recuento, y la columna del medio no existia.
+            'aria-label': `${ingrediente.nombre}, ${totalesTexto(ingrediente)}, en ${ingrediente.recetas} ${
               ingrediente.recetas === 1 ? 'receta' : 'recetas'
             }. ${estaAbierto ? 'Ocultar' : 'Ver'} cuáles`,
           },
@@ -201,24 +206,47 @@ export function openIngredients(options) {
     }
   }
 
-  /** Las recetas que usan un ingrediente, desplegadas bajo su fila. */
+  /**
+   * Las recetas que usan un ingrediente, desplegadas bajo su fila.
+   *
+   * Cada entrada ocupa una fila de altura fija y una sola linea de texto. Antes
+   * eran enlaces de alto libre repartidos en columnas: los nombres largos
+   * pasaban a dos lineas, esa fila de la rejilla crecia, y el texto de las
+   * entradas cortas quedaba centrado a media altura respecto a sus vecinas. El
+   * resultado se leia torcido justo donde hace falta recorrer la lista deprisa.
+   *
+   * El nombre completo sigue siendo el contenido del boton, asi que el recorte
+   * es solo visual: los lectores de pantalla lo anuncian entero.
+   */
   function renderRecetas(ingrediente) {
     return el(
       'ul',
       { class: 'ings__recetas-lista' },
       ingrediente.enRecetas.map((receta) =>
-        el('li', null, [
+        el('li', { class: 'ings__receta' }, [
           el('button', {
             type: 'button',
-            class: 'btn-link',
-            text: titleCase(splitName(receta.nombre).base),
+            class: 'ings__receta-btn',
+            attrs: { 'data-category': receta.categoria },
             on: {
               click: () => {
                 navigate({ name: 'detail', id: receta.id });
                 options.onClose();
               },
             },
-          }),
+          }, [
+            el('span', { class: 'ings__receta-dot', attrs: { 'aria-hidden': 'true' } }),
+            el('span', {
+              class: 'ings__receta-nombre',
+              text: titleCase(splitName(receta.nombre).base),
+            }),
+            // El rendimiento distingue las que comparten nombre base. Sin el,
+            // un ingrediente que entre en las cuatro Sacher Torte muestra
+            // cuatro filas identicas y no hay forma de elegir.
+            yieldLabel(receta.nombre)
+              ? el('span', { class: 'ings__receta-rinde', text: yieldLabel(receta.nombre) })
+              : null,
+          ]),
         ]),
       ),
     );
@@ -264,7 +292,7 @@ export function openIngredients(options) {
   ]);
 
   return createWindow({
-    title: 'Validador de ingredientes',
+    title: 'Ingredientes',
     meta: `${cuenta.distintos} distintos en ${cuenta.lineas} líneas`,
     size: 'wide',
     onClose: options.onClose,
@@ -284,6 +312,22 @@ export function openIngredients(options) {
       ]),
     ],
   });
+}
+
+/**
+ * Los totales de un ingrediente, en texto corrido para leerse en voz alta.
+ *
+ * Nunca los suma entre si, igual que la pantalla: "4.500 gr, 12 und" son dos
+ * cifras distintas de la misma compra.
+ *
+ * @param {object} ingrediente
+ * @returns {string}
+ */
+function totalesTexto(ingrediente) {
+  if (!ingrediente.totales.length) return 'sin cantidad';
+  return ingrediente.totales
+    .map((t) => `${formatQty(t.total)} ${t.unidad.toLowerCase()}`)
+    .join(', ');
 }
 
 /** Una cifra del resumen de cabecera. */

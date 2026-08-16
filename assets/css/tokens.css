@@ -100,6 +100,22 @@
   --amber-soft: #fdefdc;
   --amber-on-rail: #f9a94a;
 
+  /*
+   * Relleno de la accion principal: ambar PROFUNDO, no el naranja de marca.
+   *
+   * El naranja pleno (#f68a1e) en una pieza de 3 cm es lo que se leia como
+   * fluorescente: maxima saturacion y maxima claridad a la vez, gritando desde
+   * una barra de herramientas que deberia ser un fondo tranquilo. Este tono
+   * conserva el matiz de la marca, baja la claridad y admite texto blanco a
+   * 5,9:1, asi que ademas deja de necesitar tinta oscura sobre naranja.
+   *
+   * La marca sigue siendo naranja donde le corresponde: el logotipo, el punto
+   * del wordmark y los acentos. Un boton no es el sitio para llevar la
+   * identidad al maximo volumen.
+   */
+  --brand-strong: #995107;       /* blanco a 5,9:1 */
+  --brand-strong-hover: #7d4205; /* blanco a 7,9:1 */
+
   /* ---- Categorías ----
      Los tres tonos se reparten el circulo cromatico lo mas lejos posible:
      rosa (330 grados), ambar (35) y verde (165), unos 130 grados entre cada
@@ -123,6 +139,13 @@
   --danger-soft: #fbeaea;
   --ok: #296038;
   --ok-soft: #e8f2ea;
+
+  /* Confirmación sobre la estructura oscura (modo Pesar). El verde de `--ok`
+     está pensado para leerse sobre blanco y sobre el rail desaparece, así que
+     necesita su versión clara igual que las categorías. 7:1 sobre `--rail`. */
+  --ok-on-rail: #7fd8a0;
+  --ok-on-rail-soft: rgba(127, 216, 160, 0.13);
+  --ok-on-rail-line: rgba(127, 216, 160, 0.35);
 
   /* ---- Líneas ---- */
   --line: #e6e0d6;
@@ -177,9 +200,17 @@
   --text-ingredient: 1.0625rem;
   --text-qty: var(--text-xl);
 
-  /* Modo producción: se lee de pie, junto a la báscula. */
-  --text-prod-name: 1.75rem;
-  --text-prod-qty: 2.5rem;
+  /*
+   * Modo producción: se lee de pie, junto a la báscula, a un brazo de
+   * distancia. Los dos escalan con la pantalla en vez de quedarse fijos: el
+   * mismo tamaño que funciona en un teléfono apoyado en la mesa se queda corto
+   * en la tableta de pared del obrador, que es donde de verdad se usa.
+   *
+   * La distancia entre los dos es deliberada y grande. La cifra es lo que se
+   * mira; el nombre solo confirma que se cogió el producto correcto.
+   */
+  --text-prod-name: clamp(1.5rem, 1.1rem + 1.8vw, 2.5rem);
+  --text-prod-qty: clamp(3.25rem, 2rem + 6vw, 7rem);
 
   /* ---- Ritmo ---- */
   --space-1: 0.25rem;
@@ -202,6 +233,17 @@
   --radius-lg: 1.25rem;
   --radius-xl: 1.75rem;
   --radius-pill: 999px;
+
+  /*
+   * Radio de los CONTROLES (botones y campos), aparte del de las superficies.
+   *
+   * Un boton de 3 cm con el mismo radio que una ventana de 70 rem se lee como
+   * una pastilla, y una barra de herramientas llena de pastillas no parece una
+   * herramienta de trabajo. Los sistemas de gestion serios mantienen el control
+   * casi recto y reservan la curva generosa para las superficies que contienen.
+   * Es el ajuste que mas rapido cambia la lectura de "sitio web" a "aplicacion".
+   */
+  --radius-control: 0.375rem;
 
   /* Objetivos táctiles por encima del mínimo de la norma: se tocan con las
      manos ocupadas y a veces con guante. */

@@ -44,10 +44,13 @@ export function renderHeader(options) {
         on: { click: options.onPlan },
       }),
 
+      // "Ingredientes" y no "Validador": el boton dice a donde se va, no que
+      // hace el modulo por dentro. Quien busca en que recetas entra la harina
+      // no piensa "voy a validar".
       el('button', {
         type: 'button',
         class: 'btn btn--dark-ghost',
-        text: 'Validador',
+        text: 'Ingredientes',
         on: { click: options.onIngredients },
       }),
 

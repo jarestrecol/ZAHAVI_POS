@@ -8,6 +8,7 @@
 import { el } from '../lib/dom.js';
 import { titleCase, splitName, formatQty } from '../lib/format.js';
 import { filterRecipes, sortRecipes, countItems } from '../core/search.js';
+import { rendimientoEscalado } from '../core/scale.js';
 import { ALL_CATEGORIES } from '../core/router.js';
 
 /** Orden de las categorias en el indice impreso. */
@@ -43,7 +44,11 @@ export function renderRecipeSheet(recipe, factor = 1) {
         el('span', { text: (recipe.categoria || '—').toLowerCase() + '  ·  ' + recipe.id }),
       ]),
       el('h1', { class: 'sheet__title', text: titleCase(base) }),
-      rinde ? el('p', { class: 'sheet__yield', text: 'Rinde ' + rinde.toLowerCase() }) : null,
+      // El rendimiento SE ESCALA con la tanda. Antes se copiaba del nombre tal
+      // cual, asi que con la tanda al triple el papel decia "Rinde 2 und" con
+      // las cantidades ya multiplicadas debajo: la unica cifra falsa de una
+      // hoja que se lleva al obrador para seguirla al pie de la letra.
+      rinde ? el('p', { class: 'sheet__yield', text: 'Rinde ' + rendimientoEscalado(recipe.nombre, factor) }) : null,
       escalada
         ? el('p', {
             class: 'sheet__scaled',

@@ -20,6 +20,8 @@
  *   EDIT_PASSWORD  clave que habilita la edicion
  */
 
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 import { validatePayload, MAX_BYTES } from './_schema.js';
 
 const FILE_PATH = 'data/recipes.json';
@@ -41,6 +43,16 @@ const MAX_DELAY_MS = 4000;
 
 /** Ventana tras la cual se olvidan los intentos de un origen. */
 const ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Tope de origenes vigilados a la vez.
+ *
+ * Sin tope, el registro de intentos es memoria que crece sola: basta con enviar
+ * claves incorrectas desde muchas direcciones distintas para llenar la
+ * instancia. Al llegar al tope se descarta la entrada mas antigua, que es la
+ * que menos informacion aporta.
+ */
+const MAX_TRACKED_ORIGINS = 5000;
 
 export default async function handler(request, response) {
   const config = readConfig();
@@ -86,6 +98,20 @@ async function handleGet(response, config) {
 }
 
 async function handlePut(request, response, config) {
+  // Solo se acepta JSON declarado. Es defensa en profundidad, no el cierre de
+  // un hueco abierto: hoy PUT nunca es una "peticion simple" de CORS, asi que
+  // un envio cruzado ya obliga a un preflight que esta ruta no responde, y no
+  // llega. Lo que protege esta comprobacion es el futuro: si algun dia se
+  // aceptara POST, que SI puede ser peticion simple con `text/plain`, un
+  // formulario de otro origen alcanzaria el manejador y el commit se habria
+  // hecho aunque el atacante no pudiera leer la respuesta.
+  //
+  // El cliente real siempre declara JSON (`core/remote.js`), asi que exigirlo
+  // no le quita nada.
+  if (!esJson(request.headers['content-type'])) {
+    return send(response, 415, { error: 'El envío debe declararse como application/json.' });
+  }
+
   const body = await readBody(request);
   if (!body.ok) {
     return send(response, 400, { error: body.error });
@@ -140,7 +166,7 @@ async function checkAuth(request, payload, config) {
   const failed = readAttempts(origin);
 
   if (typeof payload.password !== 'string' || !safeEqual(payload.password, config.password)) {
-    attempts.set(origin, { count: failed + 1, at: Date.now() });
+    registrarFallo(origin, failed);
     if (failed >= FREE_ATTEMPTS) {
       const delay = Math.min(MAX_DELAY_MS, 2 ** (failed - FREE_ATTEMPTS) * 250);
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -152,10 +178,39 @@ async function checkAuth(request, payload, config) {
   return { ok: true };
 }
 
+/**
+ * ¿La cabecera declara JSON? Acepta los parametros habituales del tipo, como
+ * `application/json; charset=utf-8`.
+ *
+ * @param {string|undefined} header
+ * @returns {boolean}
+ */
+function esJson(header) {
+  if (typeof header !== 'string') return false;
+  return header.split(';')[0].trim().toLowerCase() === 'application/json';
+}
+
 function clientKey(request) {
   const header = request.headers['x-forwarded-for'];
   if (typeof header === 'string' && header) return header.split(',')[0].trim();
   return 'desconocido';
+}
+
+/**
+ * Anota un fallo, manteniendo el registro dentro de su tope.
+ *
+ * `Map` conserva el orden de insercion, asi que la primera clave es siempre la
+ * mas antigua y basta con retirar esa.
+ *
+ * @param {string} origin
+ * @param {number} failed intentos previos de ese origen
+ */
+function registrarFallo(origin, failed) {
+  if (!attempts.has(origin) && attempts.size >= MAX_TRACKED_ORIGINS) {
+    const masAntiguo = attempts.keys().next().value;
+    if (masAntiguo !== undefined) attempts.delete(masAntiguo);
+  }
+  attempts.set(origin, { count: failed + 1, at: Date.now() });
 }
 
 function readAttempts(origin) {
@@ -285,8 +340,17 @@ async function readBody(request) {
 }
 
 /**
- * Comparacion en tiempo constante: evita que el tiempo de respuesta revele
- * cuantos caracteres de la clave son correctos.
+ * Comparacion en tiempo constante, sobre el RESUMEN de cada valor.
+ *
+ * La version anterior comparaba las cadenas directamente y salia antes de
+ * tiempo cuando las longitudes no coincidian, asi que el tiempo de respuesta
+ * revelaba la longitud exacta de la clave. Con longitud conocida el espacio de
+ * busqueda de una fuerza bruta se reduce muchisimo.
+ *
+ * Comparar los SHA-256 lo resuelve de raiz: los dos resumenes miden siempre 32
+ * bytes, asi que `timingSafeEqual` nunca puede fallar por longitud y no queda
+ * nada que medir. `timingSafeEqual` es la comparacion en tiempo constante de la
+ * biblioteca estandar, escrita para esto.
  *
  * @param {string} a
  * @param {string} b
@@ -294,10 +358,9 @@ async function readBody(request) {
  */
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+  const resumenA = createHash('sha256').update(a, 'utf8').digest();
+  const resumenB = createHash('sha256').update(b, 'utf8').digest();
+  return timingSafeEqual(resumenA, resumenB);
 }
 
 async function safeText(res) {

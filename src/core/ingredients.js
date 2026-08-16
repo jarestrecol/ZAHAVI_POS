@@ -40,7 +40,7 @@ import { normalize } from '../lib/format.js';
  * @property {number} lineas           en cuantas lineas aparece
  * @property {number} recetas          en cuantas recetas distintas aparece
  * @property {Array<{unidad: string, total: number}>} totales  gasto por unidad
- * @property {Array<{id: string, nombre: string}>} enRecetas   donde se usa
+ * @property {Array<{id: string, nombre: string, categoria: string}>} enRecetas  donde se usa, en orden alfabetico
  */
 
 /**
@@ -50,7 +50,7 @@ import { normalize } from '../lib/format.js';
  * @returns {Array<Ingrediente>} ordenado de mas usado a menos
  */
 export function catalogoIngredientes(recipes) {
-  /** @type {Map<string, Ingrediente & {_unidades: Map<string, number>, _recetas: Map<string, string>}>} */
+  /** @type {Map<string, Ingrediente & {_unidades: Map<string, number>, _recetas: Map<string, {nombre: string, categoria: string}>}>} */
   const mapa = new Map();
 
   for (const recipe of recipes || []) {
@@ -78,7 +78,10 @@ export function catalogoIngredientes(recipes) {
 
         const entrada = mapa.get(clave);
         entrada.lineas += 1;
-        entrada._recetas.set(recipe.id, recipe.nombre);
+        // Se guarda tambien la categoria: la lista desplegada la usa para poner
+        // el punto de color, la misma señal de lectura rapida que el listado
+        // principal. Sin ella habria que volver a buscar cada receta por id.
+        entrada._recetas.set(recipe.id, { nombre: recipe.nombre, categoria: recipe.categoria });
 
         const unidad = String(item.unidad || '').trim().toUpperCase() || '—';
         const cantidad = numero(item.cantidad);
@@ -96,7 +99,11 @@ export function catalogoIngredientes(recipes) {
     totales: [...entrada._unidades.entries()]
       .map(([unidad, total]) => ({ unidad, total }))
       .sort((a, b) => b.total - a.total),
-    enRecetas: [...entrada._recetas.entries()].map(([id, nombre]) => ({ id, nombre })),
+    // Alfabetico: la lista se recorre buscando una receta concreta, y el orden
+    // de aparicion en el archivo no ayuda a nadie a encontrarla.
+    enRecetas: [...entrada._recetas.entries()]
+      .map(([id, receta]) => ({ id, nombre: receta.nombre, categoria: receta.categoria }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
   }));
 
   return ordenarPorUso(catalogo);

@@ -149,9 +149,13 @@
 
 /* ---- Editor ---- */
 
+/* Cuatro columnas: nombre, cantidad del rendimiento, su unidad y la categoria.
+   La cantidad es estrecha a proposito (son cifras de uno o dos digitos) y la
+   unidad justo lo necesario para "porciones", la etiqueta mas larga. */
 .editor__identity {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 12rem;
+  grid-template-columns: minmax(0, 1fr) 6rem 9rem 12rem;
+  align-items: start;
   gap: var(--space-4);
   padding: var(--space-5);
   background: var(--surface-sunk);
@@ -160,6 +164,35 @@
 
 .editor__name {
   min-width: 0;
+}
+
+/* Cantidad y unidad se declaran como celdas propias de la rejilla exterior,
+   no como una subrejilla: asi sus etiquetas caen a la misma altura que las de
+   nombre y categoria. `display: contents` deja pasar a los hijos. */
+/* `display: contents` deja que la cantidad y la unidad sean celdas de la
+   rejilla exterior, asi que sus etiquetas caen a la altura de las de nombre y
+   categoria. El `fieldset` esta solo por semantica: no dibuja nada. La leyenda
+   es `sr-only`, es decir esta fuera de flujo, asi que tampoco ocupa celda. */
+.editor__rinde {
+  display: contents;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.editor__rinde-cantidad,
+.editor__rinde-unidad,
+.editor__categoria {
+  min-width: 0;
+}
+
+/* Aclaracion bajo un campo. Explica una regla de escritura sin ocupar el
+   espacio de un aviso: es texto de apoyo, no una alerta. */
+.field-hint {
+  margin-top: var(--space-1);
+  font-size: var(--text-2xs);
+  line-height: 1.4;
+  color: var(--ink-4);
 }
 
 .editor__panes {
@@ -940,14 +973,87 @@
 
 /* ---- Recetas donde entra ---- */
 
+/* Rejilla de altura uniforme: cada receta ocupa exactamente una fila de
+   `--tap-row`, con el texto en una sola linea. La version anterior dejaba que
+   cada enlace creciera a su aire, asi que un nombre largo partido en dos lineas
+   estiraba su fila y descuadraba el texto de las entradas cortas que tenia al
+   lado. Fijar altura y linea es lo que pone las tres o cuatro columnas a plomo.
+
+   `align-content: start` evita que las filas se repartan el espacio sobrante
+   cuando el ingrediente entra en pocas recetas. */
 .ings__recetas-lista {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: var(--space-1) var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  align-content: start;
+  gap: 0 var(--space-4);
   margin: 0 0 var(--space-3);
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-3);
   background: var(--surface-sunk);
   border-radius: var(--radius-sm);
+}
+
+.ings__receta {
+  min-width: 0;
+}
+
+.ings__receta-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  height: var(--tap-row);
+  padding: 0 var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: left;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.ings__receta-btn:hover {
+  background: var(--surface-card);
+  color: var(--amber-text);
+}
+
+.ings__receta-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cat-otros);
+}
+
+.ings__receta-btn[data-category='PASTELERÍA'] .ings__receta-dot { background: var(--cat-pasteleria); }
+.ings__receta-btn[data-category='PANADERÍA'] .ings__receta-dot { background: var(--cat-panaderia); }
+.ings__receta-btn[data-category='GALLETAS'] .ings__receta-dot { background: var(--cat-galletas); }
+
+/* Una sola linea SIEMPRE: es la condicion que mantiene todas las filas de la
+   misma altura. El nombre completo sigue en el contenido del boton, asi que
+   recortarlo aqui no le quita nada a quien usa lector de pantalla. */
+.ings__receta-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Rendimiento como distintivo, en cifra monoespaciada y tono secundario: es lo
+   que separa dos recetas de igual nombre, no parte del nombre. */
+.ings__receta-rinde,
+.plan__sugerencia-rinde,
+.plan__elegida-rinde-base,
+.plan__origen-rinde {
+  flex-shrink: 0;
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
 }
 
 .ings__vacio {

@@ -130,6 +130,17 @@
   .plan__resultado {
     --plan-cols: minmax(0, 1fr) 5.5rem;
   }
+
+  /* Identidad del editor: las cuatro columnas no caben. La categoria baja a su
+     propia linea a todo el ancho y el rendimiento se queda junto al nombre,
+     que es donde tiene sentido leerlo. */
+  .editor__identity {
+    grid-template-columns: minmax(0, 1fr) 5.5rem 8rem;
+  }
+
+  .editor__categoria {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ===========================================================================
@@ -344,12 +355,24 @@
     }
   }
 
-  .editor__identity,
   .editor__panes,
   .settings__grid,
   .settings__grid--3,
   .plan {
     grid-template-columns: 1fr;
+  }
+
+  /* En celular la identidad va en dos columnas, no en una: cantidad y unidad
+     del rendimiento son campos cortos y se leen como una sola pregunta, asi
+     que apilarlos por separado alargaria la pantalla sin ganar nada. Nombre y
+     categoria si ocupan la fila entera. */
+  .editor__identity {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .editor__name,
+  .editor__categoria {
+    grid-column: 1 / -1;
   }
 
   /* --- Validador de ingredientes ---------------------------------------

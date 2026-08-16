@@ -22,6 +22,7 @@ import {
   esEscalable,
   normalizarFactor,
   rendimientoBase,
+  rendimientoEscalado,
   tieneMedidasFijas,
 } from '../core/scale.js';
 
@@ -149,13 +150,16 @@ export function renderDetail(params) {
             on: { click: () => navigate({ name: 'index', id: null }) },
           }),
 
-          // Pesar es la accion estrella de la ficha: la que se pulsa cada vez
-          // que arranca una tanda. Lleva el naranja de marca, el unico relleno
-          // fuerte de la barra, para que se distinga del resto sin leer.
+          // Pesar es la accion estrella de la FICHA: la que se pulsa cada vez
+          // que arranca una tanda. Lleva relleno solido para distinguirse sin
+          // leer, pero en tinta y no en el ambar de marca. El ambar es de "la
+          // accion principal de la aplicacion" y ya lo tiene Nueva receta, en
+          // la barra superior, que en escritorio esta a la vista al mismo
+          // tiempo: dos rellenos de marca compitiendo dejan de significar nada.
           actionButton({
             label: 'Pesar',
             icon: ICON_PESAR,
-            variant: 'btn--accent btn--action',
+            variant: 'btn--primary btn--action',
             ariaLabel: 'Abrir modo producción para pesar',
             onClick: () => setState({ production: recipe.id }),
           }),
@@ -217,15 +221,10 @@ export function renderDetail(params) {
  * @returns {string}
  */
 function rendimientoTexto(recipe, factor) {
-  const { rinde } = splitName(recipe.nombre);
-  if (factor === FACTOR_ORIGINAL) return rinde.toLowerCase();
-
-  const base = rendimientoBase(recipe.nombre);
-  if (base === null) return rinde.toLowerCase();
-
-  // Se conserva la unidad que traia el nombre ("und", "porciones"...).
-  const unidad = rinde.replace(/^[\d.,\s]+/, '').trim().toLowerCase();
-  return `${formatQty(base * factor)}${unidad ? ' ' + unidad : ''}`;
+  // La regla vive en `core/scale.js`. Estaba escrita aqui dentro, y por eso la
+  // hoja impresa no la aplicaba: con la tanda escalada la pantalla decia una
+  // cifra y el papel otra.
+  return rendimientoEscalado(recipe.nombre, factor);
 }
 
 /**
@@ -235,7 +234,7 @@ function rendimientoTexto(recipe, factor) {
  *
  *    MULTIPLICADOR   "el doble de lo normal"      -> sirve para las 121
  *    CANTIDAD        "necesito 24 unidades"       -> solo si el nombre declara
- *                                                    el rendimiento (102 de 121)
+ *                                                    el rendimiento (87 de 121)
  *
  * No guarda nada: al cambiar de receta vuelve al original. Ver `core/scale.js`.
  *

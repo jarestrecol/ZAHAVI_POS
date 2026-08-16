@@ -561,6 +561,160 @@ const escalador = await import(pathToFileURL(repoRoot + '/src/core/scale.js').hr
 comprobar('los limites del factor son publicos', escalador.FACTOR_MIN === 0.05 && escalador.FACTOR_MAX === 100);
 comprobar('y normalizarFactor recorta hasta ellos', escalador.normalizarFactor(500) === escalador.FACTOR_MAX);
 
+/* ---------------------------------------------------------------------------
+ *  RENDIMIENTO COMO CAMPO PROPIO DEL EDITOR
+ *
+ *  El editor separa el nombre en base + cantidad + unidad al abrir, y lo vuelve
+ *  a juntar al guardar. Lo que se protege aqui es lo unico que no se puede
+ *  romper: abrir una receta y guardarla SIN tocar el rendimiento tiene que
+ *  devolver el nombre identico. 13 de las 121 usan `x` minuscula o "2UND" sin
+ *  espacio, asi que componer la forma canonica a ciegas las reescribiria y
+ *  cambiaria la identidad con la que aparecen en el plan y en el catalogo.
+ * ------------------------------------------------------------------------ */
+
+console.log('\n5g. Rendimiento en el editor');
+const formato = await import(pathToFileURL(repoRoot + '/src/lib/format.js').href);
+
+/** Reproduce lo que hace el editor entre abrir y guardar sin tocar nada. */
+function abrirYGuardarSinTocar(nombre) {
+  const p = formato.splitYield(nombre);
+  const original = formato.splitYield(nombre);
+  const sinCambios =
+    p.base.trim() === original.base.trim() &&
+    p.cantidad.trim() === original.cantidad.trim() &&
+    p.unidad.trim() === original.unidad.trim();
+  return sinCambios ? nombre : formato.composeName(p.base, p.cantidad, p.unidad);
+}
+
+const todasLasRecetas = repo.findAll();
+const nombresIntactos = todasLasRecetas.filter((r) => abrirYGuardarSinTocar(r.nombre) === r.nombre);
+comprobar(
+  'abrir y guardar sin tocar el rendimiento deja los 121 nombres identicos',
+  nombresIntactos.length === todasLasRecetas.length,
+  `${nombresIntactos.length}/${todasLasRecetas.length}`,
+);
+
+// Las tres partes se separan bien en los formatos que hay de verdad.
+comprobar(
+  'separa el formato normal',
+  JSON.stringify(formato.splitYield('ALMOJÁBANA (LEÓN) X 15 UND')) ===
+    JSON.stringify({ base: 'ALMOJÁBANA (LEÓN)', cantidad: '15', unidad: 'UND' }),
+);
+comprobar(
+  'separa la x minuscula',
+  JSON.stringify(formato.splitYield('BROWNIE HOBANY x 24 UND')) ===
+    JSON.stringify({ base: 'BROWNIE HOBANY', cantidad: '24', unidad: 'UND' }),
+);
+comprobar(
+  'separa el rendimiento sin unidad',
+  JSON.stringify(formato.splitYield('GALLETAS SUGAR COOKIE x 5')) ===
+    JSON.stringify({ base: 'GALLETAS SUGAR COOKIE', cantidad: '5', unidad: '' }),
+);
+comprobar(
+  'separa el pegado sin espacio',
+  JSON.stringify(formato.splitYield('PAN BAGUETTE X 4UND')) ===
+    JSON.stringify({ base: 'PAN BAGUETTE', cantidad: '4', unidad: 'UND' }),
+);
+comprobar(
+  'conserva entero el rendimiento doble',
+  formato.splitYield('BAGUEL NORMAL X 32 UND O 8 PAQ.').unidad === 'UND O 8 PAQ.',
+  formato.splitYield('BAGUEL NORMAL X 32 UND O 8 PAQ.').unidad,
+);
+comprobar(
+  'una receta sin rendimiento no inventa ninguno',
+  formato.splitYield('PONQUE BASICO').cantidad === '' &&
+    formato.splitYield('PONQUE BASICO').unidad === '',
+);
+
+// Al cambiar el rendimiento SI se reescribe, y en forma canonica.
+comprobar(
+  'cambiar el rendimiento escribe la forma canonica',
+  formato.composeName('BROWNIE HOBANY', '30', 'UND') === 'BROWNIE HOBANY X 30 UND',
+  formato.composeName('BROWNIE HOBANY', '30', 'UND'),
+);
+comprobar(
+  'sin unidad no deja un espacio colgando',
+  formato.composeName('GALLETAS', '5', '') === 'GALLETAS X 5',
+  JSON.stringify(formato.composeName('GALLETAS', '5', '')),
+);
+comprobar(
+  'sin cantidad no escribe la X',
+  formato.composeName('PONQUE BASICO', '', 'UND') === 'PONQUE BASICO',
+  formato.composeName('PONQUE BASICO', '', 'UND'),
+);
+comprobar('un nombre vacio sigue vacio', formato.composeName('', '5', 'UND') === '');
+
+// Lo que de verdad importa del cambio: el nombre que compone el editor tiene
+// que ser legible por el escalado, que es quien lee esa cifra para saber cuanto
+// rinde una tanda. (El recuento de las 87 recetas con rendimiento ya se
+// comprueba mas arriba, en la seccion de escalado.)
+comprobar(
+  'un nombre compuesto por el editor lo lee el escalado',
+  escalador.rendimientoBase(formato.composeName('TORTA NUEVA', '12', 'UND')) === 12,
+);
+comprobar(
+  'y uno sin unidad tambien',
+  escalador.rendimientoBase(formato.composeName('GALLETAS NUEVAS', '30', '')) === 30,
+);
+
+// La lista del desplegable de unidades. Es la pieza que evita perder la mitad
+// del rendimiento de BAGUEL NORMAL al abrir su ficha y guardarla.
+const UNIDADES = ['UND', 'PAQ.', 'CAJAS', 'PORCIONES'];
+comprobar(
+  'conserva una unidad desconocida como opcion propia',
+  formato.yieldUnitList(UNIDADES, 'UND O 8 PAQ.').includes('UND O 8 PAQ.'),
+);
+comprobar(
+  'no duplica una unidad ya conocida',
+  formato.yieldUnitList(UNIDADES, 'UND').length === UNIDADES.length,
+);
+comprobar(
+  'sin unidad no añade nada',
+  formato.yieldUnitList(UNIDADES, '').length === UNIDADES.length,
+);
+comprobar(
+  'y no modifica la lista que recibe',
+  (() => {
+    const copia = [...UNIDADES];
+    formato.yieldUnitList(copia, 'RARA');
+    return copia.length === UNIDADES.length;
+  })(),
+);
+
+// Todas las unidades reales del catalogo sobreviven al desplegable.
+const unidadesReales = [...new Set(todasLasRecetas.map((r) => formato.splitYield(r.nombre).unidad).filter(Boolean))];
+comprobar(
+  'todas las unidades del catalogo caben en el desplegable',
+  unidadesReales.every((u) => formato.yieldUnitList(UNIDADES, u).includes(u)),
+  unidadesReales.join(' | '),
+);
+
+// El rendimiento escalado: la regla que la hoja impresa no aplicaba.
+comprobar(
+  'el rendimiento escalado multiplica con la tanda',
+  escalador.rendimientoEscalado('TORTA DE BANANO X 2 UND', 3) === '6 und',
+  escalador.rendimientoEscalado('TORTA DE BANANO X 2 UND', 3),
+);
+comprobar(
+  'con tanda original no toca el texto',
+  escalador.rendimientoEscalado('TORTA DE BANANO X 2 UND', 1) === '2 und',
+  escalador.rendimientoEscalado('TORTA DE BANANO X 2 UND', 1),
+);
+comprobar(
+  'sin rendimiento declarado devuelve vacio',
+  escalador.rendimientoEscalado('PONQUE BASICO', 3) === '',
+);
+
+// La guarda que impide que los dos lectores del rendimiento se separen.
+comprobar(
+  'splitYield y rendimientoBase coinciden en las 121 recetas',
+  todasLasRecetas.every((r) => {
+    const c = formato.splitYield(r.nombre).cantidad;
+    const esperado = c === '' ? null : parseFloat(c.replace(',', '.'));
+    return escalador.rendimientoBase(r.nombre) === (esperado === null || !(esperado > 0) ? null : esperado);
+  }),
+);
+
 // Sobre el catalogo real, con recetas de verdad.
 const tresReales = repo.findAll().slice(0, 3).map((r) => ({ recipe: r, factor: 1 }));
 const planReal = planificador.consolidar(tresReales);
