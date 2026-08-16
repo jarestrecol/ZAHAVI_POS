@@ -23,7 +23,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-6) var(--space-4);
+  padding: var(--space-5) var(--gutter) var(--space-4);
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
@@ -110,16 +110,39 @@
  * Cada uno tiene identidad propia para poder reconocerlo sin leer la palabra,
  * que es lo que hace falta cuando se usa cien veces al dia:
  *
- *     Pesar      relleno de tinta (btn--primary)
+ *     Recetas    volver: relleno oscuro, el de la estructura (btn--back)
+ *     Pesar      relleno ambar de marca (btn--accent)
  *     Imprimir   discreto, icono en gris
  *     Editar     discreto, icono e hover en ambar
  *     Eliminar   discreto, icono e hover en rojo
  *
- * Solo Pesar lleva relleno solido: si los cuatro compitieran, ninguno
- * destacaria. Va en TINTA y no en el ambar de marca: ese esta reservado a la
- * accion principal de la aplicacion (Nueva receta, en la barra superior), que
- * en escritorio se ve al mismo tiempo que esta barra.
+ * DOS piezas con relleno y tres sin el. No es una excepcion a la regla de un
+ * solo acento: son dos cosas distintas. El oscuro es NAVEGACION, la misma
+ * estructura oscura del listado al que devuelve; el ambar es ACCION. Todo lo
+ * que pasa dentro de la receta va en blanco.
+ *
+ * Antes volver era un boton discreto mas. En escritorio se nota poco, pero en
+ * la barra flotante del celular los cinco se reparten el ancho a partes
+ * iguales y la salida quedaba indistinguible de Imprimir o Editar.
  */
+
+/* Volver: estructura oscura. Texto `--on-rail` sobre `--rail`, 15,9:1. */
+.btn--back {
+  background: var(--rail);
+  color: var(--on-rail);
+  border-color: var(--rail);
+}
+
+.btn--back:hover {
+  background: var(--rail-2);
+  color: var(--on-rail);
+  border-color: var(--rail-2);
+}
+
+.btn--back .btn__icon {
+  color: var(--amber-on-rail);
+}
+
 .btn--action {
   min-height: var(--tap-row);
   padding-left: var(--space-4);
@@ -210,7 +233,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3) 0;
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-4) var(--gutter);
   background: var(--surface-sunk);
   background-image: var(--texture-dot);
   background-size: 18px 18px;
@@ -274,10 +297,29 @@
  *  saber, sin leer, que esas cifras no son las de la formula.
  * ========================================================================== */
 
+/*
+ * SE LEE COMO UN CONTROL, NO COMO UN DATO.
+ *
+ * Justo encima va la ficha tecnica (Rinde, Componentes, Ingredientes), que son
+ * cifras de LECTURA: se miran y no se tocan. La tanda es lo contrario, y las
+ * dos franjas compartian fondo hundido y linea inferior, asi que se leian como
+ * dos filas del mismo bloque de datos. Quien miraba la pantalla no tenia forma
+ * de saber que aqui SI se puede intervenir.
+ *
+ * Tres señales lo separan, y ninguna depende del color solo:
+ *   - superficie ELEVADA (tarjeta blanca con sombra), frente a la hundida de
+ *     los datos
+ *   - una barra ambar en el costado, del ancho de un dedo, que marca la franja
+ *     donde se actua
+ *   - el rotulo "Tanda" como etiqueta con relleno, no como texto suelto
+ */
 .scaler {
-  padding: var(--space-4) var(--space-6);
-  background: var(--surface-sunk);
-  border-bottom: 1px solid var(--line);
+  margin: var(--space-4) var(--gutter);
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: inset 4px 0 0 0 var(--amber), var(--shadow-xs);
 }
 
 .scaler__row {
@@ -287,12 +329,19 @@
   gap: var(--space-3);
 }
 
+/* Rotulo con relleno: dice "esto es un mando" antes de leer la palabra.
+   Tinta `--brand-strong` y no `--amber-text`: sobre el ambar suave, el segundo
+   se queda en 4,61:1 y este sube a 5,25:1. En un rotulo de 11px el margen
+   importa. */
 .scaler__label {
+  padding: 0.2rem 0.6rem;
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: var(--track-loose);
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--brand-strong);
+  background: var(--amber-soft);
+  border-radius: var(--radius-sm);
 }
 
 /* Control segmentado: los botones se tocan entre si y comparten marco, para
@@ -385,7 +434,7 @@
    percibia donde acababa una y empezaba la siguiente. */
 
 .block {
-  padding: var(--space-6) var(--space-6) 0;
+  padding: var(--space-6) var(--gutter) 0;
 }
 
 /* Linea a todo el ancho entre secciones consecutivas, nunca antes de la
@@ -562,7 +611,7 @@
 
 .method {
   max-width: 68ch;
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-5) var(--gutter);
   font-size: var(--text-md);
   line-height: 1.8;
   color: var(--ink-2);

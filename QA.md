@@ -104,7 +104,10 @@ Entrar con `zahavi` / `zahavi2026`.
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 25 | Los cuatro botones tienen icono y texto | Balanza, impresora, lápiz, papelera |
+| 25 | Los botones tienen icono y texto | Flecha, balanza, impresora, lápiz, papelera |
+| 25a | **Recetas** (volver) | Relleno **oscuro**, se distingue a la primera del resto |
+| 25b | **Pesar** | Relleno **ámbar**, la única acción de marca de la barra |
+| 25c | Los otros tres | Sobre blanco, con el color solo en el icono |
 | 26 | **Eliminar** está separado del resto | Línea vertical entre Editar y Eliminar |
 | 27 | **Pesar** | Pantalla completa, un ingrediente a la vez |
 | 28 | En Pesar, barra espaciadora | Da por pesado y avanza |
@@ -126,6 +129,7 @@ Entrar con `zahavi` / `zahavi2026`.
 
 | # | Comprobación | Esperado |
 |---|---|---|
+| 34 | El módulo de tanda frente a la ficha técnica | Se distinguen a la primera: la tanda es **tarjeta elevada con barra ámbar**, los datos son franja hundida |
 | 34a | Pulsar ×2 en una receta | Todas las cantidades se duplican en pantalla |
 | 34b | El rendimiento de la ficha técnica | También se duplica |
 | 34c | Aviso de tanda escalada | Visible mientras el factor no sea el original |
@@ -224,6 +228,9 @@ Entrar con `zahavi` / `zahavi2026`.
 
 | # | Comprobación | Esperado |
 |---|---|---|
+| 55a | El botón de Ajustes de la barra superior | Es **solo un engranaje**, sin la palabra, en escritorio, tableta y celular |
+| 55b | Dejar el cursor encima | Aparece "Ajustes" |
+| 55c | Con lector de pantalla | Se anuncia como "Ajustes, botón" |
 | 56 | Abrir Ajustes | Tres bloques: estado, quién puede entrar, mi clave |
 | 57 | Estado del recetario | Número de recetas y versión publicada |
 | 58 | Sin cambios pendientes | "Este equipo está igual que la versión publicada" |
@@ -274,8 +281,25 @@ Entrar con `zahavi` / `zahavi2026`.
 | 85 | Celular (< 768 px) | Se turnan; al abrir una receta **entra como pantalla nueva**, no aparece comprimida abajo |
 | 86 | Celular: acciones de la receta | Barra flotante abajo, al alcance del pulgar |
 | 87 | Celular: diálogos | Suben desde el borde inferior como una hoja |
-| 88 | Celular: filtros de categoría | Se deslizan en horizontal |
+| 88 | Celular: filtros de categoría | Dos columnas, sin desplazamiento horizontal |
 | 89 | Cualquier tamaño | Sin desplazamiento horizontal de la página |
+
+### 2.10a Márgenes y barra superior
+
+Probar en **Pixel (360 px)**, iPhone SE (375 px) y tableta (768–991 px).
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 89a | Ancho 320 px | **Nada se sale por el borde**: sin desplazamiento lateral en ninguna pantalla |
+| 89b | Ficha de receta en celular | Las cinco franjas (cabecera, datos, tanda, ingredientes, método) con **el mismo margen lateral**, 16 px |
+| 89c | La misma ficha en tableta | Igual, pero con 24 px, y ninguna franja con un margen distinto |
+| 89d | Listado en celular y tableta | Los nombres de receta **no tocan el borde** |
+| 89e | Barra superior en celular | Solo iconos: plan, ingredientes, nueva receta y engranaje. Cabe en **una sola fila** |
+| 89f | Altura de la barra en celular | Notablemente más baja que antes; los botones de la ficha **conservan su tamaño** |
+| 89g | Los iconos de la barra con lector de pantalla | Cada uno se anuncia con su nombre completo |
+| 89h | Barra flotante de la ficha en celular | **Recetas** y **Pesar** con texto; imprimir, editar y eliminar como iconos cuadrados |
+| 89i | Esos tres iconos con lector de pantalla | "Imprimir la receta", "Editar la receta", "Eliminar la receta" |
+| 89j | Modo Pesar en celular | Cabecera, cifra y pie con margen lateral, no pegados al borde |
 
 ### 2.11 Accesibilidad
 

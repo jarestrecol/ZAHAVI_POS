@@ -11,6 +11,13 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100%;
+  /* Guarda contra el desplazamiento lateral. Una sola pieza que se pase de
+     ancho arrastra la pagina entera y deja el texto de las demas cortado por
+     el borde, que es como se manifiesta y por eso cuesta encontrar la causa.
+     No tapa el problema: el desbordamiento se corrige donde nace, pero una
+     aplicacion que se usa de pie no puede permitirse descubrirlo en el
+     obrador. */
+  overflow-x: hidden;
   background: var(--surface);
   color: var(--ink);
   /* La interfaz va en sans: es lo que la separa de un libro de cocina y la
@@ -356,6 +363,19 @@ button {
   background: rgba(245, 241, 234, 0.14);
   color: var(--on-rail);
   border-color: rgba(245, 241, 234, 0.4);
+}
+
+/* Boton que solo lleva icono. Cuadrado, con el objetivo tactil completo: el
+   nombre vive en `aria-label` y en `title`, nunca se pierde. */
+.btn--solo-icono {
+  width: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0;
+}
+
+.btn--solo-icono .btn__icon {
+  width: 18px;
+  height: 18px;
 }
 
 .btn--block {

@@ -107,11 +107,23 @@
     column-count: 1;
   }
 
-  .sheet-head,
-  .facts,
-  .block {
-    padding-left: var(--space-4);
-    padding-right: var(--space-4);
+  /* Canalón de tableta: 24px. Antes eran 16px, y solo para tres de las cinco
+     franjas de la ficha, así que la tanda y el método quedaban con los 32px de
+     escritorio mientras las otras tres se estrechaban. El resultado se leía
+     como texto pegado al borde en unas franjas y con aire en otras. */
+  :root {
+    --gutter: max(var(--space-5), env(safe-area-inset-left, 0px));
+  }
+
+  /* El listado pasa a ocupar la pantalla entera, asi que deja de ser una
+     columna estrecha con su propio ritmo y necesita el mismo canalon que la
+     ficha. Con los 12px de la version de escritorio, los nombres de receta
+     quedaban tocando el borde justo cuando mas sitio hay. */
+  .sidebar__filters,
+  .sidebar__search,
+  .sidebar__list {
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
   }
 
   .booting__body {
@@ -164,17 +176,40 @@
     --tap-min: 2.75rem;
     --tap-row: 3.25rem;
     --sidebar-w: 100%;
+
+    /* Canalón de celular: 16px. Antes cada franja declaraba el suyo por
+       separado y quedaban en 12px, que en una pantalla de 360px deja el texto
+       casi tocando el borde y toda la ficha se lee como un bloque apilado. */
+    --gutter: max(var(--space-4), env(safe-area-inset-left, 0px));
   }
 
-  /* --- Barra superior --------------------------------------------------- */
+  /* --- Barra superior ---------------------------------------------------
+   *
+   * LA BARRA SE ENCOGE; EL RESTO DE LA APLICACION NO.
+   *
+   * Con texto, los cuatro botones mas la marca median unos 430px. En una
+   * pantalla de 360 eso no cabe, y como `.topbar__actions` lleva
+   * `flex-shrink: 0` y los botones `white-space: nowrap`, no habia nada que
+   * cediera: lo que sobraba se salia por el borde derecho. Ese era el texto
+   * que se perdia en los bordes de Android, y en iPhone se notaba menos solo
+   * porque sus pantallas son mas anchas, no porque estuviera bien.
+   *
+   * En celular la barra se queda con los iconos. Cuatro cuadrados de 36px mas
+   * los huecos son 168px: caben de sobra incluso en 320. El nombre de cada uno
+   * sigue en `aria-label`, asi que no se pierde para el lector de pantalla.
+   *
+   * Los 36px son solo de ESTA barra. `--tap-min` sigue en 44px, asi que los
+   * botones de la ficha, de los dialogos y del listado conservan su tamaño.
+   * 36 sigue muy por encima de los 24 que exige la norma para un objetivo.
+   */
   .topbar {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-3);
   }
 
   .topbar__wordmark {
-    font-size: 1.0625rem;
-    letter-spacing: 0.16em;
-    margin-right: -0.16em;
+    font-size: 1rem;
+    letter-spacing: 0.14em;
+    margin-right: -0.14em;
   }
 
   /* El descriptor sobra cuando el ancho aprieta: el nombre ya identifica. */
@@ -183,11 +218,15 @@
     display: none;
   }
 
-  /* Botones mas estrechos: en un celular no caben "Nueva receta" y "Ajustes"
-     con el relleno de escritorio. */
   .topbar__actions .btn {
-    padding-left: var(--space-3);
-    padding-right: var(--space-3);
+    width: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0;
+  }
+
+  .topbar__actions .btn__label {
+    display: none;
   }
 
   /* --- Listado ----------------------------------------------------------
@@ -211,15 +250,17 @@
      conteo, y las cuatro categorias caben en dos filas sin necesidad de
      desplazamiento horizontal. */
   .sidebar__filters {
-    padding: var(--space-3) var(--space-3) var(--space-2);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-2);
   }
 
   /* --- Ficha de receta -------------------------------------------------- */
   .sheet-head {
     /* Deja de estar pegada arriba: en una pantalla baja se comeria un tercio
-       del espacio util al desplazar. */
+       del espacio util al desplazar. El lateral lo pone `--gutter`. */
     position: static;
-    padding: var(--space-4) var(--space-3) var(--space-3);
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-3);
   }
 
   .sheet-head__title {
@@ -252,18 +293,46 @@
     }
   }
 
+  /*
+   * REPARTO DE LA BARRA FLOTANTE.
+   *
+   * Antes los cinco botones se repartian el ancho a partes iguales y se
+   * quedaban solo con el texto. En un Pixel de 360px eso deja unos 59px por
+   * boton, y "Imprimir" a 13px necesita 55 mas el relleno: el texto salia
+   * apretado o partido, y era lo que se veia como botones amontonados.
+   *
+   * El reparto pasa a ser por importancia. Volver y Pesar son las dos que se
+   * usan de verdad con el telefono en la mano, y se quedan con texto e icono
+   * repartiendose el espacio libre. Imprimir, Editar y Eliminar pasan a
+   * cuadrados de solo icono con su ancho fijo: se siguen distinguiendo por
+   * forma y color, y su nombre no se pierde porque va en `aria-label`.
+   *
+   * Cuentas en 360px: 3 cuadrados de 44 y 4 huecos de 8 dejan 164px para los
+   * dos botones con texto, 82 cada uno. "Recetas" cabe con holgura.
+   */
   .sheet-head__actions .btn {
+    min-height: 2.75rem;
+  }
+
+  .sheet-head__actions .btn--back,
+  .sheet-head__actions .btn--accent {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 2.75rem;
     padding-left: var(--space-2);
     padding-right: var(--space-2);
   }
 
-  /* Con cinco botones repartiendose el ancho de un celular no caben icono y
-     texto a la vez. Se queda el texto, que es el que dice lo que hace; el
-     icono es una ayuda visual para pantallas con sitio. */
-  .sheet-head__actions .btn__icon {
+  .sheet-head__actions .btn--print,
+  .sheet-head__actions .btn--edit,
+  .sheet-head__actions .btn--danger {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    padding: 0;
+  }
+
+  .sheet-head__actions .btn--print .btn__label,
+  .sheet-head__actions .btn--edit .btn__label,
+  .sheet-head__actions .btn--danger .btn__label {
     display: none;
   }
 
@@ -285,11 +354,25 @@
 
   .facts {
     gap: var(--space-4);
-    padding: var(--space-3);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
   }
 
   .block {
-    padding: var(--space-5) var(--space-3) 0;
+    padding-top: var(--space-5);
+  }
+
+  /* La tanda pierde el margen lateral y pasa a ocupar el ancho de la franja,
+     como las demas: con 16px de canalon a cada lado, restarle ademas su propio
+     margen dejaba la tarjeta estrecha y descolgada del resto de la ficha. */
+  .scaler {
+    margin-left: var(--gutter);
+    margin-right: var(--gutter);
+    padding: var(--space-3);
+  }
+
+  .scaler__row {
+    gap: var(--space-2);
   }
 
   /* Cifras algo mayores: se leen a distancia de brazo. */
@@ -303,7 +386,15 @@
 
   /* --- Modo Pesar ------------------------------------------------------- */
   .prod__head {
-    padding: var(--space-3);
+    padding: var(--space-3) var(--gutter);
+  }
+
+  .prod__body {
+    padding: var(--space-4) var(--gutter);
+  }
+
+  .prod__step {
+    padding: var(--space-5) var(--space-4);
   }
 
   .prod__name {
@@ -315,8 +406,13 @@
     font-size: 3rem;
   }
 
+  .prod__siguiente {
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+  }
+
   .prod__foot {
-    padding: var(--space-3);
+    padding: var(--space-3) var(--gutter);
   }
 
   .prod__hint {
@@ -409,7 +505,7 @@
      que sale de eso. Se conserva la separacion con un borde arriba, ya que el
      lateral deja de tener sentido apilado. */
   .plan__pane {
-    padding: var(--space-4) var(--space-3);
+    padding: var(--space-4);
   }
 
   .plan__pane--resultado {
@@ -418,7 +514,7 @@
   }
 
   .editor__pane {
-    padding: var(--space-4) var(--space-3);
+    padding: var(--space-4);
   }
 
   .editor__pane:first-child {
@@ -448,7 +544,7 @@
   .row > *:nth-child(4) { grid-area: quitar; }
 
   .settings__row {
-    padding: var(--space-4) var(--space-3);
+    padding: var(--space-4);
   }
 
   .settings__publish-row {

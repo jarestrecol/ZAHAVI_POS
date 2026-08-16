@@ -131,7 +131,10 @@ ningún sitio.
 - **Sin conexión**: la aplicación arranca y se consulta con la red caída.
 - **Instalable** como aplicación (PWA) en escritorio y móvil.
 - **Adaptado** a escritorio, tableta y teléfono, con recorridos distintos en cada
-  uno, no un simple reajuste de anchos.
+  uno, no un simple reajuste de anchos. En el teléfono la barra superior se
+  reduce a iconos y las acciones de la receta viven en una barra flotante al
+  alcance del pulgar; en tableta, el aparato que de verdad se usa en el obrador,
+  se conserva el texto porque hay ancho de sobra.
 
 ---
 
@@ -408,6 +411,15 @@ pie, a distancia de brazo y con posible reflejo.
   así que nombra el ingrediente, **sus totales por unidad** y en cuántas recetas
   entra. Antes se dejaba fuera el total, que es la cifra que da sentido a esa
   pantalla.
+- **Un botón que pierde su texto no pierde su nombre.** En el teléfono, la barra
+  superior y tres acciones de la ficha se quedan solo con el icono para que
+  quepan. El nombre viaja siempre en `aria-label`, nunca únicamente en el texto
+  visible: ocultar ese texto con CSS lo borra también del árbol de
+  accesibilidad, y el botón se quedaría sin nombre.
+- **Los objetivos táctiles se reducen donde toca y no en bloque.** La barra
+  superior baja a 36px en el teléfono; el resto de la aplicación conserva los
+  44px de `--tap-min`. 36 sigue muy por encima de los 24 que exige el criterio
+  2.5.8, y es lo que permite encoger la barra sin encoger nada más.
 - **Nada se corrige solo en silencio.** Cuando el plan rechaza o ajusta un número
   tecleado, lo dice en un nodo visible que además es `role="status"`: el mismo
   texto sirve para quien lo ve y para quien lo escucha, sin duplicar el mensaje.
@@ -522,6 +534,34 @@ herramienta de gestión:
 El botón responde cambiando de superficie, no moviéndose de sitio: el
 levantamiento de un píxel al pasar el cursor convertía cada barrido del ratón
 por la barra en una fila de piezas saltando.
+
+### Qué significa cada relleno
+
+Tres piezas de la barra de la ficha llevan relleno, y cada una dice algo
+distinto. No es decoración repartida:
+
+| Relleno | Significa | Dónde |
+|---|---|---|
+| **Oscuro** (`--rail`) | Navegación: salir de aquí | Volver al listado |
+| **Ámbar** (`--brand-strong`) | Acción principal | Pesar, Nueva receta |
+| **Sin relleno**, color solo en el icono | Acción secundaria | Imprimir, Editar, Eliminar |
+
+El oscuro es el mismo de la estructura y del listado al que devuelve, así que el
+botón de volver se reconoce por su color antes de leerlo. Importa sobre todo en
+el teléfono, donde las cinco acciones viven en una barra flotante y se reparten
+el ancho: allí, un botón de salir con el aspecto de Imprimir es indistinguible.
+
+### El canalón
+
+Un solo token, `--gutter`, para el aire entre el texto y el borde de la
+pantalla: **32px** en escritorio, **24px** en tableta y **16px** en teléfono.
+
+Las cinco franjas de la ficha (cabecera, ficha técnica, tanda, ingredientes y
+método) lo comparten. Antes cada una declaraba el suyo, y los cortes de tableta y
+teléfono volvían a declararlos uno por uno: bastaba olvidar una regla para que esa
+franja quedara pegada al borde mientras las de arriba y abajo respiraban. El
+token lleva `max()` con `env(safe-area-inset-left)`, que hoy vale cero y queda
+listo para el día que se declare `viewport-fit=cover`.
 
 ### Un solo tema
 
@@ -650,7 +690,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 148 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 165 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Auditorías
@@ -775,7 +815,7 @@ scripts/
   test-qa.mjs              Alta y baja masiva de recetas y usuarios
   build-standalone.mjs     Empaquetador de un solo archivo
 
-QA.md                      Lista de verificación manual (148 puntos)
+QA.md                      Lista de verificación manual (165 puntos)
 
 data/
   recipes.json             Recetario publicado

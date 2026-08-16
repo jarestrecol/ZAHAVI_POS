@@ -50,6 +50,9 @@ const VOLUME_UNITS = new Set(['ML', 'L', 'CC']);
  *  que se vean como una familia y no como cuatro dibujos sueltos.
  */
 
+/** Flecha a la izquierda: volver al listado. */
+const ICON_VOLVER = ['M19 12H5', 'M12 19l-7-7 7-7'];
+
 /** Balanza: pesar. */
 const ICON_PESAR = ['M12 4v16', 'M8 20h8', 'M4 8h16', 'M4 8l-2.5 5.5a3 3 0 0 0 5 0z', 'M20 8l2.5 5.5a3 3 0 0 1-5 0z'];
 
@@ -94,7 +97,10 @@ function actionButton(options) {
       attrs: options.ariaLabel ? { 'aria-label': options.ariaLabel } : null,
       on: { click: options.onClick },
     },
-    [icon(options.icon), el('span', { text: options.label })],
+    // La etiqueta lleva clase propia porque en la barra flotante del celular
+    // las acciones secundarias se quedan solo con el icono: sin un gancho para
+    // ocultarla, los cinco botones se reparten el ancho y el texto no cabe.
+    [icon(options.icon), el('span', { class: 'btn__label', text: options.label })],
   );
 }
 
@@ -143,23 +149,25 @@ export function renderDetail(params) {
          * su vecino natural.
          */
         el('div', { class: 'sheet-head__actions no-print' }, [
-          el('button', {
-            type: 'button',
-            class: 'btn btn--quiet sheet-head__back',
-            text: '← Recetas',
-            on: { click: () => navigate({ name: 'index', id: null }) },
+          // Volver al listado. Va en la estructura oscura, la misma del listado
+          // al que devuelve, y no en blanco como las acciones. Antes era un
+          // boton discreto mas entre otros cuatro: en la barra flotante del
+          // celular, donde los cinco se reparten el ancho a partes iguales, no
+          // habia forma de localizar de un vistazo cual era la salida.
+          actionButton({
+            label: 'Recetas',
+            icon: ICON_VOLVER,
+            variant: 'btn--back btn--action sheet-head__back',
+            ariaLabel: 'Volver al listado de recetas',
+            onClick: () => navigate({ name: 'index', id: null }),
           }),
 
-          // Pesar es la accion estrella de la FICHA: la que se pulsa cada vez
-          // que arranca una tanda. Lleva relleno solido para distinguirse sin
-          // leer, pero en tinta y no en el ambar de marca. El ambar es de "la
-          // accion principal de la aplicacion" y ya lo tiene Nueva receta, en
-          // la barra superior, que en escritorio esta a la vista al mismo
-          // tiempo: dos rellenos de marca compitiendo dejan de significar nada.
+          // Pesar es la accion estrella de la ficha: la que se pulsa cada vez
+          // que arranca una tanda, y la unica de la barra con relleno de marca.
           actionButton({
             label: 'Pesar',
             icon: ICON_PESAR,
-            variant: 'btn--primary btn--action',
+            variant: 'btn--accent btn--action',
             ariaLabel: 'Abrir modo producción para pesar',
             onClick: () => setState({ production: recipe.id }),
           }),
@@ -168,6 +176,7 @@ export function renderDetail(params) {
             label: 'Imprimir',
             icon: ICON_IMPRIMIR,
             variant: 'btn--quiet btn--action btn--print',
+            ariaLabel: 'Imprimir la receta',
             onClick: () => window.print(),
           }),
 
@@ -176,6 +185,7 @@ export function renderDetail(params) {
                 label: 'Editar',
                 icon: ICON_EDITAR,
                 variant: 'btn--quiet btn--action btn--edit',
+                ariaLabel: 'Editar la receta',
                 onClick: () => navigate({ name: 'edit', id: recipe.id }),
               })
             : null,
@@ -189,6 +199,7 @@ export function renderDetail(params) {
                 label: 'Eliminar',
                 icon: ICON_ELIMINAR,
                 variant: 'btn--quiet btn--danger btn--action',
+                ariaLabel: 'Eliminar la receta',
                 onClick: () => setState({ confirmDelete: recipe.id }),
               })
             : null,
