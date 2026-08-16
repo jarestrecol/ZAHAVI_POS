@@ -310,6 +310,9 @@ Probar en **Pixel (360 px)**, iPhone SE (375 px) y tableta (768–991 px).
 | 95 | Cerrar un diálogo | El foco vuelve donde estaba |
 | 96 | Activar "reducir movimiento" en el sistema | Sin animaciones |
 | 97 | Consola del navegador | **Sin errores** |
+| 98 | Pedir al navegador "traducir esta página" | **No la traduce**: la página lleva `translate="no"` |
+| 99 | Lista de unidades del editor | Dice `und`, `paq.`, `cajas`, `porciones`. **Nunca `y`** |
+| 100 | Nombres de receta e ingredientes | Se leen tal como están escritos, sin palabras sustituidas |
 
 ---
 

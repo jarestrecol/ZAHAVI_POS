@@ -1,5 +1,20 @@
 <!doctype html>
-<html lang="es">
+<!--
+  `translate="no"` NO es una preferencia de idioma: protege los datos.
+
+  El traductor automatico del navegador reescribe el texto que ve, y aqui el
+  texto ES el dato. La unidad "und" es ademas "and" en aleman, asi que el
+  traductor la detectaba como palabra extranjera dentro de una pagina en
+  espanol y la sustituia por "y": en la lista de unidades del editor aparecia
+  "y" donde debia decir "und", y lo mismo podia pasarle a un nombre de receta o
+  a un ingrediente.
+
+  El valor guardado nunca cambio, era solo lo que se pintaba, pero en una
+  pantalla desde la que se pesa una tanda una unidad mal escrita es un error de
+  produccion. Se desactiva la traduccion de la pagina entera: la aplicacion esta
+  escrita en espanol de principio a fin y traducirla solo puede corromperla.
+-->
+<html lang="es" translate="no">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

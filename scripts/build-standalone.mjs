@@ -194,8 +194,11 @@ window.fetch = function (input, init) {
 };
 `;
 
+// `translate="no"` por la misma razon que en index.html: el traductor del
+// navegador reescribia "und" como "y" por parecerle aleman, y aqui el texto que
+// se pinta es el dato de produccion.
 const html = `<!doctype html>
-<html lang="es">
+<html lang="es" translate="no">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

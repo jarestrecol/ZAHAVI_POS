@@ -326,6 +326,13 @@ respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
   etiqueta `<meta>` de respaldo.
 - **Cero peticiones externas**: sin CDN, sin analítica, sin tipografías remotas.
   Las tres familias tipográficas están auto-hospedadas.
+- **Traducción automática desactivada** (`translate="no"`). No es una preferencia
+  de idioma: aquí el texto que se pinta **es el dato**. La unidad `und` es además
+  "and" en alemán, así que el traductor del navegador la tomaba por palabra
+  extranjera dentro de una página en español y la sustituía por `y`. El valor
+  guardado nunca cambió, pero en la pantalla desde la que se pesa una tanda una
+  unidad mal escrita es un error de producción. Lo mismo podía pasarle a un
+  nombre de receta o de ingrediente.
 - **Sin `innerHTML` en todo el proyecto**: `lib/dom.js` es la única vía de
   construcción de nodos y solo escribe texto.
 - **Credenciales con SHA-256**, nunca en claro.
