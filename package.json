@@ -9,7 +9,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "verificar": "node scripts/verificar.mjs",
-    "offline": "node scripts/build-standalone.mjs"
+    "verificar": "node scripts/verificar.mjs"
   }
 }

@@ -27,7 +27,7 @@ let available = null;
  *
  * @returns {boolean}
  */
-export function isStorageAvailable() {
+function isStorageAvailable() {
   if (available !== null) return available;
   try {
     const probe = '__zahavi_probe__';

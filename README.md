@@ -129,7 +129,10 @@ ningún sitio.
 ### Plataforma
 
 - **Sin conexión**: la aplicación arranca y se consulta con la red caída.
-- **Instalable** como aplicación (PWA) en escritorio y móvil.
+- **Instalable** como aplicación (PWA) en escritorio, Android e iPhone, con
+  iconos propios: `maskable` para que Android no lo meta en un círculo blanco
+  con relleno, y `apple-touch-icon` porque iOS ignora los iconos del manifiesto
+  y sin él genera una miniatura de la página.
 - **Adaptado** a escritorio, tableta y teléfono, con recorridos distintos en cada
   uno, no un simple reajuste de anchos. En el teléfono la barra superior se
   reduce a iconos y las acciones de la receta viven en una barra flotante al
@@ -335,6 +338,14 @@ respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
   nombre de receta o de ingrediente.
 - **Sin `innerHTML` en todo el proyecto**: `lib/dom.js` es la única vía de
   construcción de nodos y solo escribe texto.
+- **Una sola clave para todo el equipo, que caduca cada 7 días.** Hubo usuarios
+  con nombre y clave por persona, y se retiraron: se guardaban EN CADA APARATO y
+  no en el servidor, así que dar de alta a alguien en la panadería no lo daba de
+  alta en la casa de producción, y cada baja había que repetirla equipo por
+  equipo. Una lista de usuarios que nadie actualiza es peor que no tenerla,
+  porque aparenta un control que no existe. La caducidad hace el mismo trabajo
+  sin depender de que nadie se acuerde: quien dejó de trabajar aquí deja de
+  entrar en cuanto la clave rota, en todas las sedes a la vez.
 - **Credenciales con SHA-256**, nunca en claro.
 - **Cierre de sesión revoca la clave de edición** en caché, para que quien entre
   después no herede capacidad de publicar.
@@ -711,7 +722,7 @@ Archivo offline…                ok
 
 | Script | Qué comprueba |
 |---|---|
-| `check-css.mjs` | Valores CSS corrompidos, hexadecimales inválidos, llaves sin cerrar, tokens sin definir, clases sin estilo, y que todo módulo esté declarado en el service worker y en el empaquetador |
+| `check-css.mjs` | Valores CSS corrompidos, hexadecimales inválidos, llaves sin cerrar, tokens sin definir, clases sin estilo, y que todo módulo esté declarado en el service worker |
 | `test-datos.mjs` | Arranque limpio, integridad, edición, borrado, recarga con cambios pendientes, conflicto de versiones, descarte y ausencia de red |
 | `test-api.mjs` | Que el recetario real pasa la validación del servidor sin alterarse, que se rechazan los envíos que lo destruirían, y que cliente y servidor coinciden sobre los datos reales |
 | `test-qa.mjs` | Alta y baja masiva (crea 20 recetas y 5 usuarios, comprueba que sobreviven a una recarga, los borra y verifica que el recetario vuelve a su estado inicial), más escalado, catálogo de ingredientes y plan de producción. Del plan se comprueba lo que no se puede romper: que **nunca** suma unidades distintas, que el desglose por receta **cuadra exactamente** con el total de cada línea, que las cantidades cero o negativas se descartan, y que consolidar no altera ni una cifra del recetario |
@@ -722,7 +733,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 182 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 187 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Auditorías
@@ -764,17 +775,24 @@ navegador); extraer una abstracción compartida para las listas desplegables (do
 usos de forma distinta es generalizar antes de tiempo); y migrar el rendimiento a
 un campo propio del esquema, que se analiza en la hoja de ruta.
 
-### Versión de un solo archivo
+### La versión de un solo archivo, retirada
 
-Para llevar el recetario en una memoria USB y abrirlo con doble clic, sin
-servidor:
+Existió un empaquetador que metía CSS, JavaScript, datos y tipografías en un solo
+HTML de 1 MB, para llevar el recetario en una memoria USB y abrirlo con doble
+clic. **Se retiró**, y conviene saber por qué antes de que a alguien se le ocurra
+volver a añadirlo:
 
-```bash
-node scripts/build-standalone.mjs
-```
+- **Duplicaba el modo sin conexión** que ya da el service worker. La aplicación
+  se instala y funciona con la red caída desde el propio sitio.
+- **Costaba mantenimiento en dos sitios.** Cada módulo nuevo había que añadirlo
+  al manifiesto del service worker **y** al del empaquetador. El propio
+  `check-css.mjs` existía en parte para vigilar que las dos listas no divergieran,
+  porque cuando lo hacían el fallo solo aparecía sin conexión o en el archivo
+  suelto, que es justo donde nadie mira.
+- **El artefacto nunca se versionaba**: `dist/` estaba en `.gitignore`, así que
+  no era una entrega, era un archivo que alguien tenía que acordarse de generar.
 
-Genera `dist/Zahavi-Recetario-offline.html` con CSS, JavaScript, datos y
-tipografías incrustados. No comparte almacenamiento con el sitio web.
+Sigue en el historial de git por si algún día hace falta recuperarlo.
 
 ---
 
@@ -813,7 +831,7 @@ src/
     schema.js              Esquema, normalización y validación
     repository.js          Única puerta a los datos
     remote.js              Cliente de /api/recipes
-    users.js               Usuarios y sesión de este dispositivo
+    access.js              Clave del equipo, caducidad semanal y sesión
     store.js               Estado de la aplicación y suscripciones
     router.js              Enrutado por hash
     search.js              Filtrado, orden y recuentos (funciones puras)
@@ -845,9 +863,8 @@ scripts/
   test-datos.mjs           Pruebas de la capa de datos
   test-api.mjs             Pruebas del validador del servidor
   test-qa.mjs              Alta y baja masiva de recetas y usuarios
-  build-standalone.mjs     Empaquetador de un solo archivo
 
-QA.md                      Lista de verificación manual (182 puntos)
+QA.md                      Lista de verificación manual (187 puntos)
 
 data/
   recipes.json             Recetario publicado
@@ -951,7 +968,7 @@ información completa.
 | El contenido es visible para quien tenga el enlace | La clave de usuario no protege el contenido | Si las fórmulas pasan a considerarse secreto industrial |
 | La API de contenidos de GitHub deja de entregar el archivo a partir de 1 MB | Hoy son 230 KB | Antes de llenar los 121 métodos de preparación |
 | El almacenamiento del navegador ronda los 5 MB | Suficiente para texto, no para imágenes | Si se añaden fotografías de producto |
-| Los usuarios son de cada dispositivo, no del servidor | Hay que dar de alta a cada persona en cada equipo | Si el número de personas o equipos crece |
+| La clave es una sola para todo el equipo | No se sabe quién entró, solo que alguien con la clave lo hizo | Si hiciera falta trazabilidad por persona |
 | Los ingredientes se referencian por nombre, no por código | Un cambio de nombre no propaga | Antes del costeo (Fase 2) |
 | Borrar los datos de navegación borra los cambios sin publicar | Lo ya publicado se recupera al recargar | Formar al equipo: publicar al terminar |
 | Ninguna de las 121 recetas tiene método escrito | El campo existe y está vacío en origen | Trabajo de contenido, no técnico |

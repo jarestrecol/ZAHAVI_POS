@@ -8,8 +8,8 @@
  *      1. Si creo 20 recetas, ¿se guardan bien y siguen ahi al recargar?
  *         ¿Y se pueden borrar todas, dejando el recetario como estaba?
  *
- *      2. Si creo 5 usuarios, ¿se guardan? ¿Se puede entrar con ellos?
- *         ¿Se pueden borrar? ¿Y las protecciones aguantan?
+ *      2. La clave del equipo: ¿se puede cambiar? ¿caduca a la semana?
+ *         ¿y nadie se queda fuera al actualizar desde los modelos anteriores?
  *
  *  NO TOCA NINGUN DATO REAL
  *  ------------------------
@@ -57,7 +57,7 @@ globalThis.window = {
   localStorage: storage(almacen),
   sessionStorage: storage(almacenSesion),
   location: { protocol: 'https:', hash: '' },
-  // `users.js` usa crypto.subtle para el SHA-256 de las claves. Node ya
+  // `access.js` usa crypto.subtle para el SHA-256 de la clave. Node ya
   // expone `globalThis.crypto`, pero solo de lectura, asi que se cuelga aqui.
   crypto: webcrypto,
 };
@@ -66,7 +66,7 @@ globalThis.fetch = async () => ({ ok: true, json: async () => JSON.parse(JSON.st
 
 const repo = await import(pathToFileURL(repoRoot + '/src/core/repository.js').href);
 const { validateRecipe } = await import(pathToFileURL(repoRoot + '/src/core/schema.js').href);
-const usuarios = await import(pathToFileURL(repoRoot + '/src/core/users.js').href);
+const acceso = await import(pathToFileURL(repoRoot + '/src/core/access.js').href);
 
 /* ===========================================================================
  *  UTILIDADES DE LA PRUEBA
@@ -747,83 +747,99 @@ comprobar(
 );
 
 /* ===========================================================================
- *  BLOQUE 2: CINCO USUARIOS
+ *  BLOQUE 2: LA CLAVE DEL EQUIPO
+ *
+ *  Ya no hay usuarios: una sola clave que caduca cada semana. Lo que hay que
+ *  proteger aqui son dos cosas. Que nadie se quede fuera al actualizar desde
+ *  los modelos anteriores, y que la caducidad cuente los dias de verdad.
  * ======================================================================== */
 
-console.log('\n7. Usuario de fabrica');
-await usuarios.ensureUsers();
-comprobar('existe un usuario de partida', usuarios.listUsers().length === 1, String(usuarios.listUsers().length));
-comprobar('se llama zahavi', usuarios.listUsers()[0].name === usuarios.DEFAULT_USER, usuarios.listUsers()[0].name);
-comprobar(
-  'entra con la clave de fabrica',
-  await usuarios.verifyUser(usuarios.DEFAULT_USER, usuarios.DEFAULT_PASSWORD),
-);
-comprobar('rechaza una clave incorrecta', !(await usuarios.verifyUser(usuarios.DEFAULT_USER, 'incorrecta')));
-usuarios.signIn(usuarios.DEFAULT_USER);
-comprobar('la sesion queda abierta', usuarios.isSignedIn() === true);
+console.log('\n7. Clave de fabrica');
+await acceso.ensureAccess();
+comprobar('entra con la clave de fabrica', await acceso.verifyPassword(acceso.DEFAULT_PASSWORD));
+comprobar('rechaza una clave incorrecta', !(await acceso.verifyPassword('incorrecta')));
+comprobar('y detecta que sigue siendo la de fabrica', await acceso.isUsingDefaultPassword());
+acceso.signIn();
+comprobar('la sesion queda abierta', acceso.isSignedIn() === true);
 
-console.log('\n8. Crear 5 usuarios');
-const creados = [];
-for (let n = 1; n <= 5; n += 1) {
-  const nombre = `qa-test-${n}`;
-  const clave = `ClaveDePrueba${n}`;
-  const resultado = await usuarios.createUser(nombre, clave, clave);
-  if (resultado.ok) creados.push(nombre);
-  else comprobar(`crear ${nombre}`, false, resultado.message);
-}
-comprobar('se crearon los 5', creados.length === 5, String(creados.length));
-comprobar('la lista tiene 6 (fabrica + 5)', usuarios.listUsers().length === 6, String(usuarios.listUsers().length));
-
-console.log('\n9. Los 5 pueden entrar de verdad');
-let entran = 0;
-for (let n = 1; n <= 5; n += 1) {
-  if (await usuarios.verifyUser(`qa-test-${n}`, `ClaveDePrueba${n}`)) entran += 1;
-}
-comprobar('los 5 entran con su clave', entran === 5, String(entran));
-comprobar('no entran con la clave de otro', !(await usuarios.verifyUser('qa-test-1', 'ClaveDePrueba2')));
-comprobar('no entra un usuario inventado', !(await usuarios.verifyUser('qa-test-99', 'ClaveDePrueba1')));
-
-console.log('\n10. Protecciones al crear');
-let r = await usuarios.createUser('qa-test-1', 'OtraClave123', 'OtraClave123');
-comprobar('rechaza un nombre repetido', !r.ok, r.ok ? 'lo permitio' : r.message);
-r = await usuarios.createUser('qa-test-6', 'abc', 'abc');
+console.log('\n8. Cambiar la clave');
+let r = await acceso.changePassword('claveIncorrecta', 'NuevaClave123', 'NuevaClave123');
+comprobar('rechaza si la actual esta mal', !r.ok, r.ok ? 'lo permitio' : r.message);
+r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, 'abc', 'abc');
 comprobar('rechaza una clave demasiado corta', !r.ok, r.ok ? 'la permitio' : r.message);
-r = await usuarios.createUser('qa-test-6', 'ClaveLarga1', 'ClaveLarga2');
-comprobar('rechaza si las claves no coinciden', !r.ok, r.ok ? 'lo permitio' : r.message);
-r = await usuarios.createUser('', 'ClaveLarga1', 'ClaveLarga1');
-comprobar('rechaza un nombre vacio', !r.ok, r.ok ? 'lo permitio' : r.message);
+r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, 'ClaveLarga1', 'ClaveLarga2');
+comprobar('rechaza si las dos nuevas no coinciden', !r.ok, r.ok ? 'lo permitio' : r.message);
+r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, acceso.DEFAULT_PASSWORD, acceso.DEFAULT_PASSWORD);
+comprobar('rechaza repetir la misma clave', !r.ok, r.ok ? 'lo permitio' : r.message);
 
-console.log('\n11. Cambiar la clave propia');
-r = await usuarios.changePassword(usuarios.DEFAULT_USER, 'claveIncorrecta', 'NuevaClave123', 'NuevaClave123');
-comprobar('rechaza si la clave actual esta mal', !r.ok, r.ok ? 'lo permitio' : r.message);
-r = await usuarios.changePassword(usuarios.DEFAULT_USER, usuarios.DEFAULT_PASSWORD, 'NuevaClave123', 'NuevaClave123');
-comprobar('acepta con la clave actual correcta', r.ok, r.ok ? '' : r.message);
-comprobar('la nueva clave funciona', await usuarios.verifyUser(usuarios.DEFAULT_USER, 'NuevaClave123'));
-comprobar('la anterior ya no', !(await usuarios.verifyUser(usuarios.DEFAULT_USER, usuarios.DEFAULT_PASSWORD)));
+r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, 'NuevaClave123', 'NuevaClave123');
+comprobar('acepta con la actual correcta', r.ok, r.ok ? '' : r.message);
+comprobar('la nueva funciona', await acceso.verifyPassword('NuevaClave123'));
+comprobar('la anterior ya no', !(await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)));
+comprobar('y deja de ser la de fabrica', !(await acceso.isUsingDefaultPassword()));
 
-console.log('\n12. Borrar los 5 usuarios');
-let quitados = 0;
-for (const nombre of creados) {
-  const resultado = usuarios.removeUser(nombre);
-  if (resultado.ok) quitados += 1;
-  else comprobar(`quitar ${nombre}`, false, resultado.message);
+console.log('\n9. Caducidad semanal');
+let vigencia = acceso.estadoClave();
+comprobar('recien cambiada no esta caducada', vigencia.caducada === false, `dias ${vigencia.dias}`);
+comprobar(
+  `le quedan ${acceso.PASSWORD_MAX_AGE_DAYS} dias`,
+  vigencia.restantes === acceso.PASSWORD_MAX_AGE_DAYS,
+  String(vigencia.restantes),
+);
+
+// Se retrasa la fecha de cambio para comprobar el corte, sin esperar una semana.
+function envejecerClave(dias) {
+  const guardado = JSON.parse(almacen.get('zahavi_acceso_v1'));
+  guardado.changedAt = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+  almacen.set('zahavi_acceso_v1', JSON.stringify(guardado));
 }
-comprobar('se quitaron los 5', quitados === 5, String(quitados));
-comprobar('vuelve a quedar 1 usuario', usuarios.listUsers().length === 1, String(usuarios.listUsers().length));
-comprobar('ninguno qa-test sobrevive', usuarios.listUsers().filter((u) => u.name.startsWith('qa-test')).length === 0);
-comprobar('los borrados ya no entran', !(await usuarios.verifyUser('qa-test-1', 'ClaveDePrueba1')));
 
-console.log('\n13. Protecciones al borrar');
-r = usuarios.removeUser(usuarios.DEFAULT_USER);
-comprobar('no deja quedarse sin usuarios', !r.ok, r.ok ? 'lo permitio' : r.message);
-comprobar('el usuario sigue ahi', usuarios.listUsers().length === 1);
+envejecerClave(acceso.PASSWORD_MAX_AGE_DAYS - 1);
+vigencia = acceso.estadoClave();
+comprobar('el dia anterior todavia vale', vigencia.caducada === false, `dias ${vigencia.dias}`);
 
-console.log('\n14. Cerrar sesion revoca tambien la clave de edicion');
+envejecerClave(acceso.PASSWORD_MAX_AGE_DAYS);
+vigencia = acceso.estadoClave();
+comprobar('al cumplir la semana caduca', vigencia.caducada === true, `dias ${vigencia.dias}`);
+comprobar('y no le quedan dias', vigencia.restantes === 0, String(vigencia.restantes));
+
+comprobar('caducada, la clave sigue siendo valida para entrar', await acceso.verifyPassword('NuevaClave123'));
+r = await acceso.changePassword('NuevaClave123', 'OtraMas456', 'OtraMas456');
+comprobar('cambiarla reinicia el contador', r.ok && acceso.estadoClave().caducada === false);
+
+console.log('\n10. Migracion desde los modelos anteriores');
+// Un equipo que venia de la lista de usuarios: se conserva la clave de zahavi.
+almacen.clear();
+almacenSesion.clear();
+almacen.set(
+  'zahavi_usuarios_v1',
+  JSON.stringify([
+    { name: 'otra-persona', credential: { alg: 'plain', value: 'suya' }, createdAt: new Date().toISOString() },
+    { name: 'zahavi', credential: { alg: 'plain', value: 'la-de-siempre' }, createdAt: new Date().toISOString() },
+  ]),
+);
+await acceso.ensureAccess();
+comprobar('migra conservando la clave de zahavi', await acceso.verifyPassword('la-de-siempre'));
+comprobar('y descarta la lista de usuarios', almacen.get('zahavi_usuarios_v1') === undefined);
+
+// Un equipo que venia de la clave unica de dos modelos atras.
+almacen.clear();
+almacen.set('zahavi_recetario_pwd_v2', JSON.stringify({ alg: 'plain', value: 'clave-vieja' }));
+await acceso.ensureAccess();
+comprobar('migra la clave unica anterior', await acceso.verifyPassword('clave-vieja'));
+
+// Un equipo nuevo del todo.
+almacen.clear();
+await acceso.ensureAccess();
+comprobar('un equipo nuevo arranca con la de fabrica', await acceso.verifyPassword(acceso.DEFAULT_PASSWORD));
+
+console.log('\n11. Cerrar sesion revoca tambien la clave de edicion');
+acceso.signIn();
 const remote = await import(pathToFileURL(repoRoot + '/src/core/remote.js').href);
 remote.setEditKey('clave-de-edicion-de-prueba');
 comprobar('la clave queda en la sesion', remote.getEditKey() === 'clave-de-edicion-de-prueba');
-usuarios.signOut();
-comprobar('la sesion se cierra', usuarios.isSignedIn() === false);
+acceso.signOut();
+comprobar('la sesion se cierra', acceso.isSignedIn() === false);
 comprobar('y la clave de edicion se borra', remote.getEditKey() === '', remote.getEditKey());
 
 /* ===========================================================================

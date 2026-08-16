@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v12';
+const CACHE_VERSION = 'zahavi-v13';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -21,6 +21,10 @@ const SHELL = [
   './index.html',
   './manifest.webmanifest',
   './assets/favicon.svg',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
+  './assets/icon-maskable-512.png',
+  './assets/apple-touch-icon.png',
   './assets/logo-zahavi.png',
   './assets/css/fonts.css',
   './assets/css/tokens.css',
@@ -52,7 +56,7 @@ const SHELL = [
   './src/core/storage.js',
   './src/core/schema.js',
   './src/core/repository.js',
-  './src/core/users.js',
+  './src/core/access.js',
   './src/core/store.js',
   './src/core/router.js',
   './src/core/remote.js',

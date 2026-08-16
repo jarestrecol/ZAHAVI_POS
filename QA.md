@@ -238,30 +238,43 @@ Entrar con `zahavi` / `zahavi2026`.
 | 54 | Confirmar | La receta desaparece del listado |
 | 55 | Volver atrás en cualquier paso | Regresa al paso anterior sin borrar |
 
-### 2.7 Ajustes
+### 2.7 Ajustes y clave
 
 | # | Comprobación | Esperado |
 |---|---|---|
 | 55a | El botón de Ajustes de la barra superior | Es **solo un engranaje**, sin la palabra, en escritorio, tableta y celular |
 | 55b | Dejar el cursor encima | Aparece "Ajustes" |
 | 55c | Con lector de pantalla | Se anuncia como "Ajustes, botón" |
-| 56 | Abrir Ajustes | Tres bloques: estado, quién puede entrar, mi clave |
+| 56 | Abrir Ajustes | **Dos** bloques: estado del recetario y clave de acceso |
+| 56a | **No** hay ningún bloque de usuarios | Correcto: se retiró, hay una sola clave |
 | 57 | Estado del recetario | Número de recetas y versión publicada |
 | 58 | Sin cambios pendientes | "Este equipo está igual que la versión publicada" |
 | 59 | Con cambios pendientes | Detalla cuántas nuevas, modificadas y eliminadas |
 | 60 | **Tras crear y borrar lo mismo** | Vuelve a "igual que la versión publicada", **no** "0 cambios" |
-| 61 | Crear usuario `qa-test-1` | Aparece en la lista |
-| 62 | Crear con nombre repetido | Error claro |
-| 63 | Crear con clave corta | Error indicando el mínimo |
-| 64 | Crear con claves que no coinciden | Error claro |
-| 65 | Entrar con el usuario nuevo | Funciona |
-| 66 | Quitar el propio usuario | No se ofrece la opción |
-| 67 | Quedarse con un solo usuario | No se puede quitar el último |
-| 68 | Cambiar la clave con la actual mal | Error, no cambia nada |
-| 69 | Cambiar la clave correctamente | Confirma, y la nueva funciona al reentrar |
+| 61 | El bloque de clave | Dice cuántos días le quedan antes de caducar |
+| 62 | Cambiar la clave con la actual mal | Error, no cambia nada |
+| 63 | Cambiar poniendo la misma clave | Error: tiene que ser distinta de la actual |
+| 64 | Cambiar con claves nuevas que no coinciden | Error claro |
+| 65 | Cambiar correctamente | Confirma, y el contador vuelve a 7 días |
+| 66 | Entrar con la clave nueva | Funciona |
+| 67 | Entrar con la anterior | Ya no funciona |
 | 70 | Cerrar sesión | Vuelve a la pantalla de entrada |
 | 71 | Tras cerrar sesión, reentrar y abrir Ajustes | **El campo de clave de edición está vacío** |
 | 72 | No hay botón de descargar ni de cargar archivo | Correcto: está prohibido a propósito |
+
+### 2.7b Caducidad semanal de la clave
+
+> Para probar sin esperar una semana: en la consola del navegador, editar
+> `zahavi_acceso_v1` en `localStorage` y retrasar su campo `changedAt` ocho días.
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 72a | Entrar con la clave caducada | Pide **renovarla antes de entrar**, no deja pasar |
+| 72b | El aviso de esa pantalla | Explica que se cambia cada 7 días |
+| 72c | Poner una clave nueva válida | Entra directamente, sin volver a pedir la anterior |
+| 72d | Intentar poner la misma que tenía | La rechaza |
+| 72e | Tras renovar, abrir Ajustes | El contador vuelve a marcar 7 días |
+| 72f | Un equipo que venía de la versión con usuarios | Entra con la clave que tenía el usuario `zahavi`, no se queda fuera |
 
 ### 2.8 Publicación
 

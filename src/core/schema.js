@@ -23,13 +23,13 @@ export const CATEGORIES = Object.freeze(['PASTELERÍA', 'PANADERÍA', 'GALLETAS'
  * Categoria que se asigna cuando un dato llega sin ella. Se elige pasteleria
  * por ser la mayoritaria, para que nada quede fuera de los tres filtros.
  */
-export const DEFAULT_CATEGORY = 'PASTELERÍA';
+const DEFAULT_CATEGORY = 'PASTELERÍA';
 
 /** Unidades sugeridas en el editor. El campo admite texto libre. */
 export const UNITS = Object.freeze(['GR', 'ML', 'UND', 'MG', 'CM']);
 
 /** Nombre por defecto de un componente sin titulo. */
-export const DEFAULT_COMPONENT = 'PRINCIPAL';
+const DEFAULT_COMPONENT = 'PRINCIPAL';
 
 /** Version actual del formato guardado. */
 export const SCHEMA_VERSION = 2;
@@ -51,7 +51,7 @@ const MAX_TEXT = 20000;
  * @param {number} position indice usado para generar un id si no lo trae
  * @returns {{id: string, nombre: string, categoria: string, metodo: string, componentes: Array}}
  */
-export function normalizeRecipe(input, position = 0) {
+function normalizeRecipe(input, position = 0) {
   const source = input && typeof input === 'object' ? input : {};
   const componentes = Array.isArray(source.componentes) ? source.componentes : [];
 

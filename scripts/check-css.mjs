@@ -101,24 +101,24 @@ const orphans = [...classes].filter((name) => !all.includes('.' + name));
 if (orphans.length) orphans.forEach((name) => fail(`clase sin estilo: .${name}`));
 else console.log(`  ${classes.size} clases aplicadas, todas con estilo`);
 
-// 5. Manifiestos de modulos. Hay dos listas mantenidas a mano, la del service
-//    worker y la del empaquetador offline. Cuando divergen, el fallo solo
-//    aparece sin conexion o en el archivo suelto, que es justo donde nadie mira
-//    hasta que lo necesita. Ya paso una vez con `src/core/remote.js`.
-console.log('\nManifiestos:');
+// 5. Manifiesto del service worker. Es una lista mantenida a mano, y cuando se
+//    queda corta el fallo solo aparece SIN CONEXION, que es justo donde nadie
+//    mira hasta que lo necesita. Ya paso una vez con `src/core/remote.js`.
+//
+//    Antes se comprobaban DOS listas, esta y la del empaquetador de un solo
+//    archivo. Ese empaquetador se retiro: duplicaba el modo sin conexion que ya
+//    da el service worker, y obligaba a acordarse de anadir cada modulo nuevo
+//    en dos sitios.
+console.log('\nManifiesto del service worker:');
 const modules = walk(join(root, 'src'))
   .map((file) => file.slice(root.length + 1).replace(/\\/g, '/'))
   .sort();
 const sw = readFileSync(join(root, 'sw.js'), 'utf8');
-const bundler = readFileSync(join(root, 'scripts/build-standalone.mjs'), 'utf8');
 
 const missingInSw = modules.filter((file) => !sw.includes(file));
-const missingInBundler = modules.filter((file) => !bundler.includes(file.replace(/^src\//, '')));
-
 missingInSw.forEach((file) => fail(`sw.js no lo cachea: ${file}`));
-missingInBundler.forEach((file) => fail(`build-standalone.mjs no lo empaqueta: ${file}`));
-if (!missingInSw.length && !missingInBundler.length) {
-  console.log(`  ${modules.length} modulos presentes en el service worker y en el empaquetador`);
+if (!missingInSw.length) {
+  console.log(`  ${modules.length} modulos, todos cacheados`);
 }
 
 console.log(problems === 0 ? '\nCSS correcto.\n' : `\n${problems} problema(s) en el CSS.\n`);

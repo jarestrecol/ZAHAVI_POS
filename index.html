@@ -42,6 +42,12 @@
     <!-- Todas las rutas son relativas: el sitio debe funcionar igual servido
          desde una subruta o abierto desde el disco. -->
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <!--
+      iOS IGNORA los iconos del manifiesto. Sin este enlace, al añadir el
+      recetario a la pantalla de inicio de un iPhone, Safari genera una
+      miniatura de la propia página en vez de un icono.
+    -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
 
     <link rel="stylesheet" href="./assets/css/fonts.css" />

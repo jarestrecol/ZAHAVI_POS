@@ -9,8 +9,6 @@ RESPALDO-PRIVADO-*.json
 uploads/
 data/recipes.private.json
 
-# Artefactos de compilacion
-dist/
 
 # Sistema y editor
 .DS_Store

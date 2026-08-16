@@ -61,6 +61,26 @@
   color: var(--danger);
 }
 
+/* Contenedor de los dos momentos de la entrada: escribir la clave y, si toca,
+   renovarla. Solo existe para poder cambiar uno por otro sin reconstruir la
+   pantalla entera, asi que no aporta geometria propia. */
+.login__host {
+  display: contents;
+}
+
+/* Aviso de que toca renovar la clave de la semana. Va antes de los campos,
+   porque explica por que la pantalla pide algo distinto de lo habitual. */
+.login__aviso {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--amber-soft);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+}
+
 .login__hint {
   margin-top: var(--space-4);
   font-size: var(--text-sm);

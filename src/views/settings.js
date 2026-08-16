@@ -3,17 +3,14 @@
  *  AJUSTES
  * =============================================================================
  *
- *  Tres bloques, en este orden:
+ *  Dos bloques, en este orden:
  *
  *      1. ESTADO Y PUBLICACION
  *         Cuantas recetas hay, que version esta publicada y si este equipo tiene
  *         cambios que las demas sedes todavia no ven. Desde aqui se publica.
  *
- *      2. USUARIOS
- *         Alta y baja de personas que pueden entrar en ESTE equipo.
- *
- *      3. MI CLAVE
- *         Cambiar la clave del usuario que tiene la sesion abierta.
+ *      2. LA CLAVE DE ESTE EQUIPO
+ *         Cambiarla, y ver cuantos dias le quedan antes de caducar.
  *
  *  LO QUE NO ESTA, Y POR QUE
  *  -------------------------
@@ -27,14 +24,12 @@
 import { el, clear } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
 import {
-  createUser,
   changePassword,
-  removeUser,
-  listUsers,
-  currentUser,
   signOut,
+  estadoClave,
   MIN_PASSWORD_LENGTH,
-} from '../core/users.js';
+  PASSWORD_MAX_AGE_DAYS,
+} from '../core/access.js';
 import { setState } from '../core/store.js';
 import { createWindow } from './window.js';
 
@@ -55,7 +50,6 @@ import { createWindow } from './window.js';
 export function openSettings(options) {
   const body = el('div', { class: 'settings' }, [
     renderStatusBlock(options),
-    renderUsersBlock(),
     renderPasswordBlock(),
   ]);
 
@@ -66,7 +60,7 @@ export function openSettings(options) {
     onClose: options.onClose,
     body,
     footer: [
-      el('p', { class: 'win__hint', text: `Sesión de ${currentUser()} en este equipo.` }),
+      el('p', { class: 'win__hint', text: 'Sesión abierta en este equipo.' }),
       el('div', { class: 'win__actions' }, [
         el('button', {
           type: 'button',
@@ -77,7 +71,7 @@ export function openSettings(options) {
               signOut();
               // La sesion es de este dispositivo: cerrarla no toca ni las
               // recetas ni los cambios sin publicar, solo saca a la persona
-              // hasta que alguien vuelva a entrar con su usuario y clave.
+              // hasta que alguien vuelva a entrar con la clave.
               setState({ authed: false, settingsOpen: false });
             },
           },
@@ -257,116 +251,11 @@ function renderChanges(changes) {
 }
 
 /* ===========================================================================
- *  2. USUARIOS
+ *  2. LA CLAVE DE ESTE EQUIPO
  * ======================================================================== */
 
 /**
- * Alta y baja de las personas que pueden entrar en este equipo.
- *
- * Los usuarios son de cada aparato: crear uno aqui no lo crea en la otra sede.
- * Se dice de forma explicita para que nadie lo suponga.
- */
-function renderUsersBlock() {
-  const message = el('p', { class: 'form-note', attrs: { role: 'status' } });
-  const list = el('ul', { class: 'users' });
-
-  const name = el('input', { type: 'text', id: 'user-name', class: 'field', autocomplete: 'off' });
-  const pass = el('input', { type: 'password', id: 'user-pass', class: 'field', autocomplete: 'new-password' });
-  const pass2 = el('input', { type: 'password', id: 'user-pass2', class: 'field', autocomplete: 'new-password' });
-
-  /** Repinta la lista de usuarios dados de alta. */
-  function drawList() {
-    clear(list);
-    const yo = currentUser().toLowerCase();
-
-    for (const user of listUsers()) {
-      const esYo = user.name.toLowerCase() === yo;
-
-      list.appendChild(
-        el('li', { class: 'users__item' }, [
-          el('span', { class: 'users__name', text: user.name }),
-          esYo ? el('span', { class: 'users__tag', text: 'tú' }) : null,
-
-          // No se ofrece quitar el usuario propio ni el ultimo que queda.
-          esYo || listUsers().length <= 1
-            ? null
-            : el('button', {
-                type: 'button',
-                class: 'btn-icon',
-                text: '×',
-                attrs: { 'aria-label': `Quitar el acceso de ${user.name}` },
-                on: {
-                  click: () => {
-                    const result = removeUser(user.name);
-                    if (!result.ok) {
-                      showError(result.message);
-                      return;
-                    }
-                    message.classList.remove('is-error');
-                    message.textContent = `Se quitó el acceso de ${user.name}.`;
-                    announce(`Acceso de ${user.name} retirado.`);
-                    drawList();
-                  },
-                },
-              }),
-        ]),
-      );
-    }
-  }
-
-  function showError(text) {
-    message.textContent = text;
-    message.classList.add('is-error');
-    announce(text, 'assertive');
-  }
-
-  const add = async () => {
-    const result = await createUser(name.value, pass.value, pass2.value);
-
-    if (!result.ok) {
-      showError(result.message);
-      return;
-    }
-
-    message.classList.remove('is-error');
-    message.textContent = `Usuario ${result.value} creado en este equipo.`;
-    announce(`Usuario ${result.value} creado.`);
-    name.value = '';
-    pass.value = '';
-    pass2.value = '';
-    drawList();
-  };
-
-  drawList();
-
-  return el('section', { class: 'settings__row' }, [
-    el('h3', { class: 'section-label', text: 'Quién puede entrar' }),
-    list,
-
-    el('div', { class: 'settings__grid settings__grid--3' }, [
-      el('div', null, [el('label', { class: 'label', for: 'user-name', text: 'nombre' }), name]),
-      el('div', null, [el('label', { class: 'label', for: 'user-pass', text: 'clave' }), pass]),
-      el('div', null, [el('label', { class: 'label', for: 'user-pass2', text: 'repetir' }), pass2]),
-    ]),
-
-    el('div', { class: 'settings__actions' }, [
-      el('button', { type: 'button', class: 'btn btn--quiet', text: 'Crear usuario', on: { click: add } }),
-      message,
-    ]),
-
-    el('p', {
-      class: 'settings__help',
-      text: `Mínimo ${MIN_PASSWORD_LENGTH} caracteres. Los usuarios son de este equipo: para que alguien entre desde la otra sede, hay que crearlo también allí.`,
-    }),
-  ]);
-}
-
-/* ===========================================================================
- *  3. MI CLAVE
- * ======================================================================== */
-
-/**
- * Cambio de clave del usuario que tiene la sesion abierta.
+ * Cambio de la clave del equipo, con los dias que le quedan a la vista.
  *
  * Pide la clave actual antes de dejar cambiarla: si alguien deja la sesion
  * abierta, que otro no pueda quedarse con el acceso.
@@ -379,7 +268,7 @@ function renderPasswordBlock() {
   const confirmation = el('input', { type: 'password', id: 'pwd-confirm', class: 'field', autocomplete: 'new-password' });
 
   const apply = async () => {
-    const result = await changePassword(currentUser(), current.value, next.value, confirmation.value);
+    const result = await changePassword(current.value, next.value, confirmation.value);
 
     if (!result.ok) {
       message.textContent = result.message;
@@ -396,8 +285,20 @@ function renderPasswordBlock() {
     confirmation.value = '';
   };
 
+  const estado = estadoClave();
+
   return el('section', { class: 'settings__row' }, [
-    el('h3', { class: 'section-label', text: 'Mi clave' }),
+    el('h3', { class: 'section-label', text: 'Clave de acceso' }),
+
+    // Cuanto le queda. Se dice antes del formulario para que quien entre a otra
+    // cosa se entere de que le toca renovar, sin tener que llegar al final.
+    el('p', { class: 'settings__count' }, [
+      estado.caducada
+        ? el('strong', { text: 'Caducada: se pedirá cambiarla al volver a entrar.' })
+        : estado.restantes === 0
+          ? el('strong', { text: 'Caduca hoy.' })
+          : `Le ${estado.restantes === 1 ? 'queda' : 'quedan'} ${estado.restantes} ${estado.restantes === 1 ? 'día' : 'días'}.`,
+    ]),
 
     el('div', { class: 'settings__grid settings__grid--3' }, [
       el('div', null, [el('label', { class: 'label', for: 'pwd-current', text: 'clave actual' }), current]),
@@ -409,6 +310,11 @@ function renderPasswordBlock() {
       el('button', { type: 'button', class: 'btn btn--quiet', text: 'Cambiar clave', on: { click: apply } }),
       message,
     ]),
+
+    el('p', {
+      class: 'settings__help',
+      text: `Es una sola clave para todo el equipo y se renueva cada ${PASSWORD_MAX_AGE_DAYS} días. Esa caducidad es lo que retira el acceso a quien ya no trabaja aquí, sin depender de que nadie se acuerde de darlo de baja. Mínimo ${MIN_PASSWORD_LENGTH} caracteres y distinta de la anterior.`,
+    }),
 
     el('p', {
       class: 'settings__help',

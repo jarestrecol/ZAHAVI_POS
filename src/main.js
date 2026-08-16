@@ -29,7 +29,7 @@ import { setInert } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
-import { ensureUsers, isSignedIn, isUsingDefaultPassword } from './core/users.js';
+import { ensureAccess, isSignedIn, isUsingDefaultPassword } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
 import { getEditKey } from './core/remote.js';
@@ -92,10 +92,11 @@ boot();
  * las suscripciones que provocan repintados.
  */
 async function boot() {
-  // El usuario de fabrica se crea la primera vez que alguien abre la app, y se
-  // conserva la contrasena anterior si el equipo venia de la version con clave
-  // unica.
-  await ensureUsers();
+  // La clave del equipo se crea la primera vez que alguien abre la aplicacion.
+  // Si el equipo venia de un modelo anterior (la lista de usuarios, o la clave
+  // unica de antes), se conserva la que ya conocia el personal en vez de
+  // dejarlos fuera: ver `ensureAccess` en `core/access.js`.
+  await ensureAccess();
   usingDefaultPassword = await isUsingDefaultPassword();
 
   setState({

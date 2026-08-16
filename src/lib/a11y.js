@@ -105,7 +105,7 @@ export function trapFocus(container, options = {}) {
  * @param {ParentNode} container
  * @returns {Array<HTMLElement>}
  */
-export function focusableWithin(container) {
+function focusableWithin(container) {
   return Array.from(container.querySelectorAll(FOCUSABLE)).filter(
     (node) => node.offsetParent !== null || node === document.activeElement,
   );

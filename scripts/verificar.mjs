@@ -6,7 +6,7 @@
  * Ejecuta, en orden: sintaxis de todos los modulos, resolucion de importaciones,
  * coherencia del CSS, pruebas de la capa de datos, pruebas de la validacion del
  * servidor, alta y baja masiva de recetas y usuarios, integridad de las recetas
- * y generacion del archivo offline.
+ * de la capa de datos.
  *
  * Devuelve codigo distinto de cero si algo falla, para poder usarlo como puerta
  * antes de publicar.
@@ -158,12 +158,6 @@ paso('Integridad de las recetas', () => {
   if (ids.size !== data.recipes.length) throw new Error('hay codigos de receta repetidos');
 
   return `${data.recipes.length} recetas, ${componentes} componentes, ${items} items, sha ${hash.slice(0, 8)}`;
-});
-
-paso('Archivo offline', () => {
-  const out = run('build-standalone.mjs');
-  const match = out.match(/\(([\d.]+) kB\)/);
-  return match ? `${match[1]} kB` : '';
 });
 
 console.log(
