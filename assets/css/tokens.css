@@ -134,6 +134,41 @@
   --cat-galletas: #1d6349;
   --cat-otros: #4f473e;
 
+  /* ---- Componentes de una receta ----
+   *
+   * Las categorías dicen QUÉ es la receta. Estos dicen EN QUÉ PARTE del trabajo
+   * estás: la masa, el relleno, la cobertura. Son dos preguntas distintas y por
+   * eso son dos paletas distintas, no dos usos de la misma.
+   *
+   * La familia es FRÍA y las categorías son cálidas... salvo galletas, que es
+   * verde (165°). Conviene decirlo en vez de fingir que la regla es limpia,
+   * porque el teal de esta familia está a solo 24° de ese verde.
+   *
+   * EL ORDEN RESUELVE ESE CHOQUE. El teal no es la estación 2, es la 3, y
+   * ninguna receta de galletas pasa de dos componentes: son 7 con dos y ninguna
+   * con tres. Así el teal no llega a coincidir nunca con el verde de galletas.
+   * De paso, el par que más se ve (estación 1 junto a la 2, en 35 recetas) pasa
+   * de 24° de separación a 65°, que es mucho más fácil de distinguir de un
+   * vistazo junto a la báscula.
+   *
+   * Son exactamente CUATRO porque el recetario nunca pasa de cuatro
+   * componentes: 72 recetas tienen uno, 35 dos, 11 tres y 3 cuatro. No hay
+   * repetición posible dentro de una misma ficha.
+   *
+   * Los cuatro pasan de 7,7:1 con texto blanco encima. Las versiones `-rail`
+   * son para el modo Pesar, que va sobre estructura oscura, igual que ocurre
+   * con las categorías, y dan entre 7,4:1 y 9,2:1 sobre el rail.
+   */
+  --comp-1: #1c4f72;   /* azul acero, 8,7:1 */
+  --comp-2: #5d3a80;   /* violeta,    8,8:1 */
+  --comp-3: #0f5c5e;   /* teal,       7,7:1 */
+  --comp-4: #3d4a7a;   /* índigo,     8,5:1 */
+
+  --comp-1-rail: #7fb3d9;
+  --comp-2-rail: #c3a3e0;
+  --comp-3-rail: #6fc9c6;
+  --comp-4-rail: #9aa5dd;
+
   /* ---- Estado ---- */
   --danger: #a31d1d;
   --danger-soft: #fbeaea;

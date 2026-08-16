@@ -375,9 +375,16 @@
     gap: var(--space-2);
   }
 
-  /* Cifras algo mayores: se leen a distancia de brazo. */
+  /* Filas mas altas: se leen a distancia de brazo.
+   *
+   * El relleno horizontal se CONSERVA. La regla base lo empareja con un margen
+   * negativo igual y opuesto, y ese par es lo que hace que la franja de color
+   * sangre hacia los lados mientras el texto sigue alineado con el encabezado
+   * del componente. Redeclarar solo el relleno a cero dejaba vivo el margen de
+   * -8px, y cada ingrediente aparecia 8px mas a la izquierda que su titulo: se
+   * veia bien en escritorio y torcido en todos los telefonos. */
   .item {
-    padding: var(--space-3) 0;
+    padding: var(--space-3) var(--space-2);
   }
 
   .item__name {

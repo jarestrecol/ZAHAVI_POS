@@ -96,9 +96,14 @@ Entrar con `zahavi` / `zahavi2026`.
 | 19 | Ingredientes | Cantidades alineadas en columna, cifra grande y monoespaciada |
 | 20 | Unidades de volumen (ml, l, cc) | Marcadas de forma distinta al peso |
 | 21 | Receta de un solo componente | No muestra encabezado de componente redundante |
-| 22 | Receta de varios componentes | Cada uno con su nombre y su color |
+| 22 | Receta de varios componentes | Ver 24a a 24e |
 | 23 | Títulos de sección | Barra del color de la categoría y línea separadora |
 | 24 | Receta sin método | Nota discreta con acción para escribirlo, no un error |
+| 24a | Receta de varios componentes | Cada uno es una **tarjeta** con número de estación, nombre y cuántos ingredientes lleva |
+| 24b | Dos componentes seguidos | Se distinguen por color: azul el 1, violeta el 2. Se ve dónde acaba uno y empieza el otro |
+| 24c | Filas de ingrediente | **Franjas alternas**, no una lista plana; el texto alineado con el título del componente |
+| 24d | Lo mismo en celular | Las franjas siguen alineadas con el encabezado, sin desplazamiento de 8px |
+| 24e | Receta de un solo componente | **No** muestra tarjeta ni número: no hay nada que distinguir |
 
 ### 2.4 Botones de la ficha
 
@@ -121,6 +126,11 @@ Entrar con `zahavi` / `zahavi2026`.
 | 31e | Llegar al último paso | Dice "Es el último" en vez de dejar el hueco vacío |
 | 31f | Volver con la flecha a un paso ya pesado | Insignia "✓ Pesado" y la **cifra sigue legible**, sin tachar |
 | 31g | Imprimir con la tanda ×3 | La hoja dice el rendimiento **multiplicado**, igual que la pantalla |
+| 31h | Pesar una receta de varios componentes | Cada paso muestra `1/3 MASA`, `2/3 RELLENO`… |
+| 31i | Al cruzar de un componente al siguiente | **El marco del recuadro cambia de color** y se nota sin leer |
+| 31j | Ese mismo cruce con lector de pantalla | Anuncia "Empieza Relleno, 2 de 3" antes del ingrediente |
+| 31k | Volver a un paso ya pesado de otro componente | El rótulo y el chip se apagan igual que la cifra |
+| 31l | Receta de un solo componente | **No** aparece ni chip ni rótulo de componente |
 | 32 | **Imprimir** | Vista previa con la ficha maquetada en A4 |
 | 33 | Imprimir sin receta abierta | Sale el índice completo, respetando el filtro |
 | 34 | **Editar** | Abre el editor con los datos cargados |
@@ -129,12 +139,16 @@ Entrar con `zahavi` / `zahavi2026`.
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 34 | El módulo de tanda frente a la ficha técnica | Se distinguen a la primera: la tanda es **tarjeta elevada con barra ámbar**, los datos son franja hundida |
+| 34 | El módulo de cantidades frente a la ficha técnica | Se distinguen a la primera: es **tarjeta elevada con barra ámbar y sombra**, los datos son franja hundida |
+| 34k | El rótulo del módulo | Dice **"Cantidades"**, no "Tanda" |
+| 34l | El campo de cantidad concreta | Se lee **"Calcular [24] und"**, con la unidad de lo que rinde al lado |
+| 34m | Ese campo con lector de pantalla | Anuncia también la unidad, no solo "Calcular" |
+| 34n | Receta sin rendimiento declarado | No aparece el campo ni una unidad vacía |
 | 34a | Pulsar ×2 en una receta | Todas las cantidades se duplican en pantalla |
 | 34b | El rendimiento de la ficha técnica | También se duplica |
 | 34c | Aviso de tanda escalada | Visible mientras el factor no sea el original |
 | 34d | Receta con medida en `cm` (molde) | **No** se multiplica, y se avisa |
-| 34e | Escribir una cantidad concreta en "Quiero" | El factor se calcula solo |
+| 34e | Escribir una cantidad concreta en "Calcular" | El factor se calcula solo |
 | 34f | Pulsar "Original" | Vuelve a las cifras de la fórmula |
 | 34g | Abrir **Pesar** con la tanda escalada | Muestra las cantidades escaladas y el aviso `TANDA ×N` |
 | 34h | **Imprimir** con la tanda escalada | La hoja lleva el aviso en recuadro negro |

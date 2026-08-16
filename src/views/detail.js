@@ -11,7 +11,7 @@
  */
 
 import { el, svg } from '../lib/dom.js';
-import { titleCase, splitName, formatQty } from '../lib/format.js';
+import { titleCase, splitName, splitYield, formatQty } from '../lib/format.js';
 import { navigate } from '../core/router.js';
 import { setState } from '../core/store.js';
 import { countItems } from '../core/search.js';
@@ -32,6 +32,22 @@ const THREE_COLUMNS_FROM = 24;
 
 /** Unidades de volumen: se marcan aparte porque confundirlas con peso es el error clasico. */
 const VOLUME_UNITS = new Set(['ML', 'L', 'CC']);
+
+/** Cuantos colores de estacion hay. El recetario nunca pasa de cuatro componentes. */
+const ESTACIONES = 4;
+
+/**
+ * Que color de estacion le toca a un componente por su posicion.
+ *
+ * Da la vuelta si algun dia hubiera mas de cuatro: repetir un color es peor que
+ * quedarse sin ninguno, pero no debe romper.
+ *
+ * @param {number} indice
+ * @returns {string} "1" a "4"
+ */
+function estacion(indice) {
+  return String((indice % ESTACIONES) + 1);
+}
 
 /*
  * -----------------------------------------------------------------------------
@@ -276,10 +292,15 @@ function renderScaler(recipe, factor) {
   // Campo para pedir una cantidad concreta. Solo tiene sentido si se sabe
   // cuanto rinde la receta original: sin esa referencia no hay forma de
   // calcular el factor.
+  // La unidad de lo que rinde la receta, para ponerla junto al cuadro. Sin
+  // ella, "Calcular [24]" no dice 24 de que: puede ser unidades, cajas o
+  // porciones segun la receta, y esa cifra es la que decide la tanda entera.
+  const unidadRinde = splitYield(recipe.nombre).unidad.toLowerCase();
+
   const campo = base === null
     ? null
     : el('div', { class: 'scaler__custom' }, [
-        el('label', { class: 'scaler__custom-label', for: 'scaler-cantidad', text: 'Quiero' }),
+        el('label', { class: 'scaler__custom-label', for: 'scaler-cantidad', text: 'Calcular' }),
         el('input', {
           type: 'number',
           id: 'scaler-cantidad',
@@ -287,7 +308,13 @@ function renderScaler(recipe, factor) {
           value: formatQty(base * factor).replace(',', '.'),
           min: '0',
           step: 'any',
-          attrs: { inputMode: 'decimal' },
+          // `aria-describedby` y no `aria-hidden` en la unidad: el nombre
+          // accesible de este campo lo da su `label`, y ese label dice solo
+          // "Calcular". Sin esto, un lector de pantalla anuncia "Calcular, 24"
+          // sin decir 24 de que, que es justo la ambiguedad que la unidad vino
+          // a resolver: se arreglaba para quien ve la pantalla y no para quien
+          // no la ve.
+          attrs: { inputMode: 'decimal', 'aria-describedby': unidadRinde ? 'scaler-unidad' : null },
           on: {
             change: (event) => {
               const pedido = parseFloat(String(event.target.value).replace(',', '.'));
@@ -299,11 +326,15 @@ function renderScaler(recipe, factor) {
             },
           },
         }),
+        // La unidad de lo que rinde, pegada al cuadro y ENLAZADA al campo.
+        unidadRinde
+          ? el('span', { class: 'scaler__custom-unidad', id: 'scaler-unidad', text: unidadRinde })
+          : null,
       ]);
 
-  return el('section', { class: 'scaler no-print', attrs: { 'aria-label': 'Escalar la tanda' } }, [
+  return el('section', { class: 'scaler no-print', attrs: { 'aria-label': 'Cantidades de la tanda' } }, [
     el('div', { class: 'scaler__row' }, [
-      el('span', { class: 'scaler__label', text: 'Tanda' }),
+      el('span', { class: 'scaler__label', text: 'Cantidades' }),
       el('div', { class: 'scaler__group', attrs: { role: 'group', 'aria-label': 'Multiplicador' } }, botones),
       campo,
     ]),
@@ -358,9 +389,26 @@ function renderIngredients(recipe, total) {
     el(
       'div',
       { class: 'components components--cols-' + columns },
-      recipe.componentes.map((component) =>
-        el('section', { class: 'component' }, [
-          multiple ? el('h3', { class: 'component__name', text: titleCase(component.nombre) }) : null,
+      // Cada componente es una ESTACION del trabajo: primero la masa, despues
+      // el relleno, despues la cobertura. Por eso va numerado y con color
+      // propio, y no todos con el color de la categoria: con dos componentes
+      // seguidos pintados igual, no habia forma de ver donde acababa uno y
+      // empezaba el siguiente al recorrer la lista de pie.
+      //
+      // El numero no es decoracion: los componentes SI son una secuencia, y
+      // saber que vas por la segunda de tres es informacion de trabajo.
+      recipe.componentes.map((component, indice) =>
+        el('section', { class: 'component', attrs: { 'data-comp': estacion(indice) } }, [
+          multiple
+            ? el('h3', { class: 'component__name' }, [
+                el('span', { class: 'component__num', text: String(indice + 1) }),
+                el('span', { class: 'component__label', text: titleCase(component.nombre) }),
+                el('span', {
+                  class: 'component__count',
+                  text: `${component.items.length} ${component.items.length === 1 ? 'ingrediente' : 'ingredientes'}`,
+                }),
+              ])
+            : null,
           el(
             'ul',
             { class: 'items' },

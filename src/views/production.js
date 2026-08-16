@@ -14,6 +14,9 @@ import { el, clear } from '../lib/dom.js';
 import { titleCase, splitName, formatQty } from '../lib/format.js';
 import { trapFocus, announce } from '../lib/a11y.js';
 
+/** Cuantos colores de estacion hay. Igual que en la ficha (`views/detail.js`). */
+const ESTACIONES = 4;
+
 /**
  * @param {{recipe: object, factor?: number, onClose: () => void}} options
  *   `recipe` llega YA escalada; `factor` solo sirve para avisarlo en pantalla.
@@ -24,10 +27,25 @@ export function openProduction(options) {
   const factor = options.factor || 1;
   const { base } = splitName(recipe.nombre);
 
-  /** Lista plana de lineas, conservando a que componente pertenece cada una. */
-  const steps = recipe.componentes.flatMap((component) =>
-    component.items.map((item) => ({ component: component.nombre, item })),
+  /**
+   * Lista plana de lineas, conservando a que componente pertenece cada una y
+   * que numero de estacion le toca.
+   *
+   * La estacion viaja con cada paso porque es lo que permite avisar del cambio:
+   * pesar es una sucesion de cifras muy parecidas entre si, y pasar de la masa
+   * al relleno sin enterarse es echar a perder la tanda.
+   */
+  const steps = recipe.componentes.flatMap((component, indice) =>
+    component.items.map((item) => ({
+      component: component.nombre,
+      estacion: String((indice % ESTACIONES) + 1),
+      indice,
+      item,
+    })),
   );
+
+  /** Cuantos componentes tiene la receta, para decir "2 de 3". */
+  const totalComponentes = recipe.componentes.length;
 
   const done = new Set();
   let index = 0;
@@ -89,10 +107,19 @@ export function openProduction(options) {
     const isDone = done.has(index);
 
     body.appendChild(
-      el('div', { class: 'prod__step' + (isDone ? ' is-done' : '') }, [
+      el('div', {
+        class: 'prod__step' + (isDone ? ' is-done' : ''),
+        attrs: { 'data-comp': step.estacion },
+      }, [
         el('div', { class: 'prod__meta' }, [
-          recipe.componentes.length > 1
-            ? el('span', { class: 'prod__component', text: titleCase(step.component) })
+          // De que estacion es este paso. Lleva el numero, el nombre y cuantas
+          // hay en total, y el color de la estacion tiñe ademas el marco del
+          // paso: pasar de la masa al relleno se ve antes de leerlo.
+          totalComponentes > 1
+            ? el('span', { class: 'prod__component' }, [
+                el('span', { class: 'prod__component-num', text: `${step.indice + 1}/${totalComponentes}` }),
+                el('span', { text: titleCase(step.component) }),
+              ])
             : null,
           // Marca de "ya pesado" al volver sobre un paso hecho. Antes solo
           // habia un tachado sobre la cifra, que es la peor pieza para
@@ -129,6 +156,15 @@ export function openProduction(options) {
   function go(delta, prefijo = '') {
     const next = index + delta;
     if (next < 0 || next > steps.length) return;
+
+    // El cambio de componente se anuncia ademas de verse. Es el unico momento
+    // del pesaje en que hay que parar y cambiar de recipiente, y quien navega
+    // con lector de pantalla no tiene el color del marco para avisarle.
+    const antes = steps[index];
+    const despues = steps[next];
+    const cambioDeComponente =
+      totalComponentes > 1 && despues && antes && despues.indice !== antes.indice;
+
     index = next;
     draw();
 
@@ -142,7 +178,11 @@ export function openProduction(options) {
     // primero antes de que termine de leerse.
     const paso = steps[index];
     const texto = paso ? describir(paso) : 'Todo pesado.';
-    announce(prefijo ? `${prefijo} ${texto}` : texto);
+    const aviso = cambioDeComponente
+      ? `Empieza ${titleCase(despues.component)}, ${despues.indice + 1} de ${totalComponentes}.`
+      : '';
+
+    announce([prefijo, aviso, texto].filter(Boolean).join(' '));
   }
 
   function markAndAdvance() {

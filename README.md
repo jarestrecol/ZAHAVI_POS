@@ -542,6 +542,31 @@ El botón responde cambiando de superficie, no moviéndose de sitio: el
 levantamiento de un píxel al pasar el cursor convertía cada barrido del ratón
 por la barra en una fila de piezas saltando.
 
+### Dos paletas con dos trabajos
+
+**El color cálido dice qué es la receta. El color frío dice en qué parte del
+trabajo estás.** Son dos preguntas distintas y por eso son dos paletas, no dos
+usos de la misma.
+
+- **Categorías** (`--cat-*`): pastelería, panadería, galletas. Identidad del
+  producto. Viven en la cabecera, en el sello de rendimiento y en las barras de
+  los títulos de sección.
+- **Componentes** (`--comp-1` a `--comp-4`): masa, relleno, cobertura. Estación
+  de trabajo. Viven en la tarjeta de cada componente y en el modo Pesar.
+
+Son **exactamente cuatro** porque el recetario nunca pasa de cuatro componentes:
+72 recetas tienen uno, 35 dos, 11 tres y 3 cuatro. No hay repetición posible
+dentro de una ficha.
+
+El orden de los cuatro no es casual. Galletas es la única categoría fría (verde,
+165°), y el teal de esta familia queda a 24° de ese verde. Por eso el teal es la
+estación **3** y no la 2: ninguna receta de galletas pasa de dos componentes, así
+que los dos nunca coinciden. De paso, el par que más se ve (estación 1 junto a la
+2, en 35 recetas) pasa de 24° de separación a 65°.
+
+El color nunca va solo: cada estación lleva su número, su nombre y su recuento de
+ingredientes en texto.
+
 ### Qué significa cada relleno
 
 Tres piezas de la barra de la ficha llevan relleno, y cada una dice algo
@@ -697,7 +722,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 165 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 182 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Auditorías
@@ -822,7 +847,7 @@ scripts/
   test-qa.mjs              Alta y baja masiva de recetas y usuarios
   build-standalone.mjs     Empaquetador de un solo archivo
 
-QA.md                      Lista de verificación manual (165 puntos)
+QA.md                      Lista de verificación manual (182 puntos)
 
 data/
   recipes.json             Recetario publicado
