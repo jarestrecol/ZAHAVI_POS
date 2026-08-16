@@ -184,7 +184,8 @@ Entrar con `zahavi` / `zahavi2026`.
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 34as | Abrir una receta con rendimiento (`ALMOJÁBANA X 15 UND`) | Nombre sin el rendimiento; "rinde" = 15; unidad = und |
+| 34as | Abrir una receta con rendimiento (`ALMOJÁBANA X 15 UND`) | Nombre sin el rendimiento; "rinde" = 15; "rinde en" = unidades |
+| 34as1 | Las dos clases de unidad no se confunden | Arriba **"rinde en"** con palabras completas (unidades, cajas…); en los ingredientes, la columna **"medida"** con GR, ML, UND… |
 | 34at | Guardar sin tocar nada | El nombre queda **exactamente igual**, incluida la `x` minúscula si la tenía |
 | 34au | Cambiar el rinde a 20 y guardar | El nombre pasa a `... X 20 UND` |
 | 34av | Abrir `BAGUEL NORMAL X 32 UND O 8 PAQ.` | La unidad compuesta aparece como opción y **no se pierde** al guardar |

@@ -111,6 +111,13 @@ ningún sitio.
 
 - **Editor de recetas** con componentes múltiples y autocompletado desde el
   catálogo de 159 ingredientes ya existentes.
+- **Dos clases de unidad, y no se llaman igual.** El sistema maneja la **medida
+  de un ingrediente** (gr, ml, und, mg, cm: cuánto se pesa) y la **unidad del
+  rendimiento** (unidades, paquetes, cajas, porciones: qué sale de la receta).
+  Las dos conviven en la pantalla del editor, así que ninguna se rotula solo
+  como "unidad": arriba es **"rinde en"** y muestra la palabra completa, y en
+  los ingredientes la columna es **"medida"**. Con ambas llamadas "unidad" y
+  ofreciendo las dos "und", no había forma de saber cuál era cuál.
 - **El rendimiento es un campo, no parte del nombre.** Se captura en dos
   controles: una cantidad numérica y una unidad de lista. El dato se sigue
   almacenando dentro del nombre, como llegó del Excel, pero ya no se teclea así:
