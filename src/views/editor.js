@@ -66,26 +66,6 @@ const UNITS_ID = 'catalogo-unidades';
  */
 const UNIDADES_RINDE = ['UND', 'PAQ.', 'CAJAS', 'PORCIONES'];
 
-/**
- * Como se ESCRIBE cada unidad de rendimiento en la lista.
- *
- * El valor guardado sigue siendo la abreviatura de siempre; esto es solo lo que
- * se lee. La aplicacion maneja dos cosas distintas que se llamaban igual:
- *
- *     UNIDAD DEL INGREDIENTE   cuanto se pesa: GR, ML, UND, MG, CM
- *     UNIDAD DEL RENDIMIENTO   que sale de la receta: unidades, cajas...
- *
- * Las dos aparecen en la misma pantalla del editor y las dos ofrecian "und",
- * asi que no habia forma de saber cual era cual. Escribir la palabra entera
- * aqui las separa sin tocar el dato.
- */
-const NOMBRE_UNIDAD_RINDE = Object.freeze({
-  UND: 'unidades',
-  'PAQ.': 'paquetes',
-  CAJAS: 'cajas',
-  PORCIONES: 'porciones',
-});
-
 /** Id de la aclaracion que acompaña al campo del nombre. */
 const HINT_ID = 'recipe-name-hint';
 
@@ -112,7 +92,7 @@ function pistaNombre(nombreOriginal, partes) {
   if (partes.cantidad === '' && RINDE_ESCONDIDO.test(nombreOriginal)) {
     return 'Ojo: este nombre parece llevar el rendimiento dentro. Quítalo del nombre y escríbelo en «rinde», o quedará repetido.';
   }
-  return 'Solo el nombre. Cuánto sale de la receta va en los campos de al lado.';
+  return 'Solo el nombre. El rendimiento va en los campos de al lado.';
 }
 
 /**
@@ -215,7 +195,7 @@ export function openEditor(options) {
       el('div', { class: 'rows__head', attrs: { 'aria-hidden': 'true' } }, [
         el('span', { text: 'ingrediente' }),
         el('span', { class: 'rows__num', text: 'cant.' }),
-        el('span', { text: 'medida' }),
+        el('span', { text: 'und' }),
         el('span'),
       ]),
       itemsHost,
@@ -409,16 +389,7 @@ export function openEditor(options) {
           }),
         ]),
         el('div', { class: 'editor__rinde-unidad' }, [
-          // "rinde en" y no "unidad".
-          //
-          // En esta misma pantalla, cada renglon de ingrediente tiene ya su
-          // propia columna de unidad, y las dos listas ofrecian "und": con las
-          // dos etiquetas llamadas igual no habia forma de saber cual era cual.
-          // Llevar la palabra "rinde" dentro de la etiqueta lo resuelve sin
-          // alargarla: "unidad del rinde" mide 138px en versalitas y la columna
-          // de tableta son 128, asi que se partia en dos lineas y hundia el
-          // campo respecto a los de al lado.
-          el('label', { class: 'label', for: 'recipe-yield-unit', text: 'rinde en' }),
+          el('label', { class: 'label', for: 'recipe-yield-unit', text: 'unidad' }),
           el(
             'select',
             {
@@ -588,16 +559,7 @@ function yieldUnitOptions(selected) {
   return [
     el('option', { value: '', text: 'sin unidad', selected: actual === '' }),
     ...conocidas.map((unidad) =>
-      el('option', {
-        value: unidad,
-        // Se muestra la palabra completa aunque se GUARDE la abreviatura. Es lo
-        // que quita la ambiguedad: "15 unidades" se lee solo, mientras que
-        // "15 und" obligaba a adivinar si ese "und" era lo que rinde la receta
-        // o la medida de un ingrediente, porque la misma abreviatura aparece en
-        // las dos cosas y en la misma pantalla.
-        text: NOMBRE_UNIDAD_RINDE[unidad] || unidad.toLowerCase(),
-        selected: unidad === actual,
-      }),
+      el('option', { value: unidad, text: unidad.toLowerCase(), selected: unidad === actual }),
     ),
   ];
 }
