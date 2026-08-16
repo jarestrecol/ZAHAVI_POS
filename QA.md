@@ -5,7 +5,8 @@ de un cambio o antes de entregarlo a la panadería.
 
 Dos partes:
 
-- **Automática**: 126 comprobaciones que ejecuta la máquina en segundos.
+- **Automática**: siete bloques que ejecuta la máquina en segundos, con 159
+  comprobaciones solo en la prueba de alta y baja.
 - **Manual**: lo que solo se puede confirmar mirando la pantalla.
 
 > **Regla que no se rompe nunca**: las pruebas manuales se hacen sobre recetas
@@ -24,14 +25,13 @@ node scripts/verificar.mjs
 Resultado esperado:
 
 ```
-Sintaxis de los modulos…        ok (34 archivos)
-Resolucion de importaciones…    ok (31 modulos)
-Coherencia del CSS…             ok (269 clases)
+Sintaxis de los modulos…        ok (32 archivos)
+Resolucion de importaciones…    ok (29 modulos)
+Coherencia del CSS…             ok (301 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
-Alta y baja masiva…             ok (126 comprobaciones)
+Alta y baja masiva…             ok (159 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, ... sha f0307204)
-Archivo offline…                ok
 ```
 
 **Si el resumen `sha` cambia sin que nadie haya editado una receta a propósito,
@@ -43,8 +43,9 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 | Bloque | Qué comprueba |
 |---|---|
 | Recetas | Crear 20, que se guarden con su contenido exacto, que sobrevivan a recargar, borrarlas todas y volver al estado inicial |
-| Usuarios | Crear 5, entrar con cada uno, cambiar clave, borrarlos, y que las protecciones aguanten |
+| Acceso | Cambiar la clave, que la caducidad de 7 días cuente bien, y que nadie se quede fuera al migrar desde los modelos anteriores |
 | Escalado | Que multiplique bien, que no toque la receta original y que no escale moldes ni tiempos |
+| Rendimiento | Que abrir y guardar una receta sin tocar el rinde deje su nombre byte a byte igual |
 | Ingredientes | Que los 159 totales cuadren con la suma cruda y que nunca se mezclen unidades |
 | Plan del día | Que consolide bien y que **no sume** gramos con unidades |
 | Aislamiento | Que ninguna de las 121 recetas reales se toque en todo el proceso |

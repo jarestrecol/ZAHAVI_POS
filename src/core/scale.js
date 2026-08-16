@@ -30,7 +30,7 @@
  *  dejan tal cual y se marcan para que la interfaz pueda avisarlo.
  */
 
-import { splitName, splitYield, formatQty } from '../lib/format.js';
+import { splitYield, formatQty } from '../lib/format.js';
 
 /** Factor sin escalado: la receta tal como esta escrita. */
 export const FACTOR_ORIGINAL = 1;

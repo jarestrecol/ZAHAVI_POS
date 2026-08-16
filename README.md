@@ -626,6 +626,21 @@ y se queda: no es una preferencia, es una decisión de composición.
 - Node.js únicamente para ejecutar los scripts de verificación. **No hace falta
   para desplegar ni para usar el sistema.**
 
+### Versión de Node en el servidor
+
+`package.json` fija **`"node": "24.x"`**, que es la versión por defecto de Vercel
+y la misma que se usa en desarrollo.
+
+Antes decía `">=18"`, y Vercel avisaba de ello con razón: un rango abierto se
+sube solo cuando sale una versión mayor nueva. Eso significa que el servidor
+puede cambiar de versión de Node sin que nadie lo haya decidido ni probado, en un
+despliegue que solo cambiaba una línea de CSS. Fijar el mayor deja la
+actualización donde debe estar: en una decisión consciente, con su verificación
+detrás.
+
+Las tres versiones disponibles hoy son 24.x, 22.x y 20.x. Solo se declara el
+mayor: los parches los aplica Vercel por su cuenta, incluidos los de seguridad.
+
 ### Configuración en Vercel
 
 Al importar el repositorio:

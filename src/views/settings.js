@@ -21,7 +21,7 @@
  *  cualquier version anterior.
  */
 
-import { el, clear } from '../lib/dom.js';
+import { el } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
 import {
   changePassword,
