@@ -763,6 +763,7 @@ corregido enseña más que la lista de lo que funciona.
 | **Arquitectura** | Coste futuro de las decisiones, fronteras de capa, techo de escala | Cuatro hallazgos reales, tres corregidos (ver abajo) |
 | **Seguridad** | Superficie de servidor, cabeceras, secretos, crecimiento del sistema | Sin secretos ni inyecciones. Un endurecimiento revertido por riesgo de rotura silenciosa |
 | **Accesibilidad y diseño** | WCAG 2.2 AA sobre las tres superficies rediseñadas, contraste calculado | Un fallo de teclado grave y varios de etiquetado, todos corregidos |
+| **QA con navegador** | Los 187 puntos de [QA.md](QA.md) recorridos en un navegador real, en seis anchos de pantalla | Tres defectos que ninguna prueba automática podía ver, dos corregidos y uno anotado |
 
 **Lo que encontraron y se corrigió**, por orden de gravedad:
 
@@ -783,6 +784,16 @@ corregido enseña más que la lista de lo que funciona.
 6. **Colores y radios fuera del sistema de diseño**, y cifras desactualizadas en
    comentarios y documentación (pesos de JS y CSS, recuento de recetas con
    rendimiento, un módulo retirado que la documentación seguía citando).
+7. **El foco no entraba en ninguna ventana.** El diálogo pedía el foco antes de
+   estar montado, así que se quedaba en `<body>` y ninguna tecla llegaba al panel
+   que las escucha: en Modo Pesar no respondían la barra espaciadora, las flechas
+   ni Escape, justo lo que la propia pantalla anuncia. Y al cerrar, el foco
+   volvía al principio de la página en vez de al botón de origen, porque ese
+   botón ya no era el mismo nodo tras el repintado.
+8. **Imprimir el plan del día sacaba la ficha de la receta abierta.** El código
+   daba por hecho que la pantalla se repinta antes de volver de `setState`, y con
+   la View Transitions API no es así: se imprimía la hoja anterior y el plan se
+   borraba del estado justo después.
 
 **Lo que se decidió NO hacer, y por qué**: adoptar Trusted Types en la CSP
 (rompería el modo sin conexión en silencio y no se puede comprobar sin
@@ -970,6 +981,16 @@ claramente empuja a proteger de verdad lo que importa: la escritura.
 11. **Un `aria-label` sustituye al contenido, no lo complementa.** Si se pone en
     un control con varias piezas de información visible, tiene que nombrarlas
     todas o esas piezas dejan de existir para quien no ve la pantalla.
+12. **El foco se pide cuando el nodo ya está en el documento, no antes.** Un
+    contenedor sin conectar no tiene ningún elemento enfocable, así que
+    preguntárselo devuelve una lista vacía y el foco se queda donde estaba. Con
+    el foco fuera de un diálogo, las teclas que escucha ese diálogo no le llegan:
+    la pantalla anuncia atajos que no responden. Se decide dentro del
+    `requestAnimationFrame`, no fuera (`lib/a11y.js`).
+13. **Repintar no es síncrono.** Con la View Transitions API, `paint()` corre
+    después de que `setState` haya vuelto, así que un `requestAnimationFrame`
+    llega antes que la pantalla nueva. Quien necesite el DOM ya cambiado
+    (imprimir, medir) usa `trasPintar` en `main.js`, que espera al pintado real.
 
 ---
 

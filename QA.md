@@ -116,7 +116,7 @@ Entrar con `zahavi` / `zahavi2026`.
 | 25c | Los otros tres | Sobre blanco, con el color solo en el icono |
 | 26 | **Eliminar** está separado del resto | Línea vertical entre Editar y Eliminar |
 | 27 | **Pesar** | Pantalla completa, un ingrediente a la vez |
-| 28 | En Pesar, barra espaciadora | Da por pesado y avanza |
+| 28 | En Pesar, barra espaciadora | Da por pesado y avanza, **sin pulsar Tab antes**: el foco entra solo al abrir |
 | 29 | En Pesar, flechas | Se mueve adelante y atrás |
 | 30 | En Pesar, Escape o Salir | Vuelve a la ficha sin cambiar nada |
 | 31 | Al terminar de pesar | Pantalla de "Todo pesado" con marca de confirmación |
@@ -165,7 +165,8 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34r | Añadir una segunda que comparta ingrediente | Ese ingrediente sale **sumado en una sola línea** |
 | 34s | Subir las tandas de una receta | Las cantidades se recalculan |
 | 34t | Un ingrediente con dos unidades distintas | **Dos líneas separadas**, marcadas, y el aviso **los nombra** |
-| 34u | Imprimir la lista | Sale la hoja del plan, no la receta abierta |
+| 34u | Imprimir la lista | Sale la hoja del plan (titulada **Producción del día**), no la receta abierta |
+| 34u2 | Imprimir la ficha justo después | Vuelve a salir la receta, no el plan de antes |
 | 34v | Cerrar y volver a abrir | El plan está vacío: no se guarda, y así se anuncia |
 | 34w | Pulsar una línea de la lista consolidada | Despliega **de qué recetas sale** y cuánto pone cada una |
 | 34x | Sumar a mano el desglose | Cuadra exactamente con el total de la línea |
@@ -220,6 +221,7 @@ Entrar con `zahavi` / `zahavi2026`.
 | 40 | Quitar la última fila de un componente | Queda una fila vacía, no un componente sin filas |
 | 41 | Cancelar con cambios a medias | La receta queda como estaba |
 | 42 | Clic fuera del editor | **No** cierra la ventana |
+| 42a | Escape con el editor abierto | Cierra igual que *Cancelar*: no guarda nada y la receta queda como estaba |
 | 43 | Editar una `QA-TEST-` y guardar | El cambio se refleja en la ficha |
 | 44 | Recargar la página | Los cambios siguen ahí |
 | 45 | La cabecera avisa | "N cambios sin publicar en este equipo" |
@@ -334,8 +336,9 @@ Probar en **Pixel (360 px)**, iPhone SE (375 px) y tableta (768–991 px).
 | # | Comprobación | Esperado |
 |---|---|---|
 | 93 | Recorrer todo con `Tab` | Todo alcanzable, foco siempre visible |
-| 94 | Abrir un diálogo y tabular | El foco no se escapa detrás |
-| 95 | Cerrar un diálogo | El foco vuelve donde estaba |
+| 93a | Abrir un diálogo con el ratón | El foco entra en él de inmediato: Escape cierra sin haber pulsado Tab antes |
+| 94 | Abrir un diálogo y tabular | El foco no se escapa detrás, ni con `Tab` ni con `Mayús+Tab` |
+| 95 | Cerrar un diálogo | El foco vuelve al botón que lo abrió, aunque la pantalla se haya repintado entera |
 | 96 | Activar "reducir movimiento" en el sistema | Sin animaciones |
 | 97 | Consola del navegador | **Sin errores** |
 | 98 | Pedir al navegador "traducir esta página" | **No la traduce**: la página lleva `translate="no"` |
@@ -370,3 +373,7 @@ que nadie se dé cuenta.
 | Tras crear y borrar lo mismo, la cabecera anunciaba "0 cambios sin publicar" con el botón de publicar activo | Prueba de alta y baja masiva | Corregido |
 | Al elegir una receta del final, el listado saltaba al principio | Uso real | Corregido |
 | Los tres colores de categoría tenían luminancias casi idénticas y se leían como el mismo marrón | Revisión de diseño | Corregido |
+| Al abrir cualquier ventana el foco se quedaba fuera de ella: en Modo Pesar no respondían ni la barra espaciadora, ni las flechas, ni Escape, aunque la pantalla las anunciara | Recorrido de QA con navegador | Corregido |
+| Al cerrar una ventana el foco volvía al principio de la página en vez de al botón que la abrió | Recorrido de QA con navegador | Corregido |
+| "Imprimir la lista" del plan del día sacaba la ficha de la receta abierta: la hoja del plan no llegaba a montarse | Recorrido de QA con navegador | Corregido |
+| A 320 px de ancho, las etiquetas de **Recetas** y **Pesar** se salen de su botón y se solapan. A partir de 360 px no ocurre | Recorrido de QA con navegador | Pendiente |

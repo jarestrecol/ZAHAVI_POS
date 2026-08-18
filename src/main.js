@@ -25,7 +25,7 @@
  */
 
 import { el, clear } from './lib/dom.js';
-import { setInert } from './lib/a11y.js';
+import { setInert, recordarFoco } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
@@ -277,16 +277,25 @@ function moveSelection(delta) {
  * `--dur-slow`, que cae a 0ms con movimiento reducido (ver tokens.css), asi
  * que ahi la transicion se vuelve instantanea sin ninguna comprobacion aqui.
  *
- * `paint()` se llama siempre de forma sincrona, dentro o fuera de la
- * transicion: lo unico que cambia es si el cambio se ve animado o no.
+ * CUIDADO: con la transicion por medio, `paint()` NO es sincrono. El navegador
+ * fotografia la pantalla actual y llama al callback despues, asi que al volver
+ * de `setState` el documento todavia muestra lo anterior. Quien necesite el
+ * DOM ya cambiado usa `trasPintar`, mas abajo.
  */
 function render() {
   if (typeof document.startViewTransition !== 'function') {
     paint();
+    drenarTrasPintar();
     return;
   }
 
   const transicion = document.startViewTransition(() => paint());
+
+  // `updateCallbackDone` se cumple cuando `paint()` ha terminado de cambiar el
+  // DOM, sin esperar a que acabe la animacion. Se drena tambien si la promesa
+  // se rechaza: mejor ejecutar lo pendiente que dejarlo colgado hasta el
+  // siguiente pintado, que llegaria con otro estado.
+  transicion.updateCallbackDone.then(drenarTrasPintar, drenarTrasPintar);
 
   // El navegador SALTA una transicion cuando llega otra antes de que la
   // anterior termine. Pasa constantemente en uso normal: al escribir en el
@@ -314,6 +323,38 @@ function render() {
 }
 
 /**
+ * Cola de trabajos que solo pueden hacerse con la pantalla ya repintada.
+ *
+ * Existe porque imprimir el plan del dia sacaba la ficha de la receta abierta:
+ * se guardaba el plan en el estado y se llamaba a `window.print()` dentro de un
+ * `requestAnimationFrame`, dando por hecho que para entonces la hoja del plan
+ * ya estaria montada. Con la View Transitions API no lo estaba, y encima el
+ * plan se borraba del estado justo despues, asi que la hoja correcta no llegaba
+ * a existir en ningun momento.
+ *
+ * @type {Array<() => void>}
+ */
+const pendientesTrasPintar = [];
+
+/**
+ * Apunta un trabajo para cuando la pantalla refleje el estado nuevo.
+ *
+ * Se apunta ANTES del cambio de estado que lo provoca: si el navegador no usa
+ * transiciones, el repintado ocurre dentro de `setState` y ya seria tarde.
+ *
+ * @param {() => void} trabajo
+ */
+function trasPintar(trabajo) {
+  pendientesTrasPintar.push(trabajo);
+}
+
+/** Ejecuta y vacia lo que estuviera esperando al repintado. */
+function drenarTrasPintar() {
+  const trabajos = pendientesTrasPintar.splice(0);
+  for (const trabajo of trabajos) trabajo();
+}
+
+/**
  * Hay tres pantallas posibles:
  *
  *      cargando   -> esqueleto, mientras se leen las recetas
@@ -327,6 +368,11 @@ function paint() {
   // El buscador se reconstruye en cada render: se anota si tenia el foco para
   // devolverselo despues y no cortar a alguien a media palabra.
   const searchHadFocus = document.activeElement && document.activeElement.id === SEARCH_ID;
+
+  // Lo mismo para el resto de la pantalla, pero pensando en los dialogos: el
+  // que se abra aqui mismo necesita saber a que boton devolver el foco cuando
+  // se cierre, y ese boton deja de existir dos lineas mas abajo.
+  recordarFoco();
 
   // El listado tambien se reconstruye entero: es un elemento nuevo para el
   // navegador, sin memoria de por donde iba desplazado. Sin esto, elegir una
@@ -569,20 +615,25 @@ function buildProduction(state) {
  * hoja se genera en `renderPrint` y `window.print()` se llama despues del
  * repintado, para que el navegador encuentre la hoja ya montada. Sin esa
  * espera se imprimiria lo que hubiera antes.
+ *
+ * Esa espera es `trasPintar`, y no un `requestAnimationFrame`: el cuadro llega
+ * antes que el pintado cuando hay una View Transition por medio. El trabajo se
+ * apunta antes de `setState` porque sin transiciones el repintado ocurre
+ * dentro de esa misma llamada.
  */
 function buildPlan(state) {
   return openPlan({
     recipes: state.recipes,
     onClose: () => setState({ planOpen: false, planPrint: null }),
     onPrint: (plan) => {
-      setState({ planOpen: false, planPrint: plan });
-      window.requestAnimationFrame(() => {
+      trasPintar(() => {
         window.print();
         // El plan deja de estar pendiente en cuanto se manda a imprimir: si
         // se quedara, la siguiente impresion sacaria el plan en vez de la
         // receta que se estuviera viendo.
         setState({ planPrint: null });
       });
+      setState({ planOpen: false, planPrint: plan });
     },
   });
 }
