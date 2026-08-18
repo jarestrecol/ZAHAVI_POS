@@ -308,8 +308,9 @@ Entrar con `zahavi` / `zahavi2026`.
 |---|---|---|
 | 83 | Escritorio (≥ 992 px) | Listado y ficha a la vez |
 | 84 | Tableta (768–991 px) | Se turnan; ingredientes a dos columnas |
+| 84a | Tableta: el listado | Dos columnas, la letra inicial a todo lo ancho y **sin desplazamiento horizontal** dentro del panel |
 | 85 | Celular (< 768 px) | Se turnan; al abrir una receta **entra como pantalla nueva**, no aparece comprimida abajo |
-| 86 | Celular: acciones de la receta | Barra flotante abajo, al alcance del pulgar |
+| 86 | Celular: acciones de la receta | Barra flotante abajo, al alcance del pulgar: **pegada al borde inferior de la pantalla**, no debajo de la cabecera |
 | 87 | Celular: diálogos | Suben desde el borde inferior como una hoja |
 | 88 | Celular: filtros de categoría | Dos columnas, sin desplazamiento horizontal |
 | 89 | Cualquier tamaño | Sin desplazamiento horizontal de la página |
@@ -328,6 +329,8 @@ Probar en **Pixel (360 px)**, iPhone SE (375 px) y tableta (768–991 px).
 | 89f | Altura de la barra en celular | Notablemente más baja que antes; los botones de la ficha **conservan su tamaño** |
 | 89g | Los iconos de la barra con lector de pantalla | Cada uno se anuncia con su nombre completo |
 | 89h | Barra flotante de la ficha en celular | **Recetas** y **Pesar** con texto; imprimir, editar y eliminar como iconos cuadrados |
+| 89h2 | La misma barra a 320 px | Volver pasa a icono para que quepa; Pesar conserva su nombre y **nada se solapa** |
+| 89k | Los cinco factores de la tanda a 320 px | Se ven y se pueden pulsar los cinco, incluido el **×4** |
 | 89i | Esos tres iconos con lector de pantalla | "Imprimir la receta", "Editar la receta", "Eliminar la receta" |
 | 89j | Modo Pesar en celular | Cabecera, cifra y pie con margen lateral, no pegados al borde |
 
@@ -376,4 +379,7 @@ que nadie se dé cuenta.
 | Al abrir cualquier ventana el foco se quedaba fuera de ella: en Modo Pesar no respondían ni la barra espaciadora, ni las flechas, ni Escape, aunque la pantalla las anunciara | Recorrido de QA con navegador | Corregido |
 | Al cerrar una ventana el foco volvía al principio de la página en vez de al botón que la abrió | Recorrido de QA con navegador | Corregido |
 | "Imprimir la lista" del plan del día sacaba la ficha de la receta abierta: la hoja del plan no llegaba a montarse | Recorrido de QA con navegador | Corregido |
-| A 320 px de ancho, las etiquetas de **Recetas** y **Pesar** se salen de su botón y se solapan. A partir de 360 px no ocurre | Recorrido de QA con navegador | Pendiente |
+| A 320 px de ancho, las etiquetas de **Recetas** y **Pesar** se salían de su botón y se solapaban | Recorrido de QA con navegador | Corregido |
+| La barra flotante de la ficha no llegaba abajo en celular: se quedaba pegada bajo la cabecera, a 660 px del pulgar. El `backdrop-filter` de la cabecera la convertía en el bloque contenedor de sus hijos `fixed` | Recorrido de QA con navegador | Corregido |
+| En tableta el listado se repartía en diez columnas con 3.200 px de desplazamiento horizontal dentro del panel: `columns` reparte por altura, y el contenedor tiene la altura limitada | Recorrido de QA con navegador | Corregido |
+| A 320 px el botón **×4** de la tanda quedaba fuera del segmento, que va en `overflow: hidden`, así que no se podía pulsar de ninguna manera | Recorrido de QA con navegador | Corregido |

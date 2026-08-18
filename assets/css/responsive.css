@@ -261,6 +261,27 @@
     position: static;
     padding-top: var(--space-4);
     padding-bottom: var(--space-3);
+
+    /*
+     * Y SIN DESENFOQUE, POR DOS MOTIVOS.
+     *
+     * El primero es que aqui no hace nada: el desenfoque existe para cuando la
+     * cabecera va pegada arriba y el contenido le pasa por debajo, y en celular
+     * es estatica.
+     *
+     * El segundo es el que importa. Un elemento con `backdrop-filter` pasa a
+     * ser el BLOQUE CONTENEDOR de sus descendientes `position: fixed`. La barra
+     * de acciones es hija de la cabecera, asi que su `bottom` no se medía desde
+     * el borde de la pantalla sino desde el borde de la cabecera: la barra
+     * "flotante" se quedaba pegada arriba, a dos dedos del titulo y a 660px del
+     * pulgar, que es justo lo contrario de para lo que se hizo.
+     *
+     * El fondo vuelve a ser opaco: el de la regla `@supports` de sheet.css es
+     * semitransparente porque cuenta con el desenfoque.
+     */
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .sheet-head__title {
@@ -607,15 +628,74 @@
     column-count: 2;
   }
 
-  /* El listado ocupa toda la pantalla cuando se ve, asi que se reparte en dos
-     columnas y se recorre en la mitad de desplazamiento. */
+  /*
+   * El listado ocupa toda la pantalla cuando se ve, asi que se reparte en dos
+   * columnas y se recorre en la mitad de desplazamiento.
+   *
+   * REJILLA, NO `columns`. El texto multicolumna reparte por ALTURA, y este
+   * contenedor tiene la altura limitada y su propio desplazamiento vertical:
+   * lo que no cabe no baja, se va a una columna nueva A LA DERECHA. Las 121
+   * recetas acababan en diez columnas y 3.200px de desplazamiento horizontal
+   * dentro del panel, con la tercera asomando cortada por el borde y el resto
+   * fuera de la vista. Con la rejilla el reparto es por filas, se lee de
+   * izquierda a derecha y lo unico que se desplaza sigue siendo la vertical.
+   */
   .sidebar__list {
-    column-count: 2;
-    column-gap: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    column-gap: var(--space-2);
   }
 
-  .sidebar__list > li {
-    break-inside: avoid;
+  /* La letra titula lo que viene debajo, asi que ocupa las dos columnas. */
+  .sidebar__letter {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ===========================================================================
+ *  CELULARES ESTRECHOS
+ * ======================================================================== */
+
+/*
+ * A 320px la barra flotante ya no da para DOS botones con texto.
+ *
+ * El reparto del bloque de celular deja 62px a cada uno de los dos flexibles.
+ * "Recetas" necesita 51 solo de etiqueta, mas 16 de icono y 16 de relleno: se
+ * salia 9px por la derecha y se montaba encima de "Pesar", cuyo icono acababa
+ * pisando el borde del vecino. A partir de 360px sobra sitio y no pasa, asi
+ * que esto es exclusivamente para los aparatos mas estrechos.
+ *
+ * Cede volver, no pesar. Volver es NAVEGACION y se reconoce por la flecha y
+ * por el relleno oscuro, que es la misma estructura del listado al que lleva.
+ * Pesar es la accion que se busca con las manos ocupadas y con la bascula
+ * delante: conserva su nombre. El de volver sigue en `aria-label`.
+ */
+@media (max-width: 22.4375rem) {
+  .sheet-head__actions .btn--back {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    padding: 0;
+  }
+
+  .sheet-head__actions .btn--back .btn__label {
+    display: none;
+  }
+
+  /*
+   * Los cinco factores de la tanda tienen que caber SI O SI.
+   *
+   * El grupo es un segmento con `overflow: hidden`, de modo que lo que no entra
+   * no se puede alcanzar de ninguna manera: ni desplazando ni tabulando a
+   * ciegas. A 320px el ×4 se quedaba fuera de la pantalla, y multiplicar por
+   * cuatro solo era posible escribiendo la cantidad en "Calcular".
+   *
+   * Lo que cede es el relleno, que es lo unico que sobra: la altura de toque se
+   * mantiene en `--tap-min`.
+   */
+  .scaler__btn {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
   }
 }
 

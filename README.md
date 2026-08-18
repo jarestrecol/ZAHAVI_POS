@@ -794,6 +794,19 @@ corregido enseña más que la lista de lo que funciona.
    daba por hecho que la pantalla se repinta antes de volver de `setState`, y con
    la View Transitions API no es así: se imprimía la hoja anterior y el plan se
    borraba del estado justo después.
+9. **La barra flotante del celular no llegaba abajo.** Se quedaba pegada bajo la
+   cabecera de la receta, a 660 px del pulgar. El `backdrop-filter` de la
+   cabecera la convierte en el bloque contenedor de sus descendientes `fixed`,
+   así que el `bottom: 8px` de las acciones se medía desde ahí y no desde la
+   pantalla. En celular la cabecera no es pegajosa, así que el desenfoque
+   sobraba y se retiró.
+10. **En tableta el listado se iba a diez columnas.** `columns` reparte por
+    altura, y ese contenedor tiene la altura limitada: lo que no cabía abría
+    columna nueva a la derecha, con 3.200 px de desplazamiento horizontal dentro
+    del panel. Ahora es una rejilla de dos columnas que se lee por filas.
+11. **A 320 px había controles inalcanzables**: las etiquetas de Recetas y Pesar
+    se solapaban, y el ×4 de la tanda quedaba fuera del segmento, que va en
+    `overflow: hidden`.
 
 **Lo que se decidió NO hacer, y por qué**: adoptar Trusted Types en la CSP
 (rompería el modo sin conexión en silencio y no se puede comprobar sin
@@ -991,6 +1004,14 @@ claramente empuja a proteger de verdad lo que importa: la escritura.
     después de que `setState` haya vuelto, así que un `requestAnimationFrame`
     llega antes que la pantalla nueva. Quien necesite el DOM ya cambiado
     (imprimir, medir) usa `trasPintar` en `main.js`, que espera al pintado real.
+14. **`backdrop-filter` cambia a quién obedece un `position: fixed`.** Un
+    elemento que lo lleva pasa a ser el bloque contenedor de sus descendientes
+    fijos, así que su `bottom` deja de medirse desde la pantalla. Es lo que
+    dejaba la barra flotante del celular pegada arriba.
+15. **`columns` reparte por altura, no por ancho.** En un contenedor con la
+    altura limitada, lo que no cabe no baja: abre otra columna a la derecha y
+    aparece un desplazamiento horizontal que nadie pidió. Para repartir una lista
+    con desplazamiento vertical va una rejilla, no columnas de texto.
 
 ---
 
