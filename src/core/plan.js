@@ -42,7 +42,7 @@ import { escalarReceta, normalizarFactor } from './scale.js';
  * @returns {{lineas: Array, recetas: Array, totalLineas: number, conflictos: number}}
  */
 export function consolidar(seleccion) {
-  /** @type {Map<string, {ingrediente: string, unidad: string, cantidad: number, recetas: Map<string, number>}>} */
+  /** @type {Map<string, {ingrediente: string, unidad: string, cantidad: number, recetas: Map<string, {nombre: string, cantidad: number}>}>} */
   const acumulado = new Map();
 
   for (const entrada of seleccion) {
@@ -84,8 +84,18 @@ export function consolidar(seleccion) {
         // Una misma receta puede repetir el ingrediente en dos componentes (la
         // harina de la masa y la del espolvoreado). Se suma su aporte, no se
         // pisa: si no, el desglose no cuadraria con el total de la linea.
-        const yaPuesto = linea.recetas.get(entrada.recipe.nombre) || 0;
-        linea.recetas.set(entrada.recipe.nombre, yaPuesto + cantidad);
+        //
+        // La clave es el ID, no el nombre. Con el nombre, dos recetas distintas
+        // que se llamen igual se funden en una sola entrada: el total sigue
+        // bien, pero el desglose dice "de 1 receta" y atribuye a una sola lo
+        // que ponen dos, que es justo lo que el desglose existe para evitar.
+        // Los nombres son unicos hoy solo porque llevan el rendimiento dentro,
+        // y el editor no impide repetirlos.
+        const yaPuesto = linea.recetas.get(entrada.recipe.id);
+        linea.recetas.set(entrada.recipe.id, {
+          nombre: entrada.recipe.nombre,
+          cantidad: (yaPuesto ? yaPuesto.cantidad : 0) + cantidad,
+        });
       }
     }
   }
@@ -96,7 +106,7 @@ export function consolidar(seleccion) {
       // De mayor a menor aporte: quien lee el desglose busca primero quien pone
       // el grueso de la cifra, no el orden alfabetico.
       recetas: [...linea.recetas]
-        .map(([nombre, cantidad]) => ({ nombre, cantidad }))
+        .map(([id, aporte]) => ({ id, nombre: aporte.nombre, cantidad: aporte.cantidad }))
         .sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre, 'es')),
     }))
     .sort((a, b) => a.ingrediente.localeCompare(b.ingrediente, 'es'));

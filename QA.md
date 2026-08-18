@@ -5,7 +5,7 @@ de un cambio o antes de entregarlo a la panadería.
 
 Dos partes:
 
-- **Automática**: siete bloques que ejecuta la máquina en segundos, con 159
+- **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
 - **Manual**: lo que solo se puede confirmar mirando la pantalla.
 
@@ -30,7 +30,7 @@ Resolucion de importaciones…    ok (29 modulos)
 Coherencia del CSS…             ok (301 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
-Alta y baja masiva…             ok (159 comprobaciones)
+Alta y baja masiva…             ok (161 comprobaciones)
 Integridad de las recetas…      ok (121 recetas, ... sha f0307204)
 ```
 
@@ -170,6 +170,7 @@ Entrar con `zahavi` / `zahavi2026`.
 | 34v | Cerrar y volver a abrir | El plan está vacío: no se guarda, y así se anuncia |
 | 34w | Pulsar una línea de la lista consolidada | Despliega **de qué recetas sale** y cuánto pone cada una |
 | 34x | Sumar a mano el desglose | Cuadra exactamente con el total de la línea |
+| 34x2 | Dos recetas `QA-TEST-` con el **mismo nombre** en el plan | El desglose dice "de 2 recetas" y las lista por separado; no las funde en una |
 | 34y | Volver a pulsar la misma línea | Se cierra y **el foco sigue en esa fila** |
 | 34z | Vaciar el campo de tandas y salir | **No borra la receta**: vuelve al valor anterior y lo explica en pantalla |
 | 34aa | Escribir 0 en las tandas | Igual que el anterior: nota visible remitiendo al botón de quitar |

@@ -458,6 +458,34 @@ comprobar(
   harina.recetas[0].cantidad === 250 && harina.recetas[1].cantidad === 100,
   harina.recetas.map((r) => r.cantidad).join(' / '),
 );
+
+// Dos recetas DISTINTAS pueden llamarse igual: el editor no lo impide, y los
+// nombres del recetario solo son unicos porque llevan el rendimiento dentro. Si
+// el desglose se indexara por nombre, las fundiria en una sola entrada: el total
+// seguiria bien y el detalle diria "de 1 receta", que es justo lo contrario de
+// para lo que existe el desglose.
+const gemelaA = { ...rA, id: 'P3', nombre: 'RECETA GEMELA' };
+const gemelaB = {
+  ...rB,
+  id: 'P4',
+  nombre: 'RECETA GEMELA',
+  componentes: [{ nombre: 'MASA', items: [{ ingrediente: 'HARINA', cantidad: 250, unidad: 'GR' }] }],
+};
+const planGemelas = planificador.consolidar([
+  { recipe: gemelaA, factor: 1 },
+  { recipe: gemelaB, factor: 1 },
+]);
+const harinaGemelas = planGemelas.lineas.find((l) => l.ingrediente === 'HARINA');
+comprobar(
+  'dos recetas con el mismo nombre no se funden en el desglose',
+  harinaGemelas.recetas.length === 2,
+  harinaGemelas.recetas.length + ' entradas',
+);
+comprobar(
+  'y cada una conserva su aporte',
+  harinaGemelas.recetas.map((r) => r.cantidad).sort((a, b) => a - b).join('/') === '100/250',
+  harinaGemelas.recetas.map((r) => r.cantidad).join(' / '),
+);
 // Cuatro lineas de ingrediente entre las dos recetas, pero la harina aparece
 // en ambas: consolidadas quedan tres. Eso es justo lo que hace util el plan.
 comprobar('consolida en 3 lineas (harina fusionada)', plan1.totalLineas === 3, String(plan1.totalLineas));

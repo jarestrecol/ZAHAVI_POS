@@ -1085,12 +1085,17 @@ tamaño de un archivo en un repositorio no lo mira nadie por su cuenta.
 
 ### Tres trabajos que conviene hacer antes de la Fase 2
 
+El primero ya está hecho; los otros dos son decisiones que no se pueden tomar
+desde el código.
+
 Salieron de la revisión de arquitectura y son baratos hoy, caros después:
 
-1. **Indexar el desglose del plan por `id` y no por nombre** (`core/plan.js`).
-   Hoy funciona porque los nombres son únicos, y son únicos *porque llevan el
-   rendimiento dentro*. El día que eso cambie, cuatro recetas se fundirían en una
-   sola entrada del desglose sin que nada avisara.
+1. ~~**Indexar el desglose del plan por `id` y no por nombre** (`core/plan.js`).~~
+   **Hecho.** No era un riesgo futuro: el editor no impide repetir un nombre, así
+   que ya se podía provocar. Con dos recetas llamadas igual en el plan, el total
+   salía bien pero el desglose decía "de 1 receta" y atribuía a una sola lo que
+   ponían dos, que es justo lo que el desglose existe para evitar. Ahora la clave
+   es el `id` y cada aporte lleva su nombre para pintarlo.
 2. **Decidir dónde viven los costes antes de que existan.** El recetario se
    entrega hoy sin control de lectura, y es una decisión consciente. Los costes de
    proveedor y los márgenes no admiten el mismo trato: o van a otro sitio con
