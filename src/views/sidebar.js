@@ -28,7 +28,7 @@ const SEARCH_DEBOUNCE_MS = 160;
 export const SEARCH_ID = 'search-recipes';
 
 /**
- * @param {{recipes: Array, query: string, category: string, selectedId: string|null, focusSearch: boolean}} params
+ * @param {{recipes: Array, query: string, category: string, selectedId: string|null, focusSearch: boolean, searchCaret?: number|null}} params
  * @returns {HTMLElement}
  */
 export function renderSidebar(params) {
@@ -43,7 +43,7 @@ export function renderSidebar(params) {
       { class: 'sidebar__filters', attrs: { role: 'group', 'aria-label': 'Filtrar por categoría' } },
       categories.map((name) => renderCategoryChip(name, counts[name] || 0, params.category)),
     ),
-    renderSearch(params.query, params.focusSearch),
+    renderSearch(params.query, params.focusSearch, params.searchCaret),
     el('p', {
       class: 'sidebar__count',
       attrs: { role: 'status' },
@@ -63,9 +63,10 @@ export function renderSidebar(params) {
  *
  * @param {string} query texto actual
  * @param {boolean} focusSearch si hay que devolver el cursor tras repintar
+ * @param {number|null} [caret] por donde iba el cursor antes de repintar
  * @returns {HTMLElement}
  */
-function renderSearch(query, focusSearch) {
+function renderSearch(query, focusSearch, caret) {
   let debounce = null;
 
   const field = el('input', {
@@ -95,9 +96,21 @@ function renderSearch(query, focusSearch) {
   if (focusSearch) {
     window.requestAnimationFrame(() => {
       if (!field.isConnected) return;
+
+      // Si alguien ya esta escribiendo en este campo, no se toca NADA. El
+      // cuadro llega despues de montar el campo, y para entonces puede haber
+      // texto seleccionado a punto de sustituirse; moverle el cursor ahi
+      // convierte lo escrito en un anadido al final. Sin esta salida, escribir
+      // una busqueda nueva encima de la anterior daba "briocheR005".
+      if (document.activeElement === field) return;
+
       field.focus();
+      // Se vuelve por donde se iba, no al final: quien esta corrigiendo una
+      // letra en mitad de una palabra pierde el sitio igual que si se le
+      // hubiera ido el foco.
       const end = field.value.length;
-      field.setSelectionRange(end, end);
+      const pos = typeof caret === 'number' ? Math.min(caret, end) : end;
+      field.setSelectionRange(pos, pos);
     });
   }
 

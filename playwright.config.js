@@ -44,7 +44,7 @@ export default defineConfig({
   projects: [
     {
       name: 'escritorio',
-      testMatch: /(recorrido|dialogos|impresion)\.spec\.js/,
+      testMatch: /(recorrido|dialogos|impresion|resiliencia)\.spec\.js/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
     {

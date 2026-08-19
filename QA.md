@@ -60,10 +60,10 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 npm run qa
 ```
 
-Treinta y dos pruebas en un navegador de verdad, repartidas en tres tamaños:
-escritorio, celular y tableta. Tardan unos diez segundos y levantan el servidor
-solas, con **las cabeceras de producción** que declara `vercel.json`: probar
-contra un servidor más permisivo esconde justo lo que interesa mirar.
+Cuarenta y cuatro pruebas en un navegador de verdad, repartidas en tres
+tamaños: escritorio, celular y tableta. Tardan unos doce segundos y levantan el
+servidor solas, con **las cabeceras de producción** que declara `vercel.json`:
+probar contra un servidor más permisivo esconde justo lo que interesa mirar.
 
 Existen porque hay una familia entera de fallos que la verificación automática
 no puede ver, por buena que sea: no abre ningún navegador. Los seis defectos de
@@ -76,6 +76,7 @@ la última revisión pasaron por delante de siete bloques en verde.
 | `tests/impresion.spec.js` | Que se imprima lo que se está mirando: el plan cuando es el plan, la ficha escalada con sus cifras |
 | `tests/celular.spec.js` | Barra de acciones al alcance del pulgar, nada solapado a 320 px y los cinco factores alcanzables |
 | `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral |
+| `tests/resiliencia.spec.js` | Todo lo que pasa cuando algo va mal: dirección que no existe, programa que no arranca, receta borrada, sin servidor y sin red |
 
 Con `npm run qa:ver` se abren en modo visual, para verlas ejecutarse paso a
 paso. Los informes quedan en `playwright-report/` y no entran al repositorio.
@@ -349,15 +350,36 @@ publicar. Vuelve a cargar y reintenta.".
 | 76 | Abrir en otro dispositivo | Se ve el cambio publicado |
 | 77 | Publicar desde dos equipos a la vez | El segundo recibe aviso de conflicto y debe recargar |
 | 78 | Descartar cambios de este equipo | Vuelve a la versión publicada |
+| 78a | **Después** del punto 75, guardar otra receta sin tocar Publicar | Se publica sola: el aviso dice "Publicando…" y luego "Publicado para todas las sedes" |
+| 78b | Cortar la red, guardar una receta y devolver la red | Queda pendiente con su aviso y **se publica sola** al volver la conexión, sin pulsar nada |
+| 78c | Cambiar la clave de edición en el servidor y guardar una receta | Avisa de que la clave dejó de valer y **deja de reintentar** en vez de insistir en bucle |
+| 78d | Ajustes → Conexión, con todo en orden | "Recetario compartido: Conectado", con la hora de la última lectura y "Publicación automática: Activa" |
 
 ### 2.9 Sin conexión
 
 | # | Comprobación | Esperado |
 |---|---|---|
 | 79 | Cortar la red y recargar | El recetario abre igual |
+| 79a | Sin red, escribir a mano una dirección del sitio que no sea la portada | Abre el recetario, **no** la pantalla de error del navegador |
 | 80 | Consultar recetas sin red | Se ven completas |
 | 81 | Editar sin red | Se guarda en el equipo, con aviso de sin conexión |
-| 82 | Recuperar la red | El aviso desaparece |
+| 82 | Recuperar la red | El aviso desaparece **y lo pendiente se publica solo** |
+
+### 2.9b Cuando algo falla
+
+Es la parte que nadie prueba hasta que hace falta. Las cinco primeras las cubre
+`tests/resiliencia.spec.js`; las dos últimas hay que verlas en el sitio
+publicado, porque dependen de la plataforma.
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 82a | Escribir una dirección que no existe (`/loquesea`) | Página 404 **con la marca Zahavi**, en español y con enlace al recetario. Estado 404, no 200 |
+| 82b | Esa misma página | Se ve con estilo: tipografía, tarjeta y filo naranja. Si se ve como texto suelto, la política de seguridad está bloqueando la hoja |
+| 82c | Abrir el enlace de una receta eliminada (`#/receta/R999`) | Dice **"Esta receta no está aquí"** con el código pedido, no la pantalla de bienvenida |
+| 82d | Un sitio sin publicación configurada | Aviso **rojo en la cabecera**: lo que se guarde se queda en el equipo |
+| 82e | Ese mismo sitio, en Ajustes → Conexión | "Recetario compartido: No disponible en este sitio" |
+| 82f | Cortar el programa a mitad de carga (recargar con la red muy lenta o borrar un archivo del despliegue) | A los 18 segundos aparece **"El recetario está tardando demasiado"** con dos salidas: reintentar y borrar la copia guardada |
+| 82g | Pulsar "Borrar la copia guardada y recargar" | El recetario vuelve a cargar limpio y **las recetas del equipo siguen ahí** |
 
 ### 2.10 Pantallas
 
@@ -440,3 +462,10 @@ que nadie se dé cuenta.
 | La barra flotante de la ficha no llegaba abajo en celular: se quedaba pegada bajo la cabecera, a 660 px del pulgar. El `backdrop-filter` de la cabecera la convertía en el bloque contenedor de sus hijos `fixed` | Recorrido de QA con navegador | Corregido |
 | En tableta el listado se repartía en diez columnas con 3.200 px de desplazamiento horizontal dentro del panel: `columns` reparte por altura, y el contenedor tiene la altura limitada | Recorrido de QA con navegador | Corregido |
 | A 320 px el botón **×4** de la tanda quedaba fuera del segmento, que va en `overflow: hidden`, así que no se podía pulsar de ninguna manera | Recorrido de QA con navegador | Corregido |
+| Si el programa no llegaba a arrancar, la pantalla se quedaba en "Cargando recetario…" para siempre: nadie retiraba ese texto y no había ninguna salida | Revisión de qué pasa cuando algo falla | Corregido |
+| Sin conexión, abrir una dirección del sitio que no fuera la portada daba la pantalla de error del navegador: `networkFirst` lanzaba el fallo sin caer a la portada, y esa red de seguridad solo existía en `cacheFirst` | Revisión de qué pasa cuando algo falla | Corregido |
+| El enlace de una receta eliminada llevaba a la pantalla de bienvenida sin decir nada, así que el enlace parecía no hacer nada | Revisión de qué pasa cuando algo falla | Corregido |
+| Un despliegue sin las variables de entorno se veía igual que uno correcto: solo Ajustes lo delataba, y se podía trabajar semanas creyendo que lo guardado llegaba a la otra sede | Revisión de qué pasa cuando algo falla | Corregido |
+| El aviso de `noscript` llevaba el estilo dentro del atributo, que `style-src 'self'` descarta: se veía como texto suelto sobre el fondo | Revisión de la política de seguridad | Corregido |
+| Un repintado mientras alguien escribía en el buscador le llevaba el cursor al final del texto, y si llegaba justo entre dos pulsaciones convertía la búsqueda nueva en un añadido a la anterior | Prueba de navegador inestable | Corregido |
+| Las respuestas de error de `/api/recipes` dejaban su cuerpo sin consumir: con `Cache-Control: no-store` la petición quedaba abierta hasta que el navegador la recogía | Prueba de navegador inestable | Corregido |

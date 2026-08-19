@@ -40,7 +40,7 @@
     <meta name="theme-color" content="#1a1714" />
 
     <!-- Todas las rutas son relativas: el sitio debe funcionar igual servido
-         desde una subruta o abierto desde el disco. -->
+      desde una subruta o abierto desde el disco. -->
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <!--
       iOS IGNORA los iconos del manifiesto. Sin este enlace, al añadir el
@@ -58,6 +58,8 @@
     <link rel="stylesheet" href="./assets/css/views.css" />
     <link rel="stylesheet" href="./assets/css/dialogs.css" />
     <link rel="stylesheet" href="./assets/css/print.css" />
+    <!-- Pantalla de fallo del arranque. Comparte hoja con 404.html y 500.html. -->
+    <link rel="stylesheet" href="./assets/css/fallback.css" />
     <!-- Al final: ajusta lo anterior segun el tamano de pantalla. -->
     <link rel="stylesheet" href="./assets/css/responsive.css" />
   </head>
@@ -72,11 +74,30 @@
     <div id="print-root" aria-hidden="true"></div>
 
     <noscript>
-      <p style="padding: 2rem; color: #f0e3cb; font-family: Georgia, serif">
-        Este recetario necesita JavaScript activado para funcionar.
-      </p>
+      <!--
+        Sin estilos dentro del atributo: la politica de seguridad declara
+        `style-src 'self'` y un `style="..."` aqui no se aplicaria, asi que el
+        aviso se veria como texto suelto sobre el fondo. Reutiliza la pantalla
+        de fallo, que es exactamente lo que esto es.
+      -->
+      <div class="fallo">
+        <div class="fallo__inner">
+          <p class="fallo__brand">Zahavi · Recetario</p>
+          <h1 class="fallo__title">Hace falta activar JavaScript</h1>
+          <p class="fallo__text">
+            Este recetario funciona dentro del navegador, también sin conexión, y para eso necesita
+            que JavaScript esté activado.
+          </p>
+        </div>
+      </div>
     </noscript>
 
+    <!--
+      Red de seguridad del arranque. Va ANTES del modulo y como script clasico a
+      proposito: tiene que estar escuchando cuando `main.js` falle, y tiene que
+      poder ejecutarse aunque el navegador no entienda lo que `main.js` usa.
+    -->
+    <script src="./src/salvavidas.js"></script>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

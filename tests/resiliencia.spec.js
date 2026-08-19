@@ -1,0 +1,212 @@
+/**
+ * RESILIENCIA
+ *
+ * Todo lo que pasa cuando algo va mal. Es la familia de fallos mas dificil de
+ * ver en una revision manual, porque hay que romper el sitio a proposito para
+ * que aparezcan, y ninguno se manifiesta mientras las cosas funcionan.
+ *
+ * Cubre cuatro caminos, cada uno con su propio modo de fallar:
+ *
+ *   1. La direccion no existe            404.html
+ *   2. El programa no arranca            src/salvavidas.js
+ *   3. La receta pedida ya no esta       renderNotFound
+ *   4. No hay red, o no hay servidor     sw.js y el aviso de aislamiento
+ *
+ * Cubre los puntos 90 a 96 de QA.md.
+ */
+
+import { test, expect } from '@playwright/test';
+import { entrar, CLAVE } from './apoyo.js';
+
+/* ===========================================================================
+ *  1. LA DIRECCION NO EXISTE
+ * ======================================================================== */
+
+test.describe('Página no encontrada', () => {
+  test('responde 404 y explica qué pasó, con la marca del recetario', async ({ page }) => {
+    const respuesta = await page.goto('/una-direccion-que-no-existe');
+
+    // El estado importa tanto como el texto: un 200 con cara de error le dice
+    // a los buscadores y a cualquier enlace automatico que la pagina existe.
+    expect(respuesta.status()).toBe(404);
+
+    await expect(page.locator('.fallo__title')).toHaveText('Esta dirección no existe');
+    await expect(page.locator('.fallo__brand')).toContainText('Zahavi');
+    await expect(page.locator('.fallo__code')).toContainText('404');
+  });
+
+  test('la hoja de estilo se aplica bajo la política de seguridad real', async ({ page }) => {
+    await page.goto('/una-direccion-que-no-existe');
+
+    // Sin esto la pagina se veria como texto suelto sobre fondo blanco. Es el
+    // fallo exacto que tenia el aviso de `noscript`: llevaba el estilo dentro
+    // del atributo y `style-src 'self'` lo descartaba en silencio.
+    const fondo = await page
+      .locator('.fallo')
+      .evaluate((el) => window.getComputedStyle(el).backgroundColor);
+    expect(fondo).not.toBe('rgba(0, 0, 0, 0)');
+
+    const borde = await page
+      .locator('.fallo__inner')
+      .evaluate((el) => window.getComputedStyle(el).borderTopWidth);
+    expect(borde).toBe('3px');
+  });
+
+  test('el enlace devuelve al recetario', async ({ page }) => {
+    await page.goto('/una-direccion-que-no-existe');
+    await page.getByRole('link', { name: 'Ir al recetario' }).click();
+    await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible();
+  });
+
+  test('la página de fallo de plataforma conserva los marcadores de Vercel', async ({ page }) => {
+    // Los sustituye la plataforma al servirla. Si alguien los borra por
+    // parecerle texto raro, el aviso deja de poder diagnosticar nada.
+    const respuesta = await page.request.get('/500.html');
+    const html = await respuesta.text();
+    expect(html).toContain('::vercel:ERROR_CODE::');
+    expect(html).toContain('::vercel:REQUEST_ID::');
+  });
+});
+
+/* ===========================================================================
+ *  2. EL PROGRAMA NO ARRANCA
+ * ======================================================================== */
+
+test.describe('Arranque', () => {
+  test('un módulo que no carga deja una salida, no una pantalla colgada', async ({ page }) => {
+    // Asi se ve un despliegue a medias o una copia guardada corrupta: el
+    // documento llega, el codigo no.
+    await page.route('**/src/main.js', (route) => route.abort());
+
+    await page.goto('/index.html');
+
+    await expect(page.locator('.fallo__title')).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByRole('button', { name: 'Volver a intentarlo' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Borrar la copia guardada y recargar' }),
+    ).toBeVisible();
+
+    // Lo primero que quiere saber quien esta delante.
+    await expect(page.locator('.fallo__note')).toContainText('no se borran');
+
+    // Y lo que antes se quedaba en pantalla para siempre.
+    await expect(page.locator('.booting')).toHaveCount(0);
+  });
+
+  test('cuando arranca bien no se ve ningún aviso de fallo', async ({ page }) => {
+    await entrar(page);
+
+    await expect(page.locator('.fallo')).toHaveCount(0);
+    // La marca que apaga la red de seguridad.
+    await expect(page.locator('html')).toHaveAttribute('data-arranque', 'listo');
+  });
+});
+
+/* ===========================================================================
+ *  3. LA RECETA PEDIDA YA NO ESTA
+ * ======================================================================== */
+
+test.describe('Receta inexistente', () => {
+  test('el enlace de una receta que no está lo dice, con el código pedido', async ({ page }) => {
+    await entrar(page, '#/receta/R999');
+
+    await expect(page.locator('.welcome__title')).toHaveText('Esta receta no está aquí');
+    // El codigo es lo unico que permite entender que paso.
+    await expect(page.locator('.welcome__code')).toHaveText('R999');
+
+    // Antes esto llevaba a la bienvenida y el enlace parecia no hacer nada.
+    await expect(page.locator('.welcome__stats')).toHaveCount(0);
+  });
+
+  test('devuelve al listado', async ({ page }) => {
+    await entrar(page, '#/receta/R999');
+    await page.getByRole('button', { name: 'Volver al listado' }).click();
+
+    await expect(page.locator('.welcome__stats')).toBeVisible();
+    expect(await page.evaluate(() => window.location.hash)).toBe('#/');
+  });
+});
+
+/* ===========================================================================
+ *  4. NO HAY SERVIDOR
+ * ======================================================================== */
+
+test.describe('Sin recetario compartido', () => {
+  // El servidor de pruebas no tiene la funcion `/api/recipes`, igual que un
+  // despliegue al que le faltan las variables de entorno. Ese es justo el caso
+  // que hay que anunciar: se puede trabajar durante semanas creyendo que lo
+  // guardado llega a la otra sede.
+
+  test('lo anuncia en la cabecera, no escondido en Ajustes', async ({ page }) => {
+    await entrar(page);
+
+    const aviso = page.locator('.context-badge--warn');
+    await expect(aviso).toBeVisible();
+    await expect(aviso).toContainText('no está conectado al recetario compartido');
+  });
+
+  test('Ajustes lo explica en una línea', async ({ page }) => {
+    await entrar(page);
+    await page.getByRole('button', { name: 'Ajustes' }).click();
+
+    const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
+    await expect(fila.locator('.diag__value')).toHaveText('No disponible en este sitio');
+
+    const automatica = page.locator('.diag__row', { hasText: 'Publicación automática' });
+    await expect(automatica.locator('.diag__value')).toHaveText('No disponible');
+  });
+
+  test('guardar dice que el cambio se queda en este equipo', async ({ page }) => {
+    await entrar(page);
+
+    // Receta nueva con el prefijo de pruebas: no se toca ninguna de las 121.
+    await page.getByRole('button', { name: 'Nueva receta' }).click();
+    await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-RESILIENCIA');
+    // Una receta sin ningun ingrediente no se guarda: la validacion la rechaza.
+    // El campo lleva lista de sugerencias, asi que su papel es `combobox`.
+    await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-HARINA');
+    await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('1000');
+    await page.getByRole('button', { name: 'Guardar' }).click();
+
+    // Sin servidor no puede haber publicacion automatica, y el mensaje no debe
+    // prometer lo contrario.
+    await expect(page.locator('.notice')).toContainText('en este equipo');
+    await expect(page.locator('.notice')).not.toContainText('Publicando');
+
+    // Se deja el recetario como estaba: las pruebas no dejan restos.
+    await page.evaluate(() => {
+      window.localStorage.removeItem('zahavi_recetario_v1');
+    });
+  });
+});
+
+/* ===========================================================================
+ *  5. NO HAY RED
+ * ======================================================================== */
+
+test.describe('Sin conexión', () => {
+  // Esta es la unica prueba que deja trabajar al service worker: es justo lo
+  // que se comprueba.
+
+  test('el recetario abre sin red, incluso desde una dirección no guardada', async ({ page }) => {
+    await page.goto('/index.html');
+
+    // `controller` es la prueba de que el service worker ya sirve esta pagina,
+    // no solo de que esta registrado.
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, {
+      timeout: 20_000,
+    });
+
+    await page.context().setOffline(true);
+
+    // Una direccion que NO esta guardada tal cual. Antes salia la pantalla de
+    // error del navegador: `networkFirst` lanzaba el fallo sin caer a la
+    // portada, y a esa situacion se llega con el acceso directo instalado o con
+    // un enlace escrito de otra forma.
+    await page.goto('/recetario-sin-guardar');
+
+    await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible();
+
+    await page.context().setOffline(false);
+  });
+});

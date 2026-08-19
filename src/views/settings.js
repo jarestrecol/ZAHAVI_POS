@@ -42,6 +42,8 @@ import { createWindow } from './window.js';
  * @param {boolean} options.canPublish si este sitio tiene publicacion compartida
  * @param {boolean} options.needsReload si hay que recargar antes de publicar
  * @param {string} options.editKey clave de edicion guardada en la sesion
+ * @param {{state: string, readAt: Date|null}} options.server diagnostico del servidor
+ * @param {{motivo: string, texto: string, pendiente: boolean}} options.sync publicacion automatica
  * @param {(password: string) => Promise<object>} options.onPublish
  * @param {() => void} options.onDiscard
  * @param {() => void} options.onClose
@@ -50,6 +52,7 @@ import { createWindow } from './window.js';
 export function openSettings(options) {
   const body = el('div', { class: 'settings' }, [
     renderStatusBlock(options),
+    renderDiagnosisBlock(options),
     renderPasswordBlock(),
   ]);
 
@@ -133,6 +136,103 @@ function renderStatusBlock(options) {
       : null,
   ]);
 }
+
+/* ===========================================================================
+ *  1b. DIAGNOSTICO
+ * ======================================================================== */
+
+/**
+ * Estado real del enlace con el recetario compartido.
+ *
+ * EXISTE PARA CONTESTAR UNA SOLA PREGUNTA: "no me guarda, ¿que pasa?". Antes,
+ * responderla obligaba a abrir las herramientas del navegador y mirar si la
+ * peticion a `/api/recipes` contestaba, algo que no puede hacer quien esta
+ * detras del mostrador. Cuatro lineas evitan esa llamada de telefono.
+ *
+ * Se muestra tal cual, sin suavizarlo: si este equipo no publica, hay que
+ * poder leerlo aqui en una linea.
+ */
+function renderDiagnosisBlock(options) {
+  const server = options.server || { state: 'desconocido', readAt: null };
+  const sync = options.sync || { motivo: '', texto: '' };
+
+  return el('section', { class: 'settings__row' }, [
+    el('h3', { class: 'section-label', text: 'Conexión' }),
+
+    el('dl', { class: 'diag' }, [
+      ...linea('Recetario compartido', estadoDelServidor(server.state)),
+      ...linea('Última lectura', horaCorta(server.readAt)),
+      ...linea('Publicación automática', estadoDeLaPublicacion(options, sync)),
+      ...linea('Sin conexión', modoSinConexion()),
+    ]),
+
+    sync.texto ? el('p', { class: 'settings__help', text: sync.texto }) : null,
+  ]);
+}
+
+/**
+ * Una fila del diagnostico.
+ *
+ * @param {string} etiqueta
+ * @param {string} valor
+ * @returns {Array<HTMLElement>}
+ */
+function linea(etiqueta, valor) {
+  return [
+    el('div', { class: 'diag__row' }, [
+      el('dt', { class: 'diag__label', text: etiqueta }),
+      el('dd', { class: 'diag__value', text: valor }),
+    ]),
+  ];
+}
+
+function estadoDelServidor(estado) {
+  switch (estado) {
+    case 'ok':
+      return 'Conectado';
+    case 'sin_api':
+      return 'No disponible en este sitio';
+    case 'error':
+      return 'Responde con error';
+    case 'sin_red':
+      return 'Sin conexión';
+    default:
+      return 'Sin comprobar';
+  }
+}
+
+function estadoDeLaPublicacion(options, sync) {
+  if (!options.canPublish) return 'No disponible';
+  if (sync.motivo === 'sin_clave') return 'Pendiente de la primera publicación';
+  if (sync.motivo === 'clave') return 'Detenida: la clave dejó de valer';
+  if (sync.motivo === 'conflicto') return 'Detenida: hay que recargar';
+  if (sync.pendiente) return 'Pendiente de conexión';
+  return 'Activa';
+}
+
+/**
+ * Si este equipo puede abrir el recetario sin señal.
+ *
+ * `controller` es la prueba de que el service worker no solo esta registrado,
+ * sino sirviendo ya esta pagina: registrado pero sin controlar todavia significa
+ * que hoy, sin red, no habria recetario.
+ */
+function modoSinConexion() {
+  if (!('serviceWorker' in navigator)) return 'No disponible en este navegador';
+  return navigator.serviceWorker.controller ? 'Listo' : 'Se activa al recargar';
+}
+
+function horaCorta(fecha) {
+  if (!(fecha instanceof Date)) return '—';
+  // `'es'` a secas, igual que la fecha de las hojas impresas (`views/print.js`):
+  // el recetario esta en español de principio a fin y no depende de la region
+  // que tenga configurada cada equipo.
+  return fecha.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ===========================================================================
+ *  1c. PUBLICAR
+ * ======================================================================== */
 
 /**
  * Bloque de publicacion.

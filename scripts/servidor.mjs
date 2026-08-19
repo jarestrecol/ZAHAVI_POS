@@ -76,9 +76,25 @@ const servidor = createServer(async (peticion, respuesta) => {
     respuesta.end(contenido);
   } catch {
     // La API de publicacion es una funcion de Vercel y aqui no existe: el
-    // recetario ya sabe caer al archivo publicado cuando no responde.
-    respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    respuesta.end('No encontrado');
+    // recetario ya sabe caer al archivo publicado cuando no responde. Se
+    // contesta en texto plano porque quien pregunta es codigo, no una persona.
+    if (ruta.startsWith('/api/')) {
+      respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...cabecerasDe(ruta) });
+      respuesta.end('No encontrado');
+      return;
+    }
+
+    // Cualquier otra direccion que no existe: la misma pagina que sirve Vercel,
+    // y con el mismo estado 404. Servirla aqui es lo que permite comprobarla
+    // sin desplegar.
+    try {
+      const pagina = await readFile(join(raiz, '404.html'));
+      respuesta.writeHead(404, { 'Content-Type': TIPOS['.html'], ...cabecerasDe(ruta) });
+      respuesta.end(pagina);
+    } catch {
+      respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      respuesta.end('No encontrado');
+    }
   }
 });
 

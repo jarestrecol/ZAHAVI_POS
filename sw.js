@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v16';
+const CACHE_VERSION = 'zahavi-v17';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -34,6 +34,7 @@ const SHELL = [
   './assets/css/views.css',
   './assets/css/dialogs.css',
   './assets/css/print.css',
+  './assets/css/fallback.css',
   './assets/css/responsive.css',
   './assets/fonts/plus-jakarta-sans-400.woff2',
   './assets/fonts/plus-jakarta-sans-500.woff2',
@@ -48,7 +49,9 @@ const SHELL = [
   './assets/fonts/ibm-plex-mono-600.woff2',
   './assets/fonts/ibm-plex-mono-700.woff2',
   './src/main.js',
+  './src/salvavidas.js',
   './src/app/commands.js',
+  './src/app/sync.js',
   './src/views/skeleton.js',
   './src/lib/dom.js',
   './src/lib/format.js',
@@ -169,6 +172,18 @@ async function networkFirst(request) {
   } catch {
     const cached = await caches.match(request, { ignoreSearch: true });
     if (cached) return cached;
+
+    // Navegacion sin red y sin copia EXACTA de esa direccion: se sirve la
+    // portada, que si esta guardada. Sin esto salia la pantalla de error del
+    // navegador, y era facil llegar ahi: basta con abrir el recetario desde un
+    // enlace con la direccion escrita de otra forma, o desde el acceso directo
+    // instalado. La misma salida existia en `cacheFirst`, pero desde que las
+    // navegaciones van por aqui esa red de seguridad habia dejado de aplicarse.
+    if (request.mode === 'navigate') {
+      const shell = (await caches.match('./index.html')) || (await caches.match('./'));
+      if (shell) return shell;
+    }
+
     throw new Error('sin red y sin copia de las recetas');
   }
 }

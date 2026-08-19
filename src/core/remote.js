@@ -23,6 +23,27 @@ const TIMEOUT_MS = 12000;
 let available = false;
 
 /**
+ * Ultimo resultado de hablar con el servidor, para poder decirlo en Ajustes.
+ *
+ * `available` solo distingue "hay servidor" de "no lo hay", y eso no basta para
+ * diagnosticar: una funcion mal configurada y una caida de red se veian igual
+ * desde fuera, y las dos acaban en "no me guarda".
+ *
+ *   desconocido  todavia no se ha intentado leer
+ *   ok           el servidor respondio y entrego el recetario
+ *   sin_api      este sitio no tiene la funcion: no hay a donde publicar
+ *   error        la funcion existe pero fallo (variables sin poner, token
+ *                caducado, GitHub caido)
+ *   sin_red      no se pudo llegar al servidor
+ *
+ * @type {'desconocido'|'ok'|'sin_api'|'error'|'sin_red'}
+ */
+let serverState = 'desconocido';
+
+/** Momento de la ultima lectura correcta, en hora local. @type {Date|null} */
+let lastReadAt = null;
+
+/**
  * sha del archivo leido. Sin el no se puede publicar: es lo que permite al
  * servidor detectar que otro equipo escribio entre medias.
  * @type {string|null}
@@ -54,6 +75,23 @@ export function canPublish() {
  */
 export function needsReload() {
   return staleSinceConflict;
+}
+
+/**
+ * Diagnostico de la conexion con el recetario compartido.
+ *
+ * Existe para que Ajustes pueda contestar en una linea a "no me guarda" sin
+ * abrir las herramientas del navegador.
+ *
+ * @returns {{state: string, readAt: Date|null, hasReference: boolean, conflict: boolean}}
+ */
+export function serverStatus() {
+  return {
+    state: serverState,
+    readAt: lastReadAt,
+    hasReference: currentSha !== null,
+    conflict: staleSinceConflict,
+  };
 }
 
 /**
@@ -92,6 +130,8 @@ export async function fetchShared() {
 
     if (response.status === 404 || response.status === 405) {
       available = false;
+      serverState = 'sin_api';
+      descartarCuerpo(response);
       return { ok: false, code: 'sin_api', message: 'Este sitio no tiene recetario compartido.' };
     }
     if (!response.ok) {
@@ -99,6 +139,8 @@ export async function fetchShared() {
       // puede publicar aunque la API responda.
       available = true;
       currentSha = null;
+      serverState = 'error';
+      descartarCuerpo(response);
       return { ok: false, code: 'servidor', message: 'El servidor no pudo entregar el recetario.' };
     }
 
@@ -106,12 +148,15 @@ export async function fetchShared() {
     if (!Array.isArray(data.recipes) || typeof data.sha !== 'string') {
       available = true;
       currentSha = null;
+      serverState = 'error';
       return { ok: false, code: 'formato', message: 'El servidor devolvió un recetario ilegible.' };
     }
 
     available = true;
     currentSha = data.sha;
     staleSinceConflict = false;
+    serverState = 'ok';
+    lastReadAt = new Date();
 
     return {
       ok: true,
@@ -123,6 +168,7 @@ export async function fetchShared() {
       },
     };
   } catch {
+    serverState = 'sin_red';
     return { ok: false, code: 'sin_red', message: 'Sin conexión con el servidor.' };
   }
 }
@@ -187,6 +233,29 @@ export async function publishShared(payload) {
     return { ok: true, value: { revision: data.revision || '', count: data.count || 0 } };
   } catch {
     return { ok: false, code: 'red', message: 'Sin conexión con el servidor. Inténtalo de nuevo.' };
+  }
+}
+
+/**
+ * Cierra el cuerpo de una respuesta que no se va a leer.
+ *
+ * Sin esto la peticion queda abierta hasta que el navegador la recoja por su
+ * cuenta: nadie consume el flujo, y con `Cache-Control: no-store` -que es lo
+ * que declara `/api/` en produccion- tampoco lo vacia la cache. No se pierde
+ * nada visible, pero la conexion sigue ocupada y cualquier medida de "la pagina
+ * termino de cargar" se queda esperando para siempre.
+ *
+ * @param {Response} response
+ */
+function descartarCuerpo(response) {
+  try {
+    // `cancel` devuelve una promesa: si se rechazara sin capturar, la red de
+    // seguridad del arranque (`salvavidas.js`) lo tomaria por un fallo grave y
+    // taparia el recetario con un aviso, que es justo lo contrario de lo que
+    // esta funcion pretende.
+    if (response.body && !response.bodyUsed) response.body.cancel().catch(() => {});
+  } catch {
+    /* navegador que no lo permite: se deja que lo recoja el */
   }
 }
 

@@ -34,10 +34,11 @@ import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
 import { getEditKey } from './core/remote.js';
 import { saveRecipe, deleteRecipe, publish, discardChanges } from './app/commands.js';
+import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
 import { renderLogin } from './views/login.js';
 import { renderHeader, renderBadges } from './views/header.js';
 import { renderSidebar, SEARCH_ID } from './views/sidebar.js';
-import { renderDetail, renderPlaceholder } from './views/detail.js';
+import { renderDetail, renderPlaceholder, renderNotFound } from './views/detail.js';
 import { renderSkeleton } from './views/skeleton.js';
 import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
@@ -133,6 +134,14 @@ async function boot() {
 
   document.addEventListener('keydown', handleShortcuts);
   registerServiceWorker();
+
+  // Publicacion automatica: lo que se guarda sale hacia las demas sedes sin
+  // depender de que alguien se acuerde de pulsar Publicar. Ver `app/sync.js`.
+  iniciarSincronizacion();
+
+  // La red de seguridad del arranque (`salvavidas.js`) espera esta marca. Sin
+  // ella, a los pocos segundos sustituye la pantalla por un aviso de fallo.
+  document.documentElement.dataset.arranque = 'listo';
 }
 
 /**
@@ -366,8 +375,16 @@ function paint() {
   const route = getRoute();
 
   // El buscador se reconstruye en cada render: se anota si tenia el foco para
-  // devolverselo despues y no cortar a alguien a media palabra.
-  const searchHadFocus = document.activeElement && document.activeElement.id === SEARCH_ID;
+  // devolverselo despues y no cortar a alguien a media palabra. Se anota
+  // tambien POR DONDE iba el cursor: devolver el foco al final del texto es
+  // igual de molesto que perderlo cuando alguien esta corrigiendo una letra en
+  // mitad de la palabra, y los repintados de fondo (una publicacion que
+  // termina, la conexion que vuelve) llegan sin avisar.
+  const searchNode = document.activeElement && document.activeElement.id === SEARCH_ID
+    ? document.activeElement
+    : null;
+  const searchHadFocus = Boolean(searchNode);
+  const searchCaret = searchNode ? searchNode.selectionStart : null;
 
   // Lo mismo para el resto de la pantalla, pero pensando en los dialogos: el
   // que se abra aqui mismo necesita saber a que boton devolver el foco cuando
@@ -400,10 +417,13 @@ function paint() {
   // --- Recetario ---------------------------------------------------------
   const recipe = route.name === 'detail' ? repo.findById(route.id) : null;
 
-  // Avisos que van por encima de todo: sin conexion, o cambios sin publicar.
+  // Avisos que van por encima de todo: sin conexion, sin recetario compartido,
+  // o cambios sin publicar.
   for (const badge of renderBadges({
     changes: repo.localChanges(),
     online: state.online,
+    server: repo.serverDiagnosis(),
+    sync: estadoSincronizacion(),
     onOpenSettings: () => setState({ settingsOpen: true }),
   })) {
     app.appendChild(badge);
@@ -416,7 +436,12 @@ function paint() {
   // `#app` de index.html que solo lo envuelve: puesto en el contenedor
   // equivocado, el selector nunca coincidia y el listado y la ficha se veian
   // los dos a la vez en movil, apretados dentro de la altura fija de la app.
-  const shell = el('div', { class: 'app', dataset: { view: recipe ? 'detail' : 'index' } }, [
+  // El atributo sigue a la RUTA, no a la receta encontrada: si alguien abre el
+  // enlace de una receta que ya no existe, en celular hay que enseñarle el
+  // aviso, y con `view='index'` se veria el listado y el aviso quedaria oculto.
+  const vista = route.name === 'detail' ? 'detail' : 'index';
+
+  const shell = el('div', { class: 'app', dataset: { view: vista } }, [
     // Barra superior: marca, buscador y acciones.
     renderHeader({
       canEdit: true,
@@ -434,19 +459,11 @@ function paint() {
         category: route.category,
         selectedId: recipe ? recipe.id : null,
         focusSearch: searchHadFocus,
+        searchCaret,
       }),
 
       // Derecha: la receta abierta, o la bienvenida si no hay ninguna.
-      el('div', { class: 'panel' }, [
-        recipe
-          ? renderDetail({ recipe, canEdit: true, factor: state.factor })
-          : renderPlaceholder({
-              count: state.recipes.length,
-              withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
-              categories: new Set(state.recipes.map((r) => r.categoria).filter(Boolean)).size,
-              ingredients: state.ingredientes.length,
-            }),
-      ]),
+      el('div', { class: 'panel' }, [renderPanel(state, route, recipe)]),
     ]),
   ]);
 
@@ -462,6 +479,38 @@ function paint() {
 
   renderDialogs(shell);
   renderPrint(state, route, recipe);
+}
+
+/**
+ * Contenido del panel derecho: la receta, el aviso de que no existe, o la
+ * bienvenida.
+ *
+ * El caso del medio no es teorico. Los enlaces a recetas se comparten por
+ * mensajeria entre las dos sedes, y una receta puede haberse eliminado o
+ * renumerado desde entonces. Antes ese enlace llevaba a la bienvenida sin decir
+ * nada, y el efecto para quien lo abria era que el enlace "no hacia nada".
+ *
+ * @param {object} state
+ * @param {object} route
+ * @param {object|null} recipe
+ * @returns {HTMLElement}
+ */
+function renderPanel(state, route, recipe) {
+  if (recipe) return renderDetail({ recipe, canEdit: true, factor: state.factor });
+
+  if (route.name === 'detail') {
+    return renderNotFound({
+      id: route.id,
+      onBack: () => navigate({ name: 'index', id: null }),
+    });
+  }
+
+  return renderPlaceholder({
+    count: state.recipes.length,
+    withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
+    categories: new Set(state.recipes.map((r) => r.categoria).filter(Boolean)).size,
+    ingredients: state.ingredientes.length,
+  });
 }
 
 /**
@@ -579,7 +628,20 @@ function dialogKey(state, route) {
 
   if (state.settingsOpen) {
     const changes = repo.localChanges();
-    return `settings:${changes.total}:${changes.dirty}:${repo.publishedRevision()}`;
+    // El estado del servidor forma parte de la clave porque el bloque de
+    // Conexion lo muestra: si cambia mientras Ajustes esta abierto (vuelve la
+    // red, se publica solo), el dialogo tiene que repintarse para no seguir
+    // enseñando un diagnostico viejo.
+    const sync = estadoSincronizacion();
+    const servidor = repo.serverDiagnosis().state;
+    return [
+      'settings',
+      changes.total,
+      changes.dirty,
+      repo.publishedRevision(),
+      servidor,
+      sync.motivo,
+    ].join(':');
   }
 
   if (route.name === 'new') return 'new';
@@ -674,6 +736,8 @@ function buildSettings(state) {
     canPublish: repo.canPublishToAll(),
     needsReload: repo.needsReloadBeforePublish(),
     editKey: getEditKey(),
+    server: repo.serverDiagnosis(),
+    sync: estadoSincronizacion(),
     onPublish: publish,
     onDiscard: discardChanges,
     onClose: () => {

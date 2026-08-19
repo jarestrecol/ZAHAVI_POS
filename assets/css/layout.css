@@ -588,6 +588,34 @@
   border-top: 1px solid var(--line);
 }
 
+/* Receta que no existe. Misma composicion que la bienvenida, sin el halo de
+   marca: esto no es una portada, es un aviso, y celebrarlo con atmosfera seria
+   leerlo mal. */
+.welcome--missing {
+  background: var(--surface);
+}
+
+/* El codigo pedido, tratado como dato y no como titulo: es la pista que
+   permite entender el aviso, pero el mensaje manda sobre el. */
+.welcome__code {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.welcome__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-5);
+}
+
 .welcome__hint {
   margin-top: var(--space-5);
   font-size: var(--text-sm);

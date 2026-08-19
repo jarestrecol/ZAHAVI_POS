@@ -1,0 +1,60 @@
+<!doctype html>
+<!--
+  Dirección que no existe.
+
+  Vercel sirve esta página cuando la ruta pedida no corresponde a ningún archivo
+  del sitio. Sin ella se ve la pantalla genérica de la plataforma, en inglés y
+  con su marca, que para el cliente parece que el recetario ha desaparecido.
+
+  NO LLEVA JAVASCRIPT NI ESTILOS DENTRO DEL DOCUMENTO, y no es una preferencia:
+  la política de seguridad del sitio declara `script-src 'self'` y
+  `style-src 'self'`, así que un `<style>` aquí dentro no se aplicaría y un
+  `<script>` no se ejecutaría. Todo lo que necesita viene de `fallback.css`.
+
+  Tampoco redirige sola al recetario. La dirección equivocada suele venir de un
+  enlace mal copiado, y llevar a alguien a la portada sin decirle nada esconde
+  el motivo: la próxima vez volvería a pasar igual.
+-->
+<html lang="es" translate="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zahavi · Página no encontrada</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#1a1714" />
+
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+
+    <!--
+      Rutas absolutas, al contrario que en `index.html`. Esta página se sirve en
+      la dirección que el navegador pidió, que puede estar a cualquier
+      profundidad (`/recetas/algo/otro`), y con rutas relativas los estilos se
+      buscarían dentro de esa carpeta inexistente.
+    -->
+    <link rel="stylesheet" href="/assets/css/fonts.css" />
+    <link rel="stylesheet" href="/assets/css/tokens.css" />
+    <link rel="stylesheet" href="/assets/css/base.css" />
+    <link rel="stylesheet" href="/assets/css/fallback.css" />
+  </head>
+  <body>
+    <main class="fallo">
+      <div class="fallo__inner">
+        <p class="fallo__brand">Zahavi · Recetario</p>
+        <p class="fallo__code">Error 404</p>
+        <h1 class="fallo__title">Esta dirección no existe</h1>
+        <p class="fallo__text">
+          El recetario sigue funcionando: lo que no está es la página que pediste. Puede ser un
+          enlace antiguo o una dirección mal copiada.
+        </p>
+        <div class="fallo__actions">
+          <a class="fallo__btn fallo__btn--primary" href="/">Ir al recetario</a>
+        </div>
+        <p class="fallo__note">
+          Las recetas se abren desde el listado del propio recetario o buscándolas por su nombre.
+        </p>
+      </div>
+    </main>
+  </body>
+</html>

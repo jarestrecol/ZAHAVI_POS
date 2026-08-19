@@ -119,8 +119,14 @@ ningún sitio.
   el escalado y el plan del día, sin que nadie se entere. **Abrir una receta y
   guardarla sin tocar el rendimiento conserva su nombre byte a byte**: hay una
   prueba automática que lo comprueba sobre las 121.
-- **Publicación explícita**: lo editado queda en el equipo hasta que alguien
-  publica. La cabecera indica en todo momento cuántos cambios hay pendientes.
+- **Se guarda en el equipo y se publica solo.** Guardar escribe siempre en el
+  dispositivo, también sin señal; a partir de ahí, si se puede publicar, sale
+  hacia las demás sedes sin que nadie tenga que acordarse, y si no se puede, se
+  reintenta al volver la conexión. La cabecera dice en todo momento cuántos
+  cambios quedan pendientes y por qué. Es la diferencia entre un olvido y tres
+  semanas de trabajo que nadie más ve.
+- **Avisa cuando este equipo está aislado**: si el sitio no tiene la publicación
+  configurada, sale un aviso rojo en la cabecera en vez de esconderlo en Ajustes.
 - **Control de concurrencia**: si otra sede publicó mientras tanto, el sistema
   obliga a recargar antes de permitir publicar. Es imposible pisar el trabajo
   ajeno por insistir.
@@ -128,7 +134,14 @@ ningún sitio.
 
 ### Plataforma
 
-- **Sin conexión**: la aplicación arranca y se consulta con la red caída.
+- **Sin conexión**: la aplicación arranca y se consulta con la red caída, y
+  también desde una dirección del sitio que no sea la portada.
+- **Cuando algo falla, lo dice y ofrece salida.** Una dirección que no existe da
+  una página con la marca, no la pantalla de la plataforma. Si el programa no
+  llega a arrancar, la pantalla de carga se sustituye por un aviso con dos
+  botones: reintentar, o borrar la copia guardada del programa (que no toca las
+  recetas). Y el enlace de una receta eliminada lo dice, con el código pedido,
+  en vez de llevar en silencio a la portada.
 - **Instalable** como aplicación (PWA) en escritorio, Android e iPhone, con
   iconos propios: `maskable` para que Android no lo meta en un círculo blanco
   con relleno, y `apple-touch-icon` porque iOS ignora los iconos del manifiesto
@@ -220,7 +233,8 @@ A partir de ahí, cualquier cambio de estado o de dirección vuelve a llamar a
 
 ```
 Editor → repository.save()      guarda en localStorage, marca "pendiente"
-       → commands.publish()     envía a /api/recipes con la clave de edición
+       → sync.publicarEnSegundoPlano()   si se puede, sin esperar a nadie
+       → commands.publish()     o a mano, desde Ajustes, con la clave
        → api/recipes.js         valida la clave (comparación de tiempo constante)
                                 valida el contenido (rechaza, no repara)
                                 comprueba el sha contra GitHub
@@ -231,6 +245,25 @@ Editor → repository.save()      guarda en localStorage, marca "pendiente"
 El `sha` es obligatorio en cada envío. Sin él no hay control de concurrencia
 posible: un envío ciego sobrescribiría el recetario de las dos sedes sin
 comprobar nada. El servidor lo rechaza antes de tocar GitHub.
+
+**La publicación es automática, pero guardar sigue sin depender de ella.**
+`app/sync.js` intenta publicar después de cada guardado o borrado; si no hay
+red, reintenta al volver la conexión. Lo que nunca hace es convertir la señal en
+un requisito: sin conexión se guarda igual en el equipo, que es lo que permite
+trabajar cuando en el obrador no hay cobertura.
+
+Hay una condición deliberada: la clave de edición vive solo en la sesión del
+navegador, así que **la primera publicación de cada sesión se hace a mano** y a
+partir de ahí el equipo publica solo. Guardarla de forma permanente ahorraría
+ese paso a cambio de dejar la llave del repositorio en un equipo del mostrador.
+
+| Cuándo no publica sola | Qué pasa |
+|---|---|
+| Todavía no se publicó a mano en esta sesión | Queda pendiente. Ajustes lo dice: "Pendiente de la primera publicación" |
+| Sin red | Queda pendiente y se reintenta al volver la conexión, y cada 20 s |
+| El sitio no tiene la función (`/api/recipes` responde 404) | Aviso rojo en la cabecera: lo guardado se queda en el equipo |
+| La clave dejó de valer | Se borra la guardada, se avisa y **deja de reintentar**: insistir con una clave que el servidor rechaza no arregla nada |
+| Otra sede publicó antes | Se avisa del conflicto y hay que recargar. No se reintenta: reintentar sería pisar su trabajo |
 
 ### Patrones aplicados
 
@@ -662,6 +695,18 @@ instalar. Lo que Vercel muestra ahí es texto de ejemplo, no un valor por defect
 El `package.json` del proyecto no declara dependencias ni script de compilación,
 así que aunque Vercel lo detecte no hay nada que ejecutar.
 
+**Páginas de error.** `404.html` y `500.html` están en la raíz porque es donde
+Vercel las busca en un despliegue estático. La de 500 lleva los marcadores
+`::vercel:ERROR_CODE::` y `::vercel:REQUEST_ID::`, que la plataforma sustituye
+al servirla: son lo único que permite decir por teléfono qué falló, así que no
+se borran aunque parezcan texto raro.
+
+Conviene **comprobarlo en el primer despliegue**, porque es lo único de esta
+lista que no se puede verificar en local: abrir `<el-sitio>/loquesea` y confirmar
+que sale la página con la marca Zahavi y no la pantalla de Vercel. El servidor
+local sí la sirve, y hay una prueba automática que comprueba el estado 404 y que
+la hoja de estilo se aplica.
+
 ### Variables de entorno
 
 En **Settings → Environment Variables**, las cuatro son obligatorias para que
@@ -691,6 +736,21 @@ indique en ese momento. En Namecheap se cargan en **Advanced DNS**. El
 certificado HTTPS lo emite Vercel automáticamente.
 
 ### Diagnóstico
+
+**Lo primero, sin abrir nada técnico:** el propio recetario lo dice en
+**Ajustes → Conexión**. Cuatro líneas que contestan la pregunta de siempre, "no
+me guarda":
+
+| Línea | Qué significa cuando va mal |
+|---|---|
+| Recetario compartido | "No disponible en este sitio" es un despliegue sin las variables de entorno. "Responde con error" es la tabla de abajo |
+| Última lectura | Si está en `—`, este equipo nunca llegó a leer del servidor |
+| Publicación automática | Dice por qué no está publicando sola |
+| Sin conexión | "Listo" es que el equipo abre el recetario sin señal. "Se activa al recargar" es que todavía no |
+
+Si el sitio no tiene la función configurada, además sale un aviso rojo en la
+cabecera. Es deliberado que moleste: sin él se puede trabajar semanas creyendo
+que lo guardado llega a la otra sede.
 
 | Respuesta de `/api/recipes` | Significado |
 |---|---|
@@ -757,8 +817,8 @@ Archivo offline…                ok
 npm run qa
 ```
 
-Treinta y dos pruebas en escritorio, celular y tableta, en unos diez segundos.
-La suite levanta el servidor sola, con las cabeceras de producción.
+Cuarenta y cuatro pruebas en escritorio, celular y tableta, en unos doce
+segundos. La suite levanta el servidor sola, con las cabeceras de producción.
 
 Existen por una razón concreta: **la verificación anterior no abre ningún
 navegador**, y hay una familia entera de fallos que solo se ve ahí. Los seis
@@ -774,6 +834,7 @@ control inalcanzable) pasaron por delante de siete bloques de pruebas en verde.
 | `tests/impresion.spec.js` | Que se imprima lo que se está mirando |
 | `tests/celular.spec.js` | Acciones al alcance del pulgar y nada inalcanzable a 320 px |
 | `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral |
+| `tests/resiliencia.spec.js` | Lo que pasa cuando algo va mal: la 404 con su estado y su estilo, el arranque roto que deja salida, la receta borrada que lo dice, el sitio sin servidor que lo anuncia y el recetario abriendo sin red |
 
 Es la única dependencia del proyecto, y es de desarrollo: en tiempo de ejecución
 el recetario sigue sin ninguna. `.github/workflows/verificacion.yml` ejecuta las
@@ -785,7 +846,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 187 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 207 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Auditorías
@@ -876,6 +937,8 @@ Sigue en el historial de git por si algún día hace falta recuperarlo.
 
 ```
 index.html                 Punto de entrada
+404.html                   Dirección que no existe
+500.html                   Fallo de la plataforma (Vercel rellena sus marcadores)
 package.json               Cero dependencias en tiempo de ejecución
 vercel.json                Cabeceras de seguridad y política de caché
 sw.js                      Service worker: funcionamiento sin conexión
@@ -895,13 +958,16 @@ assets/
     views.css              Entrada, avisos y estados
     dialogs.css            Ventanas modales
     print.css              Hojas A4
+    fallback.css           Pantallas de fallo: 404, 500 y arranque roto
     responsive.css         Todos los ajustes por tamaño de pantalla
   fonts/                   Plus Jakarta Sans, Lora, IBM Plex Mono (OFL)
 
 src/
   main.js                  Arranque y orquestación
+  salvavidas.js            Red de seguridad: aviso con salida si no arranca
   app/
     commands.js            Casos de uso: guardar, eliminar, publicar, descartar
+    sync.js                Publicación automática con reintento
   core/
     storage.js             Acceso a localStorage con resultados tipados
     schema.js              Esquema, normalización y validación
@@ -948,8 +1014,9 @@ tests/                     Pruebas de navegador (npm run qa)
   impresion.spec.js        Que se imprima lo que se está mirando
   celular.spec.js          Lo que solo se rompe en un teléfono
   tableta.spec.js          Lo que solo se rompe en una tableta
+  resiliencia.spec.js      Lo que pasa cuando algo va mal
 
-QA.md                      Lista de verificación manual (187 puntos)
+QA.md                      Lista de verificación manual (207 puntos)
 
 data/
   recipes.json             Recetario publicado
@@ -975,6 +1042,47 @@ Para 121 recetas y dos sedes que editan de forma esporádica, una base de datos
 añade un servicio que mantener, pagar y respaldar, a cambio de resolver un
 problema de concurrencia que aquí casi no existe. Git ya aporta historial,
 recuperación de versiones y control de escrituras simultáneas mediante el `sha`.
+
+Conviene decir también lo que una base de datos **no** habría resuelto, porque
+es donde estaba el riesgo de verdad: que alguien editara durante semanas sin
+publicar. Eso no es un problema de dónde se guarda, es de cuándo sale el dato
+del equipo, y la respuesta fue la publicación automática de `app/sync.js`. Con
+una base de datos habría que tomar la misma decisión, y la respuesta fácil
+—escribir en el servidor en cada guardado— convertiría la señal en un requisito
+y dejaría el obrador sin recetario cada vez que se cae la conexión.
+
+**Cuándo sí toca revisarlo**, con señales objetivas y no opiniones: cuando el
+archivo pase de 700 KB (hoy son 225, el 32%); cuando entre el costeo, con
+precios que cambian a diario, porque la captura diaria de 159 ingredientes llega
+a 1 MB en unos dos meses y ahí la API de GitHub deja de entregar el archivo;
+cuando haga falta saber quién cambió qué, que hoy lo declara el navegador y el
+servidor no lo comprueba; cuando editen a la vez más de dos o tres sedes, porque
+el `sha` es del archivo entero y dos personas en recetas distintas chocan igual;
+o cuando hagan falta informes que no se puedan calcular en el navegador.
+
+### Por qué la red de seguridad del arranque es un script suelto y no un módulo
+
+`src/salvavidas.js` existe porque `index.html` pinta "Cargando recetario…" y
+confía en que `main.js` lo sustituya. Si `main.js` no llega a ejecutarse, nadie
+retira ese texto: la pantalla se queda cargando para siempre, sin explicación y
+sin salida. En una panadería a las cinco de la mañana eso es el recetario
+entero perdido, y la causa habitual no es exótica: un despliegue a medias o una
+copia guardada que quedó corrupta.
+
+Sus tres rarezas son deliberadas:
+
+- **Archivo aparte y no código dentro del HTML**, porque la política declara
+  `script-src 'self'` y un `<script>` con el código dentro no se ejecutaría.
+- **Script clásico y no módulo**, porque tiene que estar escuchando antes de que
+  `main.js` falle y poder ejecutarse aunque el navegador no entienda lo que
+  `main.js` usa. Por eso no lleva `import` ni sintaxis moderna.
+- **Escucha en fase de captura** (`addEventListener('error', …, true)`), porque
+  el evento `error` de un `<script>` o un `<link>` no burbujea: sin ese `true`
+  no se enteraría de que falta un archivo.
+
+Y una prudencia: si la aplicación ya pintó algo distinto de la pantalla de
+carga, el aviso no aparece. Borrarle la pantalla a alguien que está trabajando
+por un error suelto de fondo sería peor que el propio error.
 
 ### Por qué el borrado tiene tres pasos distintos y no cuatro avisos iguales
 
@@ -1088,7 +1196,8 @@ información completa.
 | El almacenamiento del navegador ronda los 5 MB | Suficiente para texto, no para imágenes | Si se añaden fotografías de producto |
 | La clave es una sola para todo el equipo | No se sabe quién entró, solo que alguien con la clave lo hizo | Si hiciera falta trazabilidad por persona |
 | Los ingredientes se referencian por nombre, no por código | Un cambio de nombre no propaga | Antes del costeo (Fase 2) |
-| Borrar los datos de navegación borra los cambios sin publicar | Lo ya publicado se recupera al recargar | Formar al equipo: publicar al terminar |
+| Borrar los datos de navegación borra los cambios sin publicar | Lo ya publicado se recupera al recargar. La publicación automática reduce mucho la ventana, pero no la cierra: hasta la primera publicación manual de cada sesión, lo guardado sigue solo en el equipo | Formar al equipo: publicar una vez al empezar la jornada |
+| La clave de edición vive solo en la sesión del navegador | La primera publicación de cada sesión es manual | Es deliberado: guardarla en el disco dejaría la llave del repositorio en un equipo del mostrador |
 | Ninguna de las 121 recetas tiene método escrito | El campo existe y está vacío en origen | Trabajo de contenido, no técnico |
 | 34 de las 121 no declaran rendimiento legible | Para esas solo se ofrece el multiplicador, no "quiero 24 unidades" | Se puede completar desde el editor, receta a receta |
 | En 15 de ellas el rendimiento está escrito **dentro** del nombre pero no al final | El separador no lo encuentra: `TORTA ... X 1 UND ( SIN AZUCAR )` | El editor avisa al abrirlas para que no quede duplicado |

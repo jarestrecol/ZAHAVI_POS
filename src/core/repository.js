@@ -17,7 +17,13 @@
 
 import { readJson, writeJson, ok, err } from './storage.js';
 import { validateBackup, nextRecipeId, SCHEMA_VERSION } from './schema.js';
-import { fetchShared, publishShared, canPublish as canPublishRemote, needsReload } from './remote.js';
+import {
+  fetchShared,
+  publishShared,
+  canPublish as canPublishRemote,
+  needsReload,
+  serverStatus,
+} from './remote.js';
 
 /** Clave de los cambios locales sin publicar. */
 const LOCAL_KEY = 'zahavi_recetario_v1';
@@ -420,6 +426,18 @@ export function canPublishToAll() {
  */
 export function needsReloadBeforePublish() {
   return needsReload();
+}
+
+/**
+ * Diagnostico del enlace con el recetario compartido.
+ *
+ * El repositorio es la unica puerta al almacenamiento, asi que tambien es quien
+ * debe contestar en que estado esta: las vistas no hablan con `remote.js`.
+ *
+ * @returns {{state: string, readAt: Date|null, hasReference: boolean, conflict: boolean, revision: string}}
+ */
+export function serverDiagnosis() {
+  return { ...serverStatus(), revision: published ? published.revision : '' };
 }
 
 /**

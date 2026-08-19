@@ -510,3 +510,34 @@ function stat(label, value) {
     ]),
   ];
 }
+
+/**
+ * Se pidio una receta que no esta en este recetario.
+ *
+ * Se muestra el codigo pedido a proposito: es lo unico que permite entender que
+ * paso. Con "R118" delante, quien comparte el enlace sabe que la receta se
+ * elimino o se renumero; sin el, el enlace solo parece roto.
+ *
+ * @param {{id: string, onBack: () => void}} params
+ * @returns {HTMLElement}
+ */
+export function renderNotFound(params) {
+  return el('div', { class: 'welcome welcome--missing', id: 'contenido' }, [
+    el('div', { class: 'welcome__inner' }, [
+      el('p', { class: 'welcome__code', text: params.id || 'sin código' }),
+      el('h1', { class: 'welcome__title', text: 'Esta receta no está aquí' }),
+      el('p', {
+        class: 'welcome__lead',
+        text: 'Puede que se haya eliminado, que el código haya cambiado, o que este equipo todavía no tenga la última versión publicada.',
+      }),
+      el('div', { class: 'welcome__actions' }, [
+        el('button', {
+          type: 'button',
+          class: 'btn btn--primary',
+          text: 'Volver al listado',
+          on: { click: params.onBack },
+        }),
+      ]),
+    ]),
+  ]);
+}

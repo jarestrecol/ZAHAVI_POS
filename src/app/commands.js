@@ -37,6 +37,7 @@ import { setState, notify } from '../core/store.js';
 import { navigate, ALL_CATEGORIES } from '../core/router.js';
 import { announce } from '../lib/a11y.js';
 import { setEditKey } from '../core/remote.js';
+import { publicarEnSegundoPlano, sePuedePublicarSolo } from './sync.js';
 
 /**
  * Vuelca al estado lo que el repositorio tenga ahora mismo.
@@ -59,8 +60,11 @@ function refreshState() {
 /**
  * Guarda una receta nueva o modificada en este equipo.
  *
- * Ojo: guardar NO publica. El cambio queda en este dispositivo hasta que
- * alguien pulse Publicar; por eso el mensaje lo dice de forma explicita.
+ * Guardar y publicar siguen siendo dos cosas distintas: esto escribe en el
+ * equipo, siempre, tambien sin conexion. Lo que cambia es que, si se puede
+ * publicar, no hace falta acordarse de pulsar nada: `sync.js` lo hace en
+ * segundo plano. El mensaje dice cual de los dos casos ha ocurrido, porque la
+ * diferencia importa: uno lo ven las demas sedes y el otro no.
  *
  * @param {object} recipe receta ya validada por el editor
  * @returns {{ok: true, value: object} | {ok: false, code: string, message: string}}
@@ -74,9 +78,13 @@ export function saveRecipe(recipe) {
   }
 
   refreshState();
-  notify('Receta guardada en este equipo.', 'success');
+  notify(
+    sePuedePublicarSolo() ? 'Receta guardada. Publicando…' : 'Receta guardada en este equipo.',
+    'success',
+  );
   announce('Receta guardada.');
   navigate({ name: 'detail', id: recipe.id });
+  publicarEnSegundoPlano();
 
   return result;
 }
@@ -105,9 +113,13 @@ export function deleteRecipe(id) {
 
   refreshState();
   setState({ confirmDelete: null });
-  notify('Receta eliminada.', 'success');
+  notify(
+    sePuedePublicarSolo() ? 'Receta eliminada. Publicando…' : 'Receta eliminada en este equipo.',
+    'success',
+  );
   announce('Receta eliminada.');
   navigate({ name: 'index', id: null });
+  publicarEnSegundoPlano();
 
   return result;
 }

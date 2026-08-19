@@ -1,0 +1,167 @@
+/*
+ * Pantallas de fallo.
+ *
+ * Las usan tres sitios distintos, y por eso viven aparte del resto:
+ *
+ *   - `src/salvavidas.js`  cuando el programa no llega a arrancar
+ *   - `404.html`           cuando la dirección no existe
+ *   - `500.html`           cuando falla la plataforma
+ *
+ * Las dos paginas estaticas no pueden ejecutar nada ni llevar estilos dentro
+ * del documento (la politica de seguridad declara `script-src 'self'` y
+ * `style-src 'self'`), asi que todo lo que necesitan tiene que estar aqui.
+ *
+ * DIRECCION: la estructura oscura del sistema, no una pagina de error
+ * generica. Quien ve esto sigue dentro del recetario, y la pantalla tiene que
+ * decirlo. Lo unico que se ilumina es la salida.
+ */
+
+.fallo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--space-5);
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(246, 138, 30, 0.16), transparent 70%),
+    var(--rail);
+}
+
+.fallo__inner {
+  width: 100%;
+  max-width: 34rem;
+  padding: var(--space-7) var(--space-6);
+  text-align: center;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--brand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.fallo__brand {
+  margin: 0 0 var(--space-5);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* El codigo del error, cuando lo hay: dato tecnico, no titular. */
+.fallo__code {
+  display: inline-block;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.fallo__title {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.fallo__text {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.fallo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.fallo__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-row);
+  padding: 0 var(--space-5);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface-card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.fallo__btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--brand);
+}
+
+.fallo__btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  box-shadow: var(--focus-glow);
+}
+
+.fallo__btn--primary {
+  color: var(--surface-card);
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+}
+
+.fallo__btn--primary:hover {
+  background: var(--brand-strong-hover);
+  border-color: var(--brand-strong-hover);
+}
+
+.fallo__btn[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Lo que de verdad quiere saber quien esta delante: si ha perdido su trabajo. */
+.fallo__note {
+  margin: var(--space-5) 0 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-4);
+}
+
+/* Pista tecnica: existe para poder decirla por telefono, no para leerla. */
+.fallo__detail {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  word-break: break-word;
+  color: var(--ink-4);
+  border-top: 1px solid var(--line-cell);
+}
+
+@media (max-width: 30rem) {
+  .fallo__inner {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .fallo__btn {
+    width: 100%;
+  }
+}

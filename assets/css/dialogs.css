@@ -320,6 +320,44 @@
   border-radius: var(--radius-sm);
 }
 
+/* ---- Diagnostico de conexion ----
+   Tabla de estado, no prosa: se consulta de un vistazo cuando algo va mal. La
+   etiqueta a la izquierda y el valor a la derecha, cada fila con su linea, que
+   es como se lee un panel de sistema. */
+
+.diag {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.diag__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+}
+
+.diag__row + .diag__row {
+  border-top: 1px solid var(--line-cell);
+}
+
+.diag__label {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.diag__value {
+  margin: 0;
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: right;
+  color: var(--ink);
+}
+
 .settings__warning {
   margin-top: var(--space-3);
   padding: var(--space-3);

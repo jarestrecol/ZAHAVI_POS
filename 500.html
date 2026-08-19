@@ -1,0 +1,54 @@
+<!doctype html>
+<!--
+  Fallo de la plataforma.
+
+  Esta página la sirve Vercel cuando el error no es del recetario sino de lo que
+  hay por debajo: la función de publicación caída, un despliegue a medias, un
+  tiempo de espera agotado. Es el caso en el que el recetario ni siquiera llega
+  a cargarse, así que el aviso de `src/salvavidas.js` no puede ayudar.
+
+  Los dos marcadores `::vercel:...::` los sustituye la plataforma al servir la
+  página. Son la única forma de que alguien pueda decir por teléfono qué falló
+  exactamente, y sin ellos el aviso no sirve para diagnosticar nada.
+
+  Sin JavaScript ni estilos dentro del documento, por el mismo motivo que la
+  página 404: la política de seguridad del sitio los bloquearía.
+-->
+<html lang="es" translate="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zahavi · El recetario no responde</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#1a1714" />
+
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+
+    <link rel="stylesheet" href="/assets/css/fonts.css" />
+    <link rel="stylesheet" href="/assets/css/tokens.css" />
+    <link rel="stylesheet" href="/assets/css/base.css" />
+    <link rel="stylesheet" href="/assets/css/fallback.css" />
+  </head>
+  <body>
+    <main class="fallo">
+      <div class="fallo__inner">
+        <p class="fallo__brand">Zahavi · Recetario</p>
+        <p class="fallo__code">Error ::vercel:ERROR_CODE::</p>
+        <h1 class="fallo__title">El recetario no responde</h1>
+        <p class="fallo__text">
+          El fallo es del servidor, no de este equipo. Vuelve a intentarlo en un momento.
+        </p>
+        <div class="fallo__actions">
+          <a class="fallo__btn fallo__btn--primary" href="/">Volver a intentarlo</a>
+        </div>
+        <p class="fallo__note">
+          Si ya habías abierto el recetario en este equipo, sigue disponible sin conexión con las
+          recetas que tuviera guardadas.
+        </p>
+        <p class="fallo__detail">Referencia: ::vercel:REQUEST_ID::</p>
+      </div>
+    </main>
+  </body>
+</html>

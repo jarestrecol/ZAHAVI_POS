@@ -129,6 +129,15 @@
   color: var(--ink-2);
 }
 
+/* Aislamiento: este equipo guarda pero no puede publicar. Va en rojo y no en
+   ambar porque no es un recordatorio, es la condicion en la que se pierde el
+   trabajo sin que nadie se entere. */
+.context-badge--warn {
+  background: var(--danger-soft);
+  border-bottom-color: var(--danger);
+  color: var(--ink);
+}
+
 .context-badge__action {
   min-height: var(--tap-min);
   padding: 0 var(--space-3);
