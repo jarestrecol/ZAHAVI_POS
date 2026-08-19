@@ -364,6 +364,24 @@ importante no confundirla: **quien tenga el enlace puede ver el contenido**. La
 clave de usuario evita que un cliente asomado al mostrador lea las fórmulas; no
 protege frente a nadie decidido.
 
+Conviene decirlo sin rodeos, porque es lo que hay que saber antes de decidir a
+quién se le da el enlace: `curl https://<el-sitio>/api/recipes` y
+`curl https://<el-sitio>/data/recipes.json` devuelven las 121 fórmulas
+completas **sin ninguna clave**. Comprobado el 19 de agosto de 2026 contra el
+sitio publicado. Si algún día las fórmulas pasan a considerarse secreto
+industrial, la respuesta no es endurecer la clave de usuario: hay que poner una
+puerta delante de todo el sitio (la protección de despliegue de Vercel, que
+requiere plan de pago) o autenticar la API de verdad, que es un cambio de
+arquitectura.
+
+**La clave de instalación ya no se muestra en pantalla.** Estuvo escrita en la
+pantalla de entrada para que nadie se quedara fuera el primer día, pero no era
+cosa de un día: cada equipo nuevo empieza con ella y la volvía a mostrar, así
+que cualquiera que abriera el enlace la leía. Ahora se comunica por fuera y el
+sistema **obliga a cambiarla en el primer acceso de cada equipo**, reutilizando
+la misma pantalla que ya existía para la renovación semanal. Una clave idéntica
+en todas las instalaciones no es una clave.
+
 Lo que sí está protegido de verdad es la escritura. `EDIT_PASSWORD` vive como
 variable de entorno en el servidor, se compara con un algoritmo de tiempo
 constante (`safeEqual`) para no filtrar información por la duración de la
@@ -831,7 +849,7 @@ Archivo offline…                ok
 npm run qa
 ```
 
-Cuarenta y nueve pruebas en escritorio, celular y tableta, en unos doce
+Cincuenta pruebas en escritorio, celular y tableta, en unos doce
 segundos. La suite levanta el servidor sola, con las cabeceras de producción.
 
 Existen por una razón concreta: **la verificación anterior no abre ningún
@@ -860,7 +878,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 214 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 217 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Auditorías
@@ -1030,7 +1048,7 @@ tests/                     Pruebas de navegador (npm run qa)
   tableta.spec.js          Lo que solo se rompe en una tableta
   resiliencia.spec.js      Lo que pasa cuando algo va mal
 
-QA.md                      Lista de verificación manual (214 puntos)
+QA.md                      Lista de verificación manual (217 puntos)
 MANUAL.md                  Cómo se usa, para el equipo de la panadería
 
 data/

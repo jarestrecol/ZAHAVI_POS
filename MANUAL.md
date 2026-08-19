@@ -22,6 +22,16 @@ mismo hace poner una nueva. No hay que llamar a nadie.
 
 Guardad la clave donde la vea el equipo, no en un solo teléfono.
 
+### Dar de alta un aparato nuevo
+
+La primera vez que se abre el recetario en una tableta o un teléfono, se entra
+con la **clave de instalación**, que os habrán pasado aparte. El sistema **no
+deja quedarse con ella**: pide poner la clave del equipo antes de dejar pasar.
+
+Poned **la misma clave que usan los demás aparatos**, para que el equipo maneje
+una sola. Cada aparato guarda la suya, así que cambiarla en la tableta no la
+cambia en el teléfono: cuando toque renovarla, hay que hacerlo en cada uno.
+
 ---
 
 ## Buscar una receta

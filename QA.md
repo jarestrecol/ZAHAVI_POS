@@ -7,7 +7,7 @@ Tres partes:
 
 - **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
-- **De navegador**: 49 pruebas en escritorio, celular y tableta, que fijan lo
+- **De navegador**: 50 pruebas en escritorio, celular y tableta, que fijan lo
   que solo se rompe con una pantalla delante.
 - **Manual**: lo que sigue necesitando un par de ojos.
 
@@ -60,7 +60,7 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 npm run qa
 ```
 
-Cuarenta y nueve pruebas en un navegador de verdad, repartidas en tres
+Cincuenta pruebas en un navegador de verdad, repartidas en tres
 tamaños: escritorio, celular y tableta. Tardan unos doce segundos y levantan el
 servidor solas, con **las cabeceras de producción** que declara `vercel.json`:
 probar contra un servidor más permisivo esconde justo lo que interesa mirar.
@@ -98,7 +98,9 @@ Sirve en el puerto 8000 con las mismas cabeceras que Vercel, CSP incluida.
 También vale `python -m http.server 8000`, pero entonces se prueba con reglas
 más blandas que las de producción.
 
-Entrar con la clave `zahavi2026`.
+Entrar con la clave de instalación, `zahavi2026`. **No se entra directamente**:
+el sistema pide poner una propia antes de pasar, que es lo que ocurre también
+al dar de alta cualquier equipo nuevo.
 
 ### 2.1 Entrada
 
@@ -108,6 +110,9 @@ Entrar con la clave `zahavi2026`.
 | 2 | Entrar con clave incorrecta | Mensaje de error, sin decir si falló el usuario o la clave |
 | 3 | Entrar con usuario inexistente | El mismo mensaje que el anterior |
 | 4 | Recargar tras entrar | Sigue la sesión abierta, no vuelve a pedir clave |
+| 4a | La pantalla de entrada | **No aparece ninguna clave escrita**. La de instalación se comunica por fuera |
+| 4b | Entrar con la clave de instalación | **No entra**: pide poner una propia antes de pasar. Es lo que ocurre en cada equipo nuevo |
+| 4c | Poner ahí una clave de menos de 4 caracteres, o la misma de instalación | La rechaza y no deja pasar |
 
 ### 2.2 Consulta y búsqueda
 

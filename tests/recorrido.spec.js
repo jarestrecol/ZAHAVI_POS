@@ -18,6 +18,23 @@ test('la clave incorrecta no dice cual de los dos datos fallo', async ({ page })
   await expect(page.getByRole('alert')).toHaveText('Clave incorrecta.');
 });
 
+test('la clave de instalacion no se anuncia y no deja quedarse con ella', async ({ page }) => {
+  await page.goto('/index.html');
+  await page.waitForLoadState('networkidle');
+
+  // La pantalla llevaba escrita la clave de instalación para que nadie se
+  // quedara fuera el primer día. Cualquiera que abriera el enlace la leía, y
+  // como cada equipo nuevo empieza con ella, volvía a aparecer siempre.
+  await expect(page.locator('body')).not.toContainText(CLAVE);
+
+  // Y con ella no se entra: se pide una propia antes de pasar.
+  await page.getByRole('textbox', { name: 'clave', exact: true }).fill(CLAVE);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await expect(page.getByText('Pon la clave de tu equipo')).toBeVisible();
+  await expect(page.locator('nav[aria-label="Listado de recetas"]')).toHaveCount(0);
+});
+
 test('con la clave correcta aparecen las 121 recetas', async ({ page }) => {
   await entrar(page);
   await expect(page.locator('nav [role=status]')).toHaveText('121 recetas');

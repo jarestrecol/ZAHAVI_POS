@@ -26,10 +26,9 @@ import {
 import { setState, getState } from '../core/store.js';
 
 /**
- * @param {{showDefaultHint: boolean}} options
  * @returns {HTMLElement}
  */
-export function renderLogin(options) {
+export function renderLogin() {
   const host = el('div', { class: 'login__host' });
 
   /** Pinta uno de los dos momentos dentro del mismo marco. */
@@ -72,11 +71,22 @@ export function renderLogin(options) {
         return;
       }
 
-      // La clave es correcta. Si ya cumplio la semana, se cambia antes de
-      // entrar: en ese punto ya sabemos que quien esta delante la conoce.
-      if (estadoClave().caducada) {
+      // La clave es correcta. Hay dos casos en los que NO se entra todavia,
+      // y los dos se resuelven en la misma pantalla siguiente: cambiarla.
+      //
+      //   1. Es la clave de fabrica. Cada equipo empieza con ella, asi que
+      //      sin esto quedaria puesta para siempre en cuanto alguien no se
+      //      acordara de cambiarla, y una clave que es la misma en todas las
+      //      instalaciones del mundo no es una clave.
+      //   2. Ya cumplio la semana.
+      //
+      // El cambio se pide DESPUES de comprobar la clave, nunca antes: quien
+      // llega hasta aqui acaba de demostrar que la conoce, asi que puede
+      // cambiarla y nadie se queda fuera.
+      const esDeFabrica = clave.value === DEFAULT_PASSWORD;
+      if (esDeFabrica || estadoClave().caducada) {
         setState({ loginError: '' });
-        mostrar(formularioRenovacion(clave.value));
+        mostrar(formularioRenovacion(clave.value, esDeFabrica ? 'inicial' : 'caducada'));
         return;
       }
 
@@ -89,9 +99,11 @@ export function renderLogin(options) {
       clave,
       error,
       el('button', { type: 'submit', class: 'btn btn--primary btn--block', text: 'Entrar' }),
-      options.showDefaultHint
-        ? el('p', { class: 'login__hint' }, ['Acceso inicial: ', el('code', { text: DEFAULT_PASSWORD })])
-        : null,
+      // Aqui iba la clave de fabrica escrita, para que nadie se quedara fuera
+      // el primer dia. Se retiro: cualquiera que abriera el enlace la leia, y
+      // no era cosa de un solo dia, porque cada equipo nuevo empieza con ella
+      // y volvia a mostrarla. Ahora la clave inicial se comunica por fuera y el
+      // sistema OBLIGA a cambiarla en el primer acceso de cada equipo.
       aviso(),
     ]);
 
@@ -105,9 +117,10 @@ export function renderLogin(options) {
 
   /**
    * @param {string} actual la clave que se acaba de comprobar
+   * @param {'inicial'|'caducada'} motivo por que hay que cambiarla
    * @returns {HTMLElement}
    */
-  function formularioRenovacion(actual) {
+  function formularioRenovacion(actual, motivo = 'caducada') {
     const nueva = el('input', {
       type: 'password',
       id: 'renew-password',
@@ -142,10 +155,16 @@ export function renderLogin(options) {
 
     const form = el('form', { class: 'login__card', on: { submit } }, [
       marca(),
-      el('p', { class: 'login__aviso' }, [
-        el('strong', { text: 'Toca renovar la clave.' }),
-        ` Se cambia cada ${PASSWORD_MAX_AGE_DAYS} días, y la de este equipo ya los cumplió.`,
-      ]),
+      motivo === 'inicial'
+        ? el('p', { class: 'login__aviso' }, [
+            el('strong', { text: 'Pon la clave de tu equipo.' }),
+            ' La que acabas de usar es la de instalación y es igual en todas partes,' +
+              ` así que no sirve como clave. Después se renueva cada ${PASSWORD_MAX_AGE_DAYS} días.`,
+          ])
+        : el('p', { class: 'login__aviso' }, [
+            el('strong', { text: 'Toca renovar la clave.' }),
+            ` Se cambia cada ${PASSWORD_MAX_AGE_DAYS} días, y la de este equipo ya los cumplió.`,
+          ]),
       el('label', { class: 'label', for: 'renew-password', text: 'clave nueva' }),
       nueva,
       el('label', { class: 'label label--spaced', for: 'renew-password-2', text: 'repetir la clave nueva' }),

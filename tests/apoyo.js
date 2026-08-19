@@ -6,8 +6,17 @@
  * la misma regla que sigue la verificacion manual.
  */
 
-/** La clave de un equipo que nunca ha entrado: la que anuncia la pantalla. */
+/** La clave de instalación, con la que arranca un equipo que nunca ha entrado. */
 export const CLAVE = 'zahavi2026';
+
+/**
+ * La clave que se pone en su lugar.
+ *
+ * El sistema no deja entrar con la de instalación: obliga a cambiarla en el
+ * primer acceso de cada equipo. Las pruebas pasan por ese paso igual que
+ * pasaría cualquiera al dar de alta una tableta nueva.
+ */
+export const CLAVE_NUEVA = 'zahavi-pruebas';
 
 /** Receta de tres componentes y catorce ingredientes: la de las pruebas. */
 export const RECETA = 'R016';
@@ -37,8 +46,14 @@ export async function entrar(page, hash = '#/') {
   // campo. Escribir antes es tirar la clave a un nodo que ya no existe.
   await page.waitForLoadState('networkidle');
 
-  await page.getByRole('textbox', { name: 'clave' }).fill(CLAVE);
+  await page.getByRole('textbox', { name: 'clave', exact: true }).fill(CLAVE);
   await page.getByRole('button', { name: 'Entrar' }).click();
+
+  // Con la clave de instalación no se entra: hay que poner una propia antes.
+  await page.getByLabel('clave nueva', { exact: true }).fill(CLAVE_NUEVA);
+  await page.getByLabel('repetir la clave nueva').fill(CLAVE_NUEVA);
+  await page.getByRole('button', { name: 'Guardar y entrar' }).click();
+
   await page.locator('nav[aria-label="Listado de recetas"]').waitFor();
 
   if (hash && hash !== '#/') {

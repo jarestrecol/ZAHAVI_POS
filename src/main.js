@@ -29,7 +29,7 @@ import { setInert, recordarFoco } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
-import { ensureAccess, isSignedIn, isUsingDefaultPassword, estadoClave, signOut } from './core/access.js';
+import { ensureAccess, isSignedIn, estadoClave, signOut } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
 import { getEditKey } from './core/remote.js';
@@ -71,14 +71,6 @@ let openDialog = null;
  */
 let openDialogKey = null;
 
-/**
- * Indica si sigue vigente la contrasena de fabrica.
- *
- * Solo se usa para decidir si la pantalla de entrada muestra la pista. En
- * cuanto alguien cambia la contrasena, la pista desaparece.
- */
-let usingDefaultPassword = false;
-
 boot();
 
 /* ===========================================================================
@@ -98,7 +90,6 @@ async function boot() {
   // unica de antes), se conserva la que ya conocia el personal en vez de
   // dejarlos fuera: ver `ensureAccess` en `core/access.js`.
   await ensureAccess();
-  usingDefaultPassword = await isUsingDefaultPassword();
 
   // La caducidad de la clave solo se comprobaba AL ENTRAR, y la sesion no
   // vence: un equipo que nunca cierra sesion -la tableta de pared del obrador,
@@ -421,7 +412,7 @@ function paint() {
   // --- Pantalla de entrada -----------------------------------------------
   if (!state.authed) {
     renderDialogs(null);
-    app.appendChild(renderLogin({ showDefaultHint: usingDefaultPassword }));
+    app.appendChild(renderLogin());
     clear(printRoot);
     return;
   }
@@ -752,14 +743,7 @@ function buildSettings(state) {
     sync: estadoSincronizacion(),
     onPublish: publish,
     onDiscard: discardChanges,
-    onClose: () => {
-      setState({ settingsOpen: false });
-      // La contrasena pudo cambiar dentro del dialogo: la pista de la pantalla
-      // de entrada solo debe verse mientras siga la de fabrica.
-      isUsingDefaultPassword().then((isDefault) => {
-        usingDefaultPassword = isDefault;
-      });
-    },
+    onClose: () => setState({ settingsOpen: false }),
   });
 }
 
