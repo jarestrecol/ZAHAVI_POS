@@ -44,6 +44,27 @@ test.describe('Modo Pesar', () => {
     await expect(paso).toHaveText('1 de 14');
   });
 
+  test('al terminar desaparece Siguiente y queda Anterior', async ({ page }) => {
+    const dialogo = page.locator('[role=dialog]');
+    const siguiente = dialogo.getByRole('button', { name: 'Siguiente' });
+
+    await expect(siguiente).toBeVisible();
+
+    // Los catorce pasos de la receta, uno por pulsacion.
+    for (let i = 0; i < 14; i += 1) await page.keyboard.press('Space');
+
+    await expect(dialogo.locator('.prod__done-title')).toHaveText('Todo pesado');
+
+    // Ya no hay nada delante: ofrecer "Siguiente" seria ofrecer una accion que
+    // no hace nada.
+    await expect(siguiente).toHaveCount(0);
+    await expect(dialogo.getByRole('button', { name: 'Anterior' })).toBeVisible();
+
+    // Y vuelve al retroceder, porque desde ahi si hay un paso delante.
+    await page.getByRole('button', { name: 'Anterior' }).click();
+    await expect(dialogo.getByRole('button', { name: 'Siguiente' })).toBeVisible();
+  });
+
   test('Escape sale y devuelve el foco al boton que abrio', async ({ page }) => {
     await page.keyboard.press('Escape');
     await expect(page.locator('[role=dialog]')).toHaveCount(0);
@@ -67,7 +88,7 @@ test.describe('Modo Pesar', () => {
 
     // Hacia atras desde el panel recien abierto: al ultimo control, no fuera.
     await page.keyboard.press('Shift+Tab');
-    await expect(dialogo.getByRole('button', { name: 'Pesado · siguiente' })).toBeFocused();
+    await expect(dialogo.getByRole('button', { name: 'Siguiente' })).toBeFocused();
 
     // Y dando la vuelta entera, el foco sigue dentro.
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('Tab');

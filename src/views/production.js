@@ -54,6 +54,30 @@ export function openProduction(options) {
   const progress = el('p', { class: 'prod__progress', attrs: { role: 'status' } });
   const bar = el('span', { class: 'prod__bar-fill' });
 
+  /**
+   * Botones del pie.
+   *
+   * Se declaran aqui, y no dentro del panel, porque `draw` los toca: cuando ya
+   * no queda nada que pesar, el de avanzar SE QUITA. Dejarlo puesto y sin
+   * efecto en la pantalla de "Todo pesado" era ofrecer una accion que no hace
+   * nada, justo cuando la unica que queda es volver atras o salir.
+   */
+  const btnAnterior = el('button', {
+    type: 'button',
+    class: 'btn btn--quiet btn--xl',
+    text: '← Anterior',
+    on: { click: () => go(-1) },
+  });
+
+  const btnSiguiente = el('button', {
+    type: 'button',
+    class: 'btn btn--primary btn--xl prod__next',
+    text: 'Siguiente',
+    on: { click: markAndAdvance },
+  });
+
+  const foot = el('footer', { class: 'prod__foot' }, [btnAnterior, btnSiguiente]);
+
   // Lo que viene despues, siempre a la vista. Es lo que convierte la pantalla
   // en una lista de trabajo y no en una sucesion de sorpresas: quien pesa puede
   // ir acercando el siguiente producto mientras termina con el actual.
@@ -85,24 +109,40 @@ export function openProduction(options) {
     clear(body);
 
     if (!step) {
+      const salir = el('button', {
+        type: 'button',
+        class: 'btn btn--accent btn--xl',
+        text: 'Salir',
+        on: { click: options.onClose },
+      });
+
       body.appendChild(
         el('div', { class: 'prod__done' }, [
           el('span', { class: 'prod__done-mark', attrs: { 'aria-hidden': 'true' }, text: '✓' }),
           el('p', { class: 'prod__done-title', text: 'Todo pesado' }),
           el('p', { text: `${steps.length} ingredientes de ${titleCase(base)}.` }),
-          el('button', {
-            type: 'button',
-            class: 'btn btn--accent btn--xl',
-            text: 'Salir',
-            on: { click: options.onClose },
-          }),
+          salir,
         ]),
       );
       progress.textContent = 'Completado';
       bar.style.width = '100%';
       clear(siguiente);
+
+      // Se retira el boton de avanzar: ya no hay nada delante. Queda
+      // "← Anterior", que sigue sirviendo para volver sobre lo pesado.
+      //
+      // Si el foco estaba justo en ese boton -que es lo normal, porque es el
+      // que se acaba de pulsar- hay que llevarlo a algun sitio: un elemento
+      // que desaparece deja el foco en el `body`, y desde ahi el teclado deja
+      // de responder dentro del panel.
+      const teniaElFoco = document.activeElement === btnSiguiente;
+      btnSiguiente.remove();
+      if (teniaElFoco) salir.focus();
       return;
     }
+
+    // Se vuelve a poner al retroceder desde la pantalla final.
+    if (!btnSiguiente.isConnected) foot.appendChild(btnSiguiente);
 
     const isDone = done.has(index);
 
@@ -249,20 +289,7 @@ export function openProduction(options) {
       el('div', { class: 'prod__bar' }, [bar]),
       body,
       siguiente,
-      el('footer', { class: 'prod__foot' }, [
-        el('button', {
-          type: 'button',
-          class: 'btn btn--quiet btn--xl',
-          text: '← Anterior',
-          on: { click: () => go(-1) },
-        }),
-        el('button', {
-          type: 'button',
-          class: 'btn btn--primary btn--xl prod__next',
-          text: 'Pesado · siguiente',
-          on: { click: markAndAdvance },
-        }),
-      ]),
+      foot,
       el('p', {
         class: 'prod__hint',
         text: 'Barra espaciadora para dar por pesado y avanzar. Flechas para moverte. Escape para salir.',

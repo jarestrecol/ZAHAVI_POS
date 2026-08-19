@@ -817,7 +817,7 @@ Archivo offline…                ok
 npm run qa
 ```
 
-Cuarenta y seis pruebas en escritorio, celular y tableta, en unos doce
+Cuarenta y siete pruebas en escritorio, celular y tableta, en unos doce
 segundos. La suite levanta el servidor sola, con las cabeceras de producción.
 
 Existen por una razón concreta: **la verificación anterior no abre ningún
@@ -846,7 +846,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 207 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 211 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Auditorías
@@ -1016,7 +1016,7 @@ tests/                     Pruebas de navegador (npm run qa)
   tableta.spec.js          Lo que solo se rompe en una tableta
   resiliencia.spec.js      Lo que pasa cuando algo va mal
 
-QA.md                      Lista de verificación manual (207 puntos)
+QA.md                      Lista de verificación manual (211 puntos)
 
 data/
   recipes.json             Recetario publicado

@@ -7,7 +7,7 @@ Tres partes:
 
 - **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
-- **De navegador**: 46 pruebas en escritorio, celular y tableta, que fijan lo
+- **De navegador**: 47 pruebas en escritorio, celular y tableta, que fijan lo
   que solo se rompe con una pantalla delante.
 - **Manual**: lo que sigue necesitando un par de ojos.
 
@@ -60,7 +60,7 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 npm run qa
 ```
 
-Cuarenta y seis pruebas en un navegador de verdad, repartidas en tres
+Cuarenta y siete pruebas en un navegador de verdad, repartidas en tres
 tamaños: escritorio, celular y tableta. Tardan unos doce segundos y levantan el
 servidor solas, con **las cabeceras de producción** que declara `vercel.json`:
 probar contra un servidor más permisivo esconde justo lo que interesa mirar.
@@ -159,6 +159,9 @@ Entrar con la clave `zahavi2026`.
 | 29 | En Pesar, flechas | Se mueve adelante y atrás |
 | 30 | En Pesar, Escape o Salir | Vuelve a la ficha sin cambiar nada |
 | 31 | Al terminar de pesar | Pantalla de "Todo pesado" con marca de confirmación |
+| 31i | El pie durante el pesaje | Dos botones: **← Anterior** y **Siguiente** |
+| 31j | El pie en "Todo pesado" | **Siguiente desaparece**: no queda nada delante y solo se ofrece lo que se puede hacer. Sigue estando "← Anterior" |
+| 31l | Retroceder desde "Todo pesado" | **Siguiente vuelve a aparecer**, porque desde ahí sí hay un paso delante |
 | 31a | **Tabular hasta "Salir" y pulsar Intro** | **Cierra**, no da por pesado el ingrediente |
 | 31b | Tabular hasta "← Anterior" y pulsar Intro | Retrocede, no avanza |
 | 31c | En "Todo pesado", tabular a "Salir" e Intro | Cierra la pantalla |
