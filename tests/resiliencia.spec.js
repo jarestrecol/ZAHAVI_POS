@@ -156,6 +156,49 @@ test.describe('Sin recetario compartido', () => {
     await expect(automatica.locator('.diag__value')).toHaveText('No disponible');
   });
 
+  test('si el servidor falla, Ajustes enseña lo que dijo', async ({ page }) => {
+    // Es el caso real de un despliegue al que le faltan las variables de
+    // entorno: la funcion existe y contesta con su motivo. Antes ese motivo se
+    // descartaba y Ajustes solo decia "responde con error", que no permite
+    // arreglar nada.
+    await page.route('**/api/recipes', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'El servidor no tiene configurado el acceso al repositorio.' }),
+      }),
+    );
+
+    await entrar(page);
+    await page.getByRole('button', { name: 'Ajustes' }).click();
+
+    const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
+    await expect(fila.locator('.diag__value')).toHaveText('Responde con error');
+    await expect(page.locator('.diag__error')).toContainText(
+      'no tiene configurado el acceso al repositorio',
+    );
+  });
+
+  test('un 404 con motivo propio no se confunde con un sitio sin recetario', async ({ page }) => {
+    // La funcion contesta 404 cuando `GITHUB_BRANCH` apunta a una rama que no
+    // existe. Anunciarlo como "no disponible en este sitio" mandaria a revisar
+    // justo donde no esta el problema.
+    await page.route('**/api/recipes', (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'El archivo de recetas no existe en el repositorio.' }),
+      }),
+    );
+
+    await entrar(page);
+    await page.getByRole('button', { name: 'Ajustes' }).click();
+
+    const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
+    await expect(fila.locator('.diag__value')).toHaveText('Responde con error');
+    await expect(page.locator('.diag__error')).toContainText('no existe en el repositorio');
+  });
+
   test('guardar dice que el cambio se queda en este equipo', async ({ page }) => {
     await entrar(page);
 

@@ -743,7 +743,7 @@ me guarda":
 
 | Línea | Qué significa cuando va mal |
 |---|---|
-| Recetario compartido | "No disponible en este sitio" es un despliegue sin las variables de entorno. "Responde con error" es la tabla de abajo |
+| Recetario compartido | "No disponible en este sitio" es un sitio sin la función. "Responde con error" es la función contestando que algo falla, **y debajo sale su mensaje exacto**: es lo que dice qué arreglar, y se corresponde con la tabla de abajo |
 | Última lectura | Si está en `—`, este equipo nunca llegó a leer del servidor |
 | Publicación automática | Dice por qué no está publicando sola |
 | Sin conexión | "Listo" es que el equipo abre el recetario sin señal. "Se activa al recargar" es que todavía no |
@@ -758,7 +758,7 @@ que lo guardado llega a la otra sede.
 | `500` "no tiene configurado el acceso al repositorio" | Faltan `GITHUB_TOKEN` o `GITHUB_REPO` |
 | `500` "no tiene configurada la clave de edición" | Falta `EDIT_PASSWORD` |
 | `502` "el repositorio rechazó la lectura" | El token no tiene permiso de Contents, o `GITHUB_REPO` está mal escrito |
-| `404` | `GITHUB_BRANCH` no coincide con la rama real |
+| `404` con `{"error": …}` | `GITHUB_BRANCH` no coincide con la rama real. Que traiga mensaje propio es lo que lo distingue del 404 de un sitio sin la función desplegada |
 | `403` "Vercel Security Checkpoint" | Firewall de Vercel interceptando: revisa **Firewall → Attack Challenge Mode** |
 
 **Si los despliegues automáticos no se disparan** y GitHub muestra *"Git author
@@ -817,7 +817,7 @@ Archivo offline…                ok
 npm run qa
 ```
 
-Cuarenta y cuatro pruebas en escritorio, celular y tableta, en unos doce
+Cuarenta y seis pruebas en escritorio, celular y tableta, en unos doce
 segundos. La suite levanta el servidor sola, con las cabeceras de producción.
 
 Existen por una razón concreta: **la verificación anterior no abre ningún

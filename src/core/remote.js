@@ -44,6 +44,15 @@ let serverState = 'desconocido';
 let lastReadAt = null;
 
 /**
+ * Lo ultimo que dijo el servidor al fallar, con su codigo delante.
+ *
+ * Se guarda para poder enseñarlo en Ajustes. Es la diferencia entre "responde
+ * con error", que no permite arreglar nada, y "500 · El servidor no tiene
+ * configurado el acceso al repositorio", que dice exactamente que falta.
+ */
+let lastError = '';
+
+/**
  * sha del archivo leido. Sin el no se puede publicar: es lo que permite al
  * servidor detectar que otro equipo escribio entre medias.
  * @type {string|null}
@@ -89,6 +98,7 @@ export function serverStatus() {
   return {
     state: serverState,
     readAt: lastReadAt,
+    error: lastError,
     hasReference: currentSha !== null,
     conflict: staleSinceConflict,
   };
@@ -128,20 +138,39 @@ export async function fetchShared() {
   try {
     const response = await withTimeout(fetch(ENDPOINT, { cache: 'no-store' }));
 
-    if (response.status === 404 || response.status === 405) {
-      available = false;
-      serverState = 'sin_api';
-      descartarCuerpo(response);
-      return { ok: false, code: 'sin_api', message: 'Este sitio no tiene recetario compartido.' };
-    }
     if (!response.ok) {
+      // Lo que el servidor tenga que decir se lee SIEMPRE. Es la unica pista
+      // que distingue "faltan las variables de entorno" de "el token no tiene
+      // permiso" o "la rama no existe", y antes se descartaba: quien miraba
+      // Ajustes solo veia "responde con error", que no le sirve para arreglar
+      // nada. De paso, leerlo cierra el flujo de la respuesta.
+      const detalle = await leerError(response);
+
+      // Un 404 con mensaje propio NO es un sitio sin recetario compartido: es
+      // la funcion contestando que el archivo no esta en el repositorio, casi
+      // siempre porque `GITHUB_BRANCH` apunta a una rama que no existe. Sin
+      // esta distincion, ese caso se anunciaba como "no disponible en este
+      // sitio" y mandaba a revisar justo donde no estaba el problema.
+      const sinFuncion = (response.status === 404 || response.status === 405) && !detalle;
+
+      if (sinFuncion) {
+        available = false;
+        serverState = 'sin_api';
+        lastError = '';
+        return { ok: false, code: 'sin_api', message: 'Este sitio no tiene recetario compartido.' };
+      }
+
       // El servidor existe pero no pudo entregar: no hay sha, asi que no se
       // puede publicar aunque la API responda.
       available = true;
       currentSha = null;
       serverState = 'error';
-      descartarCuerpo(response);
-      return { ok: false, code: 'servidor', message: 'El servidor no pudo entregar el recetario.' };
+      lastError = `${response.status} · ${detalle || 'sin detalle'}`;
+      return {
+        ok: false,
+        code: 'servidor',
+        message: detalle || 'El servidor no pudo entregar el recetario.',
+      };
     }
 
     const data = await response.json();
@@ -237,25 +266,32 @@ export async function publishShared(payload) {
 }
 
 /**
- * Cierra el cuerpo de una respuesta que no se va a leer.
+ * Lo que el servidor dice al fallar, si dice algo aprovechable.
  *
- * Sin esto la peticion queda abierta hasta que el navegador la recoja por su
- * cuenta: nadie consume el flujo, y con `Cache-Control: no-store` -que es lo
- * que declara `/api/` en produccion- tampoco lo vacia la cache. No se pierde
- * nada visible, pero la conexion sigue ocupada y cualquier medida de "la pagina
- * termino de cargar" se queda esperando para siempre.
+ * La funcion de publicacion contesta `{"error": "..."}` con un texto ya
+ * redactado para leerse tal cual. Cuando NO hay funcion, quien contesta es la
+ * plataforma con su propia pagina, y ahi no hay nada que enseñar: por eso se
+ * devuelve cadena vacia, y esa diferencia es justo la que permite distinguir
+ * "este sitio no tiene recetario compartido" de "la funcion existe y falla".
+ *
+ * Leer el cuerpo ademas CIERRA el flujo. Sin consumirlo, y con el
+ * `Cache-Control: no-store` que declara `/api/` en produccion, la peticion se
+ * queda abierta hasta que el navegador la recoja por su cuenta: no se pierde
+ * nada visible, pero cualquier medida de "la pagina terminó de cargar" espera
+ * para siempre.
  *
  * @param {Response} response
+ * @returns {Promise<string>}
  */
-function descartarCuerpo(response) {
+async function leerError(response) {
   try {
-    // `cancel` devuelve una promesa: si se rechazara sin capturar, la red de
-    // seguridad del arranque (`salvavidas.js`) lo tomaria por un fallo grave y
-    // taparia el recetario con un aviso, que es justo lo contrario de lo que
-    // esta funcion pretende.
-    if (response.body && !response.bodyUsed) response.body.cancel().catch(() => {});
+    const texto = await response.text();
+    if (!texto) return '';
+    const datos = JSON.parse(texto);
+    return datos && typeof datos.error === 'string' ? datos.error : '';
   } catch {
-    /* navegador que no lo permite: se deja que lo recoja el */
+    // Ni JSON, ni cuerpo legible, o no lo escribio esta aplicacion.
+    return '';
   }
 }
 

@@ -7,7 +7,7 @@ Tres partes:
 
 - **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
-- **De navegador**: 32 pruebas en escritorio, celular y tableta, que fijan lo
+- **De navegador**: 46 pruebas en escritorio, celular y tableta, que fijan lo
   que solo se rompe con una pantalla delante.
 - **Manual**: lo que sigue necesitando un par de ojos.
 
@@ -27,9 +27,9 @@ node scripts/verificar.mjs
 Resultado esperado:
 
 ```
-Sintaxis de los modulos…        ok (32 archivos)
-Resolucion de importaciones…    ok (29 modulos)
-Coherencia del CSS…             ok (301 clases)
+Sintaxis de los modulos…        ok (34 archivos)
+Resolucion de importaciones…    ok (31 modulos)
+Coherencia del CSS…             ok (308 clases)
 Capa de datos…                  ok (9 bloques)
 Validacion del servidor…        ok (28 comprobaciones)
 Alta y baja masiva…             ok (161 comprobaciones)
@@ -60,7 +60,7 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 npm run qa
 ```
 
-Cuarenta y cuatro pruebas en un navegador de verdad, repartidas en tres
+Cuarenta y seis pruebas en un navegador de verdad, repartidas en tres
 tamaños: escritorio, celular y tableta. Tardan unos doce segundos y levantan el
 servidor solas, con **las cabeceras de producción** que declara `vercel.json`:
 probar contra un servidor más permisivo esconde justo lo que interesa mirar.
@@ -378,6 +378,7 @@ publicado, porque dependen de la plataforma.
 | 82c | Abrir el enlace de una receta eliminada (`#/receta/R999`) | Dice **"Esta receta no está aquí"** con el código pedido, no la pantalla de bienvenida |
 | 82d | Un sitio sin publicación configurada | Aviso **rojo en la cabecera**: lo que se guarde se queda en el equipo |
 | 82e | Ese mismo sitio, en Ajustes → Conexión | "Recetario compartido: No disponible en este sitio" |
+| 82e2 | Un sitio cuya función responde con error (variables mal puestas, token sin permiso, rama inexistente) | "Responde con error" **y debajo el texto exacto del servidor**, que es lo que dice qué arreglar |
 | 82f | Cortar el programa a mitad de carga (recargar con la red muy lenta o borrar un archivo del despliegue) | A los 18 segundos aparece **"El recetario está tardando demasiado"** con dos salidas: reintentar y borrar la copia guardada |
 | 82g | Pulsar "Borrar la copia guardada y recargar" | El recetario vuelve a cargar limpio y **las recetas del equipo siguen ahí** |
 

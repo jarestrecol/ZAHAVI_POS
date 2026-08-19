@@ -166,6 +166,17 @@ function renderDiagnosisBlock(options) {
       ...linea('Sin conexión', modoSinConexion()),
     ]),
 
+    // El texto exacto del servidor, cuando lo hay. Es lo que convierte
+    // "responde con error" en algo que se puede arreglar: dice si faltan las
+    // variables de entorno, si el token no tiene permiso o si la rama no
+    // existe. Va debajo de la tabla y no dentro, porque es una frase entera.
+    server.error
+      ? el('p', { class: 'diag__error', attrs: { role: 'status' } }, [
+          el('strong', { text: 'El servidor responde: ' }),
+          server.error,
+        ])
+      : null,
+
     sync.texto ? el('p', { class: 'settings__help', text: sync.texto }) : null,
   ]);
 }

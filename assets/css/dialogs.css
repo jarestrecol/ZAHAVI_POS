@@ -358,6 +358,19 @@
   color: var(--ink);
 }
 
+/* Lo que dijo el servidor, literal. Se trata como aviso y no como dato porque
+   es una frase, y porque su presencia ya significa que algo va mal. */
+.diag__error {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--danger-soft);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-sm);
+}
+
 .settings__warning {
   margin-top: var(--space-3);
   padding: var(--space-3);
