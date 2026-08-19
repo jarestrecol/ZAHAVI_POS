@@ -121,5 +121,20 @@ if (!missingInSw.length) {
   console.log(`  ${modules.length} modulos, todos cacheados`);
 }
 
+// 6. El recetario compartido NO puede pasar por la cache del service worker.
+//
+//    `/api/recipes` no es documento, ni CSS, ni JS, asi que sin una salida
+//    propia cae en `cacheFirst`, que es el destino por defecto. El fallo no se
+//    ve hasta que la publicacion esta configurada y contestando, y entonces
+//    sirve un recetario viejo y, peor, un `sha` viejo: publicar con el se
+//    rechaza con un 409 "otro equipo publico antes" sin que nadie haya
+//    publicado. Es un fallo caro de diagnosticar y barato de comprobar aqui.
+console.log('\nRecetario compartido fuera de la cache:');
+if (/url\.pathname\.startsWith\('\/api\/'\)\s*\)\s*return;/.test(sw)) {
+  console.log('  sw.js deja pasar /api/ sin interceptar');
+} else {
+  fail('sw.js no excluye /api/: el recetario compartido acabaria servido desde la cache');
+}
+
 console.log(problems === 0 ? '\nCSS correcto.\n' : `\n${problems} problema(s) en el CSS.\n`);
 process.exit(problems === 0 ? 0 : 1);

@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v17';
+const CACHE_VERSION = 'zahavi-v18';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -104,6 +104,24 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // EL RECETARIO COMPARTIDO NO SE TOCA. Va a la red, siempre, sin pasar por
+  // aqui: es lo que ven las dos sedes en vivo.
+  //
+  // Sin esta salida caia en `cacheFirst`, que es el destino por defecto de
+  // todo lo que no es documento, CSS ni JS. Con la publicacion apagada no se
+  // notaba, porque una respuesta de error no se guarda; en cuanto la API
+  // empieza a contestar, el efecto es doble y el segundo es el malo:
+  //
+  //   1. Se veria el recetario de la lectura anterior, no el de ahora.
+  //   2. El `sha` vendria de esa copia vieja, y publicar con un sha viejo lo
+  //      rechaza el servidor con un 409 "otro equipo publico antes" aunque no
+  //      haya publicado nadie.
+  //
+  // No se pierde el modo sin conexion: la copia para trabajar sin señal es la
+  // de `localStorage`, que gestiona `core/repository.js`, no esta cache.
+  if (url.pathname.startsWith('/api/')) return;
+
   if (url.pathname.endsWith(DATA_URL) || url.pathname.endsWith('/recipes.json')) {
     event.respondWith(networkFirst(request));
     return;
