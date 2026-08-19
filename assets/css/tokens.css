@@ -42,15 +42,18 @@
   --brand-gradient: linear-gradient(135deg, var(--brand) 0%, #ff9f3d 45%, var(--brand-gold) 100%);
 
   /* ---- Superficies ----
-     Cuatro planos, de mas hundido a mas elevado, con saltos que se ven de
-     verdad. Antes estaban los cuatro a menos de dos puntos de claridad entre
-     si y toda la pantalla parecia del mismo color:
+     Tres planos, de mas hundido a mas elevado, con saltos que se ven de
+     verdad. Antes estaban a menos de dos puntos de claridad entre si y toda la
+     pantalla parecia del mismo color:
 
-       --surface-panel   el listado de la izquierda: es un indice, va al fondo
        --surface-sunk    franjas de datos dentro de la ficha
        --surface         el area de trabajo donde se lee la receta
-       --surface-card    lo que flota encima: filas, tarjetas, dialogos */
-  --surface-panel: #ece7dd;
+       --surface-card    lo que flota encima: filas, tarjetas, dialogos
+
+     Hubo un cuarto, `--surface-panel`, para el listado de la izquierda. Se
+     retiro al pasar ese listado a la estructura oscura: el token se quedo
+     definido y sin usar, que es peor que no tenerlo, porque invita a
+     reutilizarlo para algo que no le toca. */
   /* Zonas hundidas y cabeceras de tabla. Antes era #f3efe7, un beige que sobre
      blanco se leia rosado, y encima se usaba como franja alterna de las filas
      de ingredientes: media ficha quedaba tenida. Ahora es un gris de la misma
@@ -60,9 +63,6 @@
   --surface: #fbfaf9;
   --surface-card: #ffffff;
   --surface-hover: #fdf2e3;
-
-  /* Fondo de la receta abierta en el listado: naranja de marca muy diluido. */
-  --selected-bg: #fde8cd;
 
   /* Estructura oscura: barra superior, listado de recetas y diálogos */
   --rail: #1a1714;
@@ -182,7 +182,11 @@
 
   /* Confirmación sobre la estructura oscura (modo Pesar). El verde de `--ok`
      está pensado para leerse sobre blanco y sobre el rail desaparece, así que
-     necesita su versión clara igual que las categorías. 7:1 sobre `--rail`. */
+     necesita su versión clara igual que las categorías.
+
+     Contrastes reales, comprobados por cálculo: 10,4:1 sobre `--rail`, 9,4:1
+     sobre `--rail-2` y 7,4:1 sobre `--rail-line`. El comentario anterior decía
+     "7:1 sobre --rail", que era la cifra del borde, no la del fondo. */
   --ok-on-rail: #7fd8a0;
   --ok-on-rail-soft: rgba(127, 216, 160, 0.13);
   --ok-on-rail-line: rgba(127, 216, 160, 0.35);
@@ -221,7 +225,6 @@
   --shadow-xs: 0 1px 2px -1px rgba(22, 18, 15, 0.08);
   --shadow: 0 2px 4px -2px rgba(22, 18, 15, 0.10), 0 10px 24px -12px rgba(22, 18, 15, 0.18);
   --shadow-lg: 0 8px 12px -6px rgba(22, 18, 15, 0.14), 0 32px 64px -20px rgba(22, 18, 15, 0.34);
-  --shadow-glow: 0 0 0 1px rgba(246, 138, 30, 0.16), 0 12px 32px -12px rgba(246, 138, 30, 0.35);
 
   /* ---- Tipografía ----
      El respaldo de sistema se conserva tras cada tipografia propia: cubre el

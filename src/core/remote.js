@@ -295,9 +295,29 @@ async function leerError(response) {
   }
 }
 
+/**
+ * Corta una petición que no contesta.
+ *
+ * El temporizador SE LIMPIA pase lo que pase. Sin ese `finally` quedaba vivo
+ * doce segundos por cada petición aunque la respuesta llegara en cien
+ * milisegundos, y con la publicación automática reintentando se acumulaban
+ * temporizadores pendientes sin ninguna utilidad.
+ *
+ * Lo que esto NO hace es cancelar el `fetch`: la petición sigue viajando y solo
+ * se descarta su resultado. Cancelarla de verdad pediría un `AbortController`,
+ * y aquí no compensa: la respuesta que se descarta ya no la espera nadie.
+ *
+ * @param {Promise} promise
+ * @returns {Promise}
+ */
 function withTimeout(promise) {
+  let temporizador = null;
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('tiempo agotado')), TIMEOUT_MS)),
-  ]);
+    new Promise((_, reject) => {
+      temporizador = setTimeout(() => reject(new Error('tiempo agotado')), TIMEOUT_MS);
+    }),
+  ]).finally(() => {
+    if (temporizador !== null) clearTimeout(temporizador);
+  });
 }

@@ -104,10 +104,15 @@ export function sePuedePublicarSolo() {
 /**
  * Traduce el motivo a algo que se pueda leer en pantalla.
  *
+ * No se exporta: quien necesita el texto lo recibe ya resuelto en
+ * `estadoSincronizacion().texto`. Exportarla obligaría a mantener dos caminos
+ * para lo mismo y a que alguien pudiera pedir el texto de un motivo que no es
+ * el vigente.
+ *
  * @param {string} codigo
  * @returns {string}
  */
-export function explicar(codigo) {
+function explicar(codigo) {
   switch (codigo) {
     case 'sin_servidor':
       return 'Este equipo no está conectado al recetario compartido: lo que guardes se queda aquí.';
