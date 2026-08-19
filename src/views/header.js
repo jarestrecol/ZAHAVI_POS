@@ -200,14 +200,25 @@ export function renderBadges(options) {
 
   if (options.changes.dirty) {
     const cuenta = options.changes.total === 1 ? '1 cambio' : `${options.changes.total} cambios`;
-    const detalle = options.sync && options.sync.texto ? ' ' + options.sync.texto : '';
+
+    // El conflicto de versiones se anuncia desde que se carga, no desde el
+    // primer intento de publicar: es una situacion del recetario, no del
+    // automatismo, y es la unica en la que publicar puede borrar el trabajo de
+    // la otra sede. Por eso va en rojo y lo dice antes que la cuenta.
+    const enConflicto = Boolean(options.changes.conflict);
+    const detalle = enConflicto
+      ? ' Otra sede publicó una versión nueva mientras tanto: hay que decidir en Ajustes cuál se conserva.'
+      : options.sync && options.sync.texto
+        ? ' ' + options.sync.texto
+        : '';
+
     badges.push(
-      el('p', { class: 'context-badge no-print' }, [
+      el('p', { class: 'context-badge no-print' + (enConflicto ? ' context-badge--warn' : '') }, [
         `${cuenta} sin publicar en este equipo.${detalle} `,
         el('button', {
           type: 'button',
           class: 'context-badge__action',
-          text: 'Publicar',
+          text: enConflicto ? 'Revisar' : 'Publicar',
           on: { click: options.onOpenSettings },
         }),
       ]),

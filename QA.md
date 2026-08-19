@@ -7,7 +7,7 @@ Tres partes:
 
 - **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
-- **De navegador**: 48 pruebas en escritorio, celular y tableta, que fijan lo
+- **De navegador**: 49 pruebas en escritorio, celular y tableta, que fijan lo
   que solo se rompe con una pantalla delante.
 - **Manual**: lo que sigue necesitando un par de ojos.
 
@@ -60,7 +60,7 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 npm run qa
 ```
 
-Cuarenta y ocho pruebas en un navegador de verdad, repartidas en tres
+Cuarenta y nueve pruebas en un navegador de verdad, repartidas en tres
 tamaños: escritorio, celular y tableta. Tardan unos doce segundos y levantan el
 servidor solas, con **las cabeceras de producción** que declara `vercel.json`:
 probar contra un servidor más permisivo esconde justo lo que interesa mirar.
@@ -356,6 +356,9 @@ publicar. Vuelve a cargar y reintenta.".
 | 78a | **Después** del punto 75, guardar otra receta sin tocar Publicar | Se publica sola: el aviso dice "Publicando…" y luego "Publicado para todas las sedes" |
 | 78b | Cortar la red, guardar una receta y devolver la red | Queda pendiente con su aviso y **se publica sola** al volver la conexión, sin pulsar nada |
 | 78c | Cambiar la clave de edición en el servidor y guardar una receta | Avisa de que la clave dejó de valer y **deja de reintentar** en vez de insistir en bucle |
+| 78e | Editar en el equipo A sin publicar, publicar desde el B, y **recargar** el A | Aviso **rojo**: "Otra sede publicó una versión nueva mientras tanto", con el botón *Revisar* |
+| 78f | En ese estado, guardar otra receta en el A | **No se publica solo.** El aviso dice que se guardó en este equipo. Publicar enviaría el recetario del A, que no tiene lo del B, y lo borraría |
+| 78g | En ese estado, Ajustes → Conexión | "Publicación automática: Detenida: hay dos versiones" |
 | 78d | Ajustes → Conexión, con todo en orden | "Recetario compartido: Conectado", con la hora de la última lectura y "Publicación automática: Activa" |
 
 ### 2.9 Sin conexión

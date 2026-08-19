@@ -97,6 +97,7 @@ export function estadoSincronizacion() {
  * @returns {boolean}
  */
 export function sePuedePublicarSolo() {
+  if (repo.localChanges().conflict) return false;
   return repo.canPublishToAll() && Boolean(getEditKey()) && navigator.onLine !== false;
 }
 
@@ -116,6 +117,8 @@ export function explicar(codigo) {
       return 'Sin conexión: se publicará en cuanto vuelva.';
     case 'conflicto':
       return 'Otro equipo publicó antes. Recarga la página para ver su versión.';
+    case 'conflicto_version':
+      return 'Otra sede publicó una versión nueva mientras este equipo tenía cambios. No se publica solo: hay que decidir en Ajustes cuál se conserva.';
     case 'clave':
       return 'La clave de edición dejó de valer. Publica desde Ajustes con la clave nueva.';
     default:
@@ -148,6 +151,20 @@ async function publicar() {
 
   const cambios = repo.localChanges();
   if (!cambios.dirty) return terminar('sin_cambios', false);
+
+  // OTRA SEDE PUBLICO MIENTRAS ESTE EQUIPO TENIA CAMBIOS.
+  //
+  // Aqui hay que parar, y es el freno mas importante de este modulo. Publicar
+  // envia el recetario ENTERO de este equipo, y este equipo se quedo en la
+  // version anterior: lo que la otra sede acaba de publicar no esta en el.
+  // Como el servidor ya tiene la referencia nueva -se leyo al cargar-, no
+  // rechazaria nada: aceptaria el envio y el trabajo ajeno desapareceria en
+  // silencio.
+  //
+  // Esa decision no puede tomarla un automatismo, porque no hay respuesta
+  // correcta general: hay que mirar las dos versiones y elegir. Se deja en
+  // manos de quien esta delante, con el aviso de Ajustes.
+  if (cambios.conflict) return terminar('conflicto_version', false);
 
   // Sin servidor no hay a donde publicar: es el caso del archivo abierto desde
   // el disco o de un despliegue sin las variables de entorno puestas.

@@ -224,6 +224,88 @@ test.describe('Sin recetario compartido', () => {
 });
 
 /* ===========================================================================
+ *  4b. DOS SEDES SOBRE LA MISMA RECETA
+ * ======================================================================== */
+
+test.describe('Dos sedes editando', () => {
+  /**
+   * Sirve un recetario compartido con la revision que se le diga.
+   *
+   * Es el minimo para representar a la otra sede: lo unico que hace falta es
+   * que la revision cambie, porque es lo que le dice a este equipo que hay una
+   * version nueva que el no tiene.
+   *
+   * @param {import('@playwright/test').Page} page
+   * @param {{revision: string, sha: string}} version
+   */
+  async function servirRecetario(page, version) {
+    await page.route('**/api/recipes', async (route) => {
+      if (route.request().method() !== 'GET') {
+        // Un PUT aqui significaria que este equipo publico: la prueba lo
+        // cuenta para comprobar que NO ocurre.
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ revision: 'no-deberia', count: 0, sha: 'x' }),
+        });
+        return;
+      }
+
+      const publicado = await route.fetch({ url: 'http://127.0.0.1:8123/data/recipes.json' });
+      const datos = await publicado.json();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...datos, revision: version.revision, sha: version.sha }),
+      });
+    });
+  }
+
+  test('no se publica solo encima de lo que publicó la otra sede', async ({ page }) => {
+    await servirRecetario(page, { revision: '2026-01-01', sha: 'sha-uno' });
+    await entrar(page);
+
+    // Este equipo edita y su cambio queda pendiente, apoyado en la revisión 1.
+    await page.getByRole('button', { name: 'Nueva receta' }).click();
+    await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-DOS-SEDES');
+    await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-HARINA');
+    await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('1000');
+    await page.getByRole('button', { name: 'Guardar' }).click();
+    await expect(page.locator('.context-badge')).toContainText('sin publicar');
+
+    // La clave de edición, guardada como la deja una publicación manual: sin
+    // ella no habría publicación automática y la prueba pasaría sola, sin
+    // comprobar nada.
+    await page.evaluate(() => window.sessionStorage.setItem('zahavi_edit_key', 'clave-de-prueba'));
+
+    // Mientras tanto, la otra sede publica: al recargar hay una revisión nueva.
+    await servirRecetario(page, { revision: '2026-01-02', sha: 'sha-dos' });
+
+    let publicaciones = 0;
+    page.on('request', (peticion) => {
+      if (peticion.url().includes('/api/recipes') && peticion.method() === 'PUT') publicaciones += 1;
+    });
+
+    await page.reload();
+
+    // Se avisa de que hay dos versiones y de que hay que elegir.
+    await expect(page.locator('.context-badge')).toContainText('Otra sede publicó');
+
+    // Y guardar otra vez NO dispara la publicación: enviar el recetario de
+    // este equipo, que no tiene lo de la otra sede, la borraría en silencio.
+    await page.getByRole('button', { name: 'Nueva receta' }).click();
+    await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-DOS-SEDES-B');
+    await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-AZUCAR');
+    await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('500');
+    await page.getByRole('button', { name: 'Guardar' }).click();
+
+    await expect(page.locator('.notice')).toContainText('en este equipo');
+    await page.waitForTimeout(500);
+    expect(publicaciones).toBe(0);
+  });
+});
+
+/* ===========================================================================
  *  5. NO HAY RED
  * ======================================================================== */
 

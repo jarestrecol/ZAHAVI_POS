@@ -217,6 +217,7 @@ function estadoDeLaPublicacion(options, sync) {
   if (sync.motivo === 'sin_clave') return 'Pendiente de la primera publicación';
   if (sync.motivo === 'clave') return 'Detenida: la clave dejó de valer';
   if (sync.motivo === 'conflicto') return 'Detenida: hay que recargar';
+  if (sync.motivo === 'conflicto_version') return 'Detenida: hay dos versiones';
   if (sync.pendiente) return 'Pendiente de conexión';
   return 'Activa';
 }

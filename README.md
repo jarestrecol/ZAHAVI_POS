@@ -268,6 +268,16 @@ ese paso a cambio de dejar la llave del repositorio en un equipo del mostrador.
 | El sitio no tiene la función (`/api/recipes` responde 404) | Aviso rojo en la cabecera: lo guardado se queda en el equipo |
 | La clave dejó de valer | Se borra la guardada, se avisa y **deja de reintentar**: insistir con una clave que el servidor rechaza no arregla nada |
 | Otra sede publicó antes | Se avisa del conflicto y hay que recargar. No se reintenta: reintentar sería pisar su trabajo |
+| **Otra sede publicó una versión nueva mientras este equipo tenía cambios** | Se detiene y lo dice en rojo en la cabecera. Es la única situación en la que publicar puede **borrar** trabajo ajeno, y por eso la decisión no la toma un automatismo |
+
+**Por qué ese último caso importa tanto.** Publicar envía el recetario
+**entero** del equipo, no la receta que se acaba de tocar. Si otra sede publicó
+mientras este equipo tenía cambios pendientes, este equipo se quedó en la
+versión anterior: lo que publicó la otra sede no está en su copia. El `sha` no
+lo protege, porque al cargar se leyó la referencia nueva, así que el servidor
+aceptaría el envío sin rechazar nada y el trabajo ajeno desaparecería en
+silencio. Es el motivo de que `app/sync.js` se pare en seco ahí y deje elegir a
+quien está delante, mirando las dos versiones en Ajustes.
 
 ### Patrones aplicados
 
@@ -821,7 +831,7 @@ Archivo offline…                ok
 npm run qa
 ```
 
-Cuarenta y ocho pruebas en escritorio, celular y tableta, en unos doce
+Cuarenta y nueve pruebas en escritorio, celular y tableta, en unos doce
 segundos. La suite levanta el servidor sola, con las cabeceras de producción.
 
 Existen por una razón concreta: **la verificación anterior no abre ningún
@@ -850,7 +860,7 @@ una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
 ### Verificación manual
 
 [QA.md](QA.md) recoge la lista completa de comprobaciones que solo pueden
-hacerse mirando la pantalla: 211 puntos organizados por área, más el historial de
+hacerse mirando la pantalla: 214 puntos organizados por área, más el historial de
 defectos reales que estas pruebas han encontrado.
 
 ### Auditorías
@@ -1020,7 +1030,7 @@ tests/                     Pruebas de navegador (npm run qa)
   tableta.spec.js          Lo que solo se rompe en una tableta
   resiliencia.spec.js      Lo que pasa cuando algo va mal
 
-QA.md                      Lista de verificación manual (211 puntos)
+QA.md                      Lista de verificación manual (214 puntos)
 MANUAL.md                  Cómo se usa, para el equipo de la panadería
 
 data/
