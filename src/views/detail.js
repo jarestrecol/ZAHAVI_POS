@@ -26,10 +26,6 @@ import {
   tieneMedidasFijas,
 } from '../core/scale.js';
 
-/** A partir de cuantos ingredientes conviene repartir en columnas. */
-const TWO_COLUMNS_FROM = 9;
-const THREE_COLUMNS_FROM = 24;
-
 /** Unidades de volumen: se marcan aparte porque confundirlas con peso es el error clasico. */
 const VOLUME_UNITS = new Set(['ML', 'L', 'CC']);
 
@@ -230,7 +226,7 @@ export function renderDetail(params) {
       ]),
 
       renderScaler(original, factor),
-      renderIngredients(recipe, total),
+      renderIngredients(recipe),
       renderMethod(recipe, params.canEdit, original.id),
     ],
   );
@@ -380,15 +376,14 @@ function factItem(label, value, extraClass) {
   ]);
 }
 
-function renderIngredients(recipe, total) {
+function renderIngredients(recipe) {
   const multiple = recipe.componentes.length > 1;
-  const columns = total >= THREE_COLUMNS_FROM ? 3 : total >= TWO_COLUMNS_FROM ? 2 : 1;
 
   return el('section', { class: 'block' }, [
     el('h2', { class: 'block__title', text: 'Ingredientes' }),
     el(
       'div',
-      { class: 'components components--cols-' + columns },
+      { class: 'components' },
       // Cada componente es una ESTACION del trabajo: primero la masa, despues
       // el relleno, despues la cobertura. Por eso va numerado y con color
       // propio, y no todos con el color de la categoria: con dos componentes

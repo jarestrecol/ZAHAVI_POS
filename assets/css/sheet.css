@@ -229,14 +229,15 @@
 
 /* ---- Ficha técnica ---- */
 
+/* Franja de indicadores: rinde, componentes, ingredientes. Sin fondo ni
+   textura, cerrada arriba y abajo por linea. Lo que la separa del resto es su
+   sitio en la cuadricula, no un color. */
 .facts {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3) 0;
   padding: var(--space-4) var(--gutter);
-  background: var(--surface-sunk);
-  background-image: var(--texture-dot);
-  background-size: 18px 18px;
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
@@ -504,22 +505,26 @@
 
 /* ---- Componentes e ingredientes ---- */
 
-/* Multicolumna, no cuadrícula.
-   Con `grid` cada celda era un componente entero, y 72 de las 121 recetas tienen
-   uno solo: una receta larga de un componente reservaba dos o tres columnas y
-   volcaba toda la lista en la primera, dejando el resto en blanco. `columns`
-   reparte el contenido con independencia de cuántos bloques haya, que es lo que
-   la hoja de impresión ya venía haciendo bien. */
+/*
+ * CUADRICULA QUE SE REPARTE SOLA, Y SIN HUECOS.
+ *
+ * Antes era multicolumna (`columns`), que reparte por altura: con dos
+ * componentes desiguales, el corto dejaba media pantalla en blanco debajo, y
+ * esa mancha vacía es lo que hacía que la ficha se leyera como un folleto a
+ * medio maquetar y no como una tabla de trabajo.
+ *
+ * `auto-fit` resuelve de paso el motivo por el que se eligió multicolumna: con
+ * un solo componente -72 de las 121 recetas- no reserva columnas fantasma, la
+ * única ocupa todo el ancho. El resto se reparte en cuantas quepan.
+ *
+ * Las clases `--cols-2` y `--cols-3` siguen existiendo porque las escribe la
+ * vista según cuántos ingredientes hay: aquí solo ajustan el ancho mínimo que
+ * pide cada columna, no cuántas.
+ */
 .components {
-  column-gap: var(--space-7);
-}
-
-.components--cols-2 {
-  column-count: 2;
-}
-
-.components--cols-3 {
-  column-count: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
 }
 
 /*
@@ -534,32 +539,37 @@
  * tarjeta es lo que da relieve a una ficha que se leia completamente plana, y
  * el color es lo que hace que el cambio de estacion se note sin leer.
  */
+/*
+ * El componente es un CUADRO CERRADO: borde completo, sin sombra y sin relleno
+ * propio. Lo que separa su encabezado de sus filas, y una fila de la siguiente,
+ * son líneas. La estación sigue reconociéndose por su color, que ahora es un
+ * borde de verdad y no una sombra interior: una sombra desaparece al imprimir y
+ * en pantallas que no la dibujan bien.
+ */
 .component {
-  /* Un componente no se parte entre dos columnas: sus ingredientes van juntos. */
   break-inside: avoid;
-  margin-bottom: var(--space-5);
-  padding: var(--space-4);
   background: var(--surface-card);
   border: 1px solid var(--line);
+  border-left: 3px solid var(--comp-1);
   border-radius: var(--radius);
-  box-shadow: inset 3px 0 0 0 var(--comp-1), var(--shadow-xs);
+  overflow: hidden;
 }
 
-.component[data-comp='2'] { box-shadow: inset 3px 0 0 0 var(--comp-2), var(--shadow-xs); }
-.component[data-comp='3'] { box-shadow: inset 3px 0 0 0 var(--comp-3), var(--shadow-xs); }
-.component[data-comp='4'] { box-shadow: inset 3px 0 0 0 var(--comp-4), var(--shadow-xs); }
+.component[data-comp='2'] { border-left-color: var(--comp-2); }
+.component[data-comp='3'] { border-left-color: var(--comp-3); }
+.component[data-comp='4'] { border-left-color: var(--comp-4); }
 
-.component:last-child {
-  margin-bottom: 0;
-}
-
-/* Encabezado: [2] RELLENO ............ 6 ingredientes */
+/* Encabezado: [2] RELLENO ............ 6 ingredientes
+   Es la barra de titulo de la tabla que viene debajo, asi que va pegada a los
+   bordes del cuadro y con su propio fondo: se distingue de las filas sin
+   necesidad de tenirlas a ellas. */
 .component__name {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunk);
   border-bottom: 1px solid var(--line);
 }
 
@@ -612,49 +622,45 @@
 }
 
 /* Columna numérica declarada, no simulada con un separador flexible: así el
-   borde derecho de las cifras queda alineado por construcción. */
+   borde derecho de las cifras queda alineado por construcción.
+   El ancho es FIJO, no `auto`: con `auto` cada componente decidía el suyo según
+   su cifra más larga, y al recorrer la ficha la línea de separación bailaba de
+   una tabla a la siguiente. Con la medida declarada, todas las cantidades del
+   recetario caen sobre la misma vertical. */
 .items {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 11rem;
 }
 
+/*
+ * FILAS SEPARADAS POR LINEA, NO POR FRANJAS DE COLOR.
+ *
+ * Antes las impares llevaban fondo. Resolvia lo que tenia que resolver -no
+ * perder el renglon entre el nombre y una cifra que esta al otro extremo- pero
+ * teñia media ficha de beige y la hacia parecer papel viejo.
+ *
+ * El renglon lo sujeta ahora la cuadricula: linea entre filas, linea entre la
+ * columna del nombre y la de la cifra, y el cuadro cerrado alrededor. Son tres
+ * referencias rectas en vez de una banda de color, que es como se lee una tabla
+ * en cualquier sistema de gestion.
+ */
 .item {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: baseline;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-2);
-  margin: 0 calc(var(--space-2) * -1);
-  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
   transition: background var(--dur-fast) var(--ease);
 }
 
-/*
- * Franjas alternas. Es el recurso mas viejo que existe para leer una tabla
- * larga sin perder el renglon, y aqui hace falta de verdad: son 1.282 lineas
- * repartidas por el recetario, se leen de pie y a distancia de brazo, y la
- * distancia entre el nombre y su cifra es todo el ancho de la columna. Con solo
- * una linea de un pixel entre filas, el ojo saltaba de renglon.
- *
- * La franja va por debajo del relleno de la tarjeta, un poco desbordada a cada
- * lado, para que se lea como una banda continua y no como una caja mas dentro
- * de otra caja.
- */
-.item:nth-child(odd) {
-  background: var(--surface-sunk);
+.item + .item {
+  border-top: 1px solid var(--line-cell);
 }
 
-/* El hover usa el tinte calido, no el mismo gris de la franja: sobre una fila
-   impar el gris no habria cambiado nada. */
 .item:hover {
   background: var(--surface-hover);
 }
-
-/* Ya no hay linea entre filas: la hacia la franja alterna, y la de un pixel
-   quedaba en 1,2:1 sobre el papel, es decir haciendo el mismo trabajo peor.
-   Con la tarjeta, la franja y el hover ya son tres señales por fila; la cuarta
-   solo anadia ruido. */
 
 .item__name {
   min-width: 0;
@@ -663,14 +669,16 @@
   color: var(--ink-2);
 }
 
+/* La cifra vive en su propia columna, con la linea que la separa del nombre.
+   Es el separador de columna de la tabla, no un adorno de la fila. */
 .item__qty {
   display: flex;
   align-items: baseline;
   gap: 0.3rem;
   justify-content: flex-end;
   white-space: nowrap;
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--line);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--line-cell);
 }
 
 .item--volume .item__qty {

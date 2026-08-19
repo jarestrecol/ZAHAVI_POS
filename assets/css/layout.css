@@ -384,11 +384,13 @@
   border-bottom: 1px solid var(--rail-line);
 }
 
+/* Sin relleno lateral: los renglones llegan de borde a borde, como las filas de
+   una tabla. El aire lo pone el propio renglon. */
 .sidebar__list {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-2);
+  padding: 0;
 }
 
 /* Separador de letra inicial. Queda pegado arriba al desplazar, asi que
@@ -397,8 +399,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  margin: var(--space-4) 0 var(--space-2);
-  padding: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
   font-family: var(--font-num);
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -412,29 +414,33 @@
   margin-top: 0;
 }
 
-/* Fila de receta: tarjeta sobre el listado oscuro. */
+/*
+ * Fila de receta: RENGLON DE INDICE, no tarjeta suelta.
+ *
+ * Antes cada una era una tarjeta con su radio y su hueco alrededor. Ciento
+ * veintiuna tarjetas apiladas dejan la columna llena de aire y hacen que el
+ * indice pese mas de lo que dice. Ahora son renglones continuos separados por
+ * una linea: el mismo material que ordena el resto de la pantalla, y entran
+ * dos filas mas por pantalla sin apretar el area de toque.
+ */
 .recipe-link {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: var(--tap-row);
-  margin-bottom: var(--space-1);
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-base);
   line-height: 1.3;
   color: var(--on-rail);
   text-decoration: none;
-  background: var(--rail-2);
-  border-radius: var(--radius);
-  border: 1px solid transparent;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  border-bottom: 1px solid var(--rail-line);
+  border-left: 2px solid transparent;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 
 .recipe-link:hover {
-  background: rgba(245, 241, 234, 0.1);
-  border-color: var(--rail-line);
-  transform: translateX(2px);
+  background: rgba(245, 241, 234, 0.08);
+  border-left-color: var(--rail-line);
 }
 
 /* Receta abierta ahora mismo.
@@ -445,8 +451,9 @@
   background: var(--rail-selected);
   color: var(--on-rail);
   font-weight: 700;
-  border-color: var(--amber-on-rail);
-  box-shadow: inset 4px 0 0 0 var(--amber-on-rail);
+  border-left-color: var(--amber-on-rail);
+  border-left-width: 4px;
+  padding-left: calc(var(--space-3) - 2px);
 }
 
 .recipe-link.is-active .recipe-link__yield {

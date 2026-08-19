@@ -47,12 +47,22 @@ test.describe('Tableta', () => {
     for (const ancho of anchos) expect(ancho).toBeGreaterThan(anchoLista * 0.8);
   });
 
-  test('los componentes de la ficha van a dos columnas', async ({ page }) => {
+  test('cada componente ocupa el ancho, sin huecos al lado', async ({ page }) => {
     await entrar(page, `#/receta/${RECETA}`);
+
+    // Apilados, no repartidos en columnas: dos tablas de distinta longitud una
+    // al lado de la otra dejaban un hueco muerto bajo la corta.
     const columnas = await page.locator('.components h3').evaluateAll((els) =>
       new Set(els.map((el) => Math.round(el.getBoundingClientRect().left))).size,
     );
-    expect(columnas).toBe(2);
+    expect(columnas).toBe(1);
+
+    const anchos = await page.locator('.component').evaluateAll((els) => {
+      const contenedor = document.querySelector('.components').getBoundingClientRect().width;
+      return els.map((el) => el.getBoundingClientRect().width / contenedor);
+    });
+    for (const proporcion of anchos) expect(proporcion).toBeGreaterThan(0.98);
+
     expect(await desbordeHorizontal(page)).toBe(0);
   });
 });

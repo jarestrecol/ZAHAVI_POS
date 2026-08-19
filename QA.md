@@ -139,8 +139,9 @@ Entrar con la clave `zahavi2026`.
 | 24 | Receta sin método | Nota discreta con acción para escribirlo, no un error |
 | 24a | Receta de varios componentes | Cada uno es una **tarjeta** con número de estación, nombre y cuántos ingredientes lleva |
 | 24b | Dos componentes seguidos | Se distinguen por color: azul el 1, violeta el 2. Se ve dónde acaba uno y empieza el otro |
-| 24c | Filas de ingrediente | **Franjas alternas**, no una lista plana; el texto alineado con el título del componente |
-| 24d | Lo mismo en celular | Las franjas siguen alineadas con el encabezado, sin desplazamiento de 8px |
+| 24c | Filas de ingrediente | Separadas por **línea**, con la cantidad en su propia columna: ninguna fila lleva fondo de color |
+| 24d | Las cantidades de toda la ficha | Caen sobre la **misma vertical**, componente tras componente |
+| 24f | La tabla de cada componente | Ocupa el ancho completo: no quedan huecos al lado de un componente corto |
 | 24e | Receta de un solo componente | **No** muestra tarjeta ni número: no hay nada que distinguir |
 
 ### 2.4 Botones de la ficha
@@ -363,7 +364,7 @@ publicar. Vuelve a cargar y reintenta.".
 | # | Comprobación | Esperado |
 |---|---|---|
 | 83 | Escritorio (≥ 992 px) | Listado y ficha a la vez |
-| 84 | Tableta (768–991 px) | Se turnan; ingredientes a dos columnas |
+| 84 | Tableta (768–991 px) | Se turnan; cada componente ocupa el ancho, sin huecos al lado |
 | 84a | Tableta: el listado | Dos columnas, la letra inicial a todo lo ancho y **sin desplazamiento horizontal** dentro del panel |
 | 85 | Celular (< 768 px) | Se turnan; al abrir una receta **entra como pantalla nueva**, no aparece comprimida abajo |
 | 86 | Celular: acciones de la receta | Barra flotante abajo, al alcance del pulgar: **pegada al borde inferior de la pantalla**, no debajo de la cabecera |

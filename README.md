@@ -537,9 +537,13 @@ herramienta de gestión:
 - **`--radius-control` (6px), aparte de los radios de superficie.** Un botón de
   tres centímetros con el mismo radio que una ventana de setenta rem se lee como
   una pastilla, y una barra de herramientas llena de pastillas no parece una
-  herramienta de trabajo. La curva generosa se reserva a las superficies que
-  contienen. Botones y campos comparten esta geometría: pertenecen a la misma
-  familia.
+  herramienta de trabajo. Botones y campos comparten esta geometría: pertenecen
+  a la misma familia. Las superficies mantienen su propia escala, hoy corta —de
+  3 a 12px—: lo que ordena la pantalla son las líneas, y una línea recta no gira.
+- **La línea es el material principal.** Cada zona va cerrada por un borde y
+  cada tabla separa sus filas y sus columnas con `--line` y `--line-cell`. No
+  hay fondos de color haciendo de separador: los fondos se reservan a las
+  cabeceras, que es donde dicen algo.
 - **Un único relleno de marca en toda la pantalla.** `--brand-strong` (#995107)
   sustituyó al naranja de marca en la acción principal. El naranja pleno es un
   color de máxima saturación **y** máxima claridad a la vez: quitarle el
@@ -982,12 +986,27 @@ algo distinto y que el último exija escribir el nombre de la receta a mano.
 2. **Qué consecuencias tiene**, incluida la de las demás sedes.
 3. **Escribir el nombre** para activar el botón, que arranca deshabilitado.
 
-### Por qué los ingredientes usan multicolumna y no cuadrícula
+### Por qué los ingredientes van en una tabla a ancho completo
 
-Con `grid` cada celda era un componente entero, y 72 de las 121 recetas tienen
-uno solo: una receta larga de un componente reservaba dos o tres columnas y
-volcaba toda la lista en la primera, dejando el resto en blanco. `columns`
-reparte el contenido con independencia de cuántos bloques haya.
+Antes se repartían en varias columnas de texto (`columns`), que reparte por
+altura. Con dos componentes de distinta longitud, el corto dejaba un hueco
+muerto debajo y la ficha se leía como un folleto a medio maquetar. Y probar con
+`grid` de dos columnas tampoco valía: 72 de las 121 recetas tienen un solo
+componente, y una tabla sola en media pantalla es peor todavía.
+
+Ahora cada componente es una tabla que ocupa el ancho, apiladas en el orden en
+que se trabaja. Sin huecos en ningún caso, se lee de arriba abajo como se pesa,
+y la columna de cantidades tiene medida declarada: todas las cifras del
+recetario caen sobre la misma vertical.
+
+### Por qué las filas se separan con líneas y no con franjas de color
+
+Las franjas alternas resolvían un problema real —no perder el renglón entre el
+nombre y una cifra que está al otro extremo— pero teñían media ficha de beige, y
+sobre blanco ese beige se leía rosado. El renglón lo sujeta ahora la cuadrícula:
+línea entre filas, línea entre la columna del nombre y la de la cifra, y el
+cuadro cerrado alrededor. Tres referencias rectas en lugar de una banda de
+color, que es como se lee una tabla en cualquier sistema de gestión.
 
 ### Por qué el cliente repara y el servidor rechaza
 

@@ -519,21 +519,30 @@
   gap: var(--space-3);
   /* Mismo sangrado izquierdo que las lineas: es donde cabe la marca de las que
      van con varias unidades, y sin el los rotulos no caerian sobre su columna. */
-  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: var(--track-loose);
   text-transform: uppercase;
   color: var(--ink-4);
-  border-bottom: 1px solid var(--line-strong);
+  /* Cabecera de tabla de verdad: fondo propio y el cuadro empieza aqui. */
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
 .plan__encabezado span:nth-child(2) {
   text-align: right;
 }
 
+/* La lista cierra el cuadro que abre el encabezado. */
 .plan__lista {
   min-width: 0;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
 }
 
 .plan__resumen {
@@ -555,7 +564,7 @@
 
 .plan__linea {
   padding-left: var(--space-3);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-cell);
 }
 
 .plan__linea:last-child {
@@ -613,6 +622,8 @@
   color: var(--amber-text);
 }
 
+/* Igual que en la ficha: la cifra vive en su columna y la linea que la separa
+   del nombre es el separador de columna de la tabla. */
 .plan__linea-qty {
   display: flex;
   align-items: baseline;
@@ -620,6 +631,8 @@
   gap: 0.3rem;
   flex-shrink: 0;
   white-space: nowrap;
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--line-cell);
 }
 
 .plan__linea-num {
@@ -714,11 +727,16 @@
 /* Cuatro tarjetas de ANCHO IGUAL. En fila flexible cada una media segun el
    largo de su texto ("distintos" contra "en una sola receta") y quedaban
    descuadradas; en rejilla de cuatro columnas iguales forman un bloque recto. */
+/* Barra de indicadores: cuatro celdas de una misma pieza, separadas por linea.
+   Antes eran cuatro tarjetas sueltas con su fondo y su hueco entre ellas; leidas
+   asi parecian cuatro cosas distintas en vez de una cabecera de estado. */
 .ings__resumen {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
   margin-bottom: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .ings__dato {
@@ -726,9 +744,11 @@
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
-  background: var(--surface-sunk);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-left: 1px solid var(--line-cell);
+}
+
+.ings__dato:first-child {
+  border-left: none;
 }
 
 .ings__dato-num {

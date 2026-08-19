@@ -51,7 +51,12 @@
        --surface         el area de trabajo donde se lee la receta
        --surface-card    lo que flota encima: filas, tarjetas, dialogos */
   --surface-panel: #ece7dd;
-  --surface-sunk: #f3efe7;
+  /* Zonas hundidas y cabeceras de tabla. Antes era #f3efe7, un beige que sobre
+     blanco se leia rosado, y encima se usaba como franja alterna de las filas
+     de ingredientes: media ficha quedaba tenida. Ahora es un gris de la misma
+     familia calida pero sin ese tiro rojo, y solo viste cabeceras. Las filas
+     se separan con lineas, que es lo que hace un sistema de gestion. */
+  --surface-sunk: #f1f0ed;
   --surface: #fbfaf9;
   --surface-card: #ffffff;
   --surface-hover: #fdf2e3;
@@ -182,8 +187,12 @@
   --ok-on-rail-soft: rgba(127, 216, 160, 0.13);
   --ok-on-rail-line: rgba(127, 216, 160, 0.35);
 
-  /* ---- Líneas ---- */
-  --line: #e6e0d6;
+  /* ---- Líneas ----
+     Son el material principal de la interfaz: lo que delimita cada zona y cada
+     celda. `--line` cierra un bloque por fuera; `--line-cell` separa por dentro
+     y va un punto mas claro, para que una tabla no parezca una reja. */
+  --line: #ddd9d1;
+  --line-cell: #eae7e0;
   --line-strong: #7c7770;
 
   /* Halo cálido de marca en las pantallas de entrada y bienvenida. */
@@ -275,15 +284,16 @@
   --space-8: 4rem;
 
   /* ---- Geometría ----
-     Radios mas generosos que en la version anterior: es lo que mas rapido
-     lee el ojo como "sistema moderno" frente a "formulario de oficina". Se
-     mantiene una escala, no un unico valor, para que un boton pequeño y una
-     ventana grande no compartan la misma curva. */
+     Curvas CORTAS. La escala anterior era generosa, y una pantalla llena de
+     esquinas redondas se lee como una web de producto, no como el sistema con
+     el que se produce. Se mantiene una escala -un boton y una ventana no
+     comparten curva-, pero el conjunto se acerca a la regla: lo que ordena la
+     pantalla son las lineas, y una linea recta no gira. */
   --sidebar-w: 21rem;
-  --radius-sm: 0.5rem;
-  --radius: 0.75rem;
-  --radius-lg: 1.25rem;
-  --radius-xl: 1.75rem;
+  --radius-sm: 0.1875rem;
+  --radius: 0.3125rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
   --radius-pill: 999px;
 
   /*
