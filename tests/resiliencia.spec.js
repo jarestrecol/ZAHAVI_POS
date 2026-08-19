@@ -306,6 +306,40 @@ test.describe('Dos sedes editando', () => {
 });
 
 /* ===========================================================================
+ *  4c. LA COPIA GUARDADA ESTA DAÑADA
+ * ======================================================================== */
+
+test.describe('Copia local ilegible', () => {
+  test('no se sobrescribe en silencio: se aparta y se avisa', async ({ page }) => {
+    await entrar(page);
+
+    // Así queda una copia local si la escritura se corta a mitad: por la cuota
+    // agotada, por cerrar el navegador en mal momento, o por un fallo del
+    // dispositivo. El texto no se puede interpretar, así que no hay forma de
+    // saber si contenía trabajo sin publicar.
+    await page.evaluate(() => {
+      window.localStorage.setItem('zahavi_recetario_v1', '{"dirty":true,"recipes":[{"id":"R0');
+    });
+
+    await page.reload();
+
+    // Antes de esto, una copia ilegible se trataba como "aquí no hay nada":
+    // se escribía encima la versión publicada y lo que hubiera desaparecía sin
+    // un solo aviso.
+    await expect(page.locator('.notice')).toContainText('estaba dañada');
+
+    // Y lo ilegible se conserva, que es lo único que queda de ese trabajo.
+    const rescatado = await page.evaluate(() =>
+      window.localStorage.getItem('zahavi_recetario_rescate_crudo'),
+    );
+    expect(rescatado).toContain('{"dirty":true');
+
+    // El recetario sigue usable con la versión publicada.
+    await expect(page.locator('nav [role=status]')).toHaveText('121 recetas');
+  });
+});
+
+/* ===========================================================================
  *  5. NO HAY RED
  * ======================================================================== */
 

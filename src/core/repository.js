@@ -15,7 +15,7 @@
  * acabaria con un recetario distinto sin que nadie se diera cuenta.
  */
 
-import { readJson, writeJson, ok, err } from './storage.js';
+import { readJson, readJsonState, writeJson, writeText, ok, err } from './storage.js';
 import { validateBackup, nextRecipeId, SCHEMA_VERSION } from './schema.js';
 import {
   fetchShared,
@@ -31,8 +31,17 @@ const LOCAL_KEY = 'zahavi_recetario_v1';
 /** Archivo publicado que viaja con el sitio. */
 const PUBLISHED_URL = './data/recipes.json';
 
-/** Donde se aparta una copia local ilegible en lugar de sobrescribirla. */
+/** Donde se aparta una copia local que se lee pero no valida. */
 const RESCUE_KEY = 'zahavi_recetario_rescate';
+
+/**
+ * Donde se aparta una copia local que ni siquiera se puede interpretar.
+ *
+ * Clave distinta de la anterior a proposito: el contenido es texto crudo y no
+ * un objeto, y compartir clave haria que un rescate pisara al otro justo
+ * cuando lo que se guarda es lo unico que queda del trabajo de alguien.
+ */
+const RESCUE_RAW_KEY = 'zahavi_recetario_rescate_crudo';
 
 /**
  * Version publicada, o null si en este arranque no se pudo leer.
@@ -76,10 +85,38 @@ let conflict = false;
  */
 export async function hydrate() {
   const fetched = await loadPublished();
-  const local = readJson(LOCAL_KEY, null);
+  const guardado = readJsonState(LOCAL_KEY);
+  const local = guardado.value;
 
   if (fetched.ok) {
     published = fetched.value;
+  }
+
+  // La copia local existe pero ni siquiera se puede interpretar: texto
+  // truncado por una escritura a medias, por la cuota agotada o por cerrar el
+  // navegador en mal momento. No se sabe si contenia trabajo sin publicar, y
+  // justo por eso se trata como si lo contuviera: se aparta el texto crudo y
+  // se avisa, en vez de escribir encima la version publicada y dar por
+  // perdido lo que hubiera.
+  if (guardado.state === 'corrupt') {
+    writeText(RESCUE_RAW_KEY, guardado.raw);
+    baseRevision = '';
+    conflict = false;
+    dirty = false;
+
+    if (fetched.ok) {
+      current = { recipes: published.recipes, ingredientes: published.ingredientes };
+      cachePublished();
+    } else {
+      current = { recipes: [], ingredientes: [] };
+    }
+
+    return {
+      ...current,
+      source: 'rescued',
+      warning:
+        'La copia guardada en este equipo estaba dañada y no se pudo leer. Se guardó aparte por si contenía cambios sin publicar, y se muestra la versión publicada.',
+    };
   }
 
   const validation = local ? validateBackup(local) : { ok: false };

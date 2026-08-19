@@ -38,7 +38,7 @@ ejecución. El motivo está en [docs/DECISIONES.md](docs/DECISIONES.md).
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
 npm run verificar    # siete bloques de comprobación, sin navegador
-npm run qa           # 50 pruebas en navegador (escritorio, celular, tableta)
+npm run qa           # 51 pruebas en navegador (escritorio, celular, tableta)
 ```
 
 Desplegar es conectar el repositorio a Vercel sin *build command* ni *output
@@ -65,7 +65,7 @@ el mensaje exacto del servidor. No hace falta abrir la consola.
 | Documento | Para quién |
 |---|---|
 | **[MANUAL.md](MANUAL.md)** | El equipo de la panadería. Cómo se usa, qué significa cada aviso y qué hacer si algo falla |
-| **[QA.md](QA.md)** | Lista de verificación: 217 puntos manuales más las pruebas automáticas |
+| **[QA.md](QA.md)** | Lista de verificación: 218 puntos manuales más las pruebas automáticas |
 | [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md) | Instalar, desplegar, verificar y diagnosticar |
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Capas, flujo de una carga, flujo de una publicación y modelo de datos |
 | [docs/SEGURIDAD.md](docs/SEGURIDAD.md) | Las dos fronteras, qué protege cada una y qué no protege nada |

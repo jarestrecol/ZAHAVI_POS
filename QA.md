@@ -7,7 +7,7 @@ Tres partes:
 
 - **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
-- **De navegador**: 50 pruebas en escritorio, celular y tableta, que fijan lo
+- **De navegador**: 51 pruebas en escritorio, celular y tableta, que fijan lo
   que solo se rompe con una pantalla delante.
 - **Manual**: lo que sigue necesitando un par de ojos.
 
@@ -60,7 +60,7 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 npm run qa
 ```
 
-Cincuenta pruebas en un navegador de verdad, repartidas en tres
+Cincuenta y una pruebas en un navegador de verdad, repartidas en tres
 tamaños: escritorio, celular y tableta. Tardan unos doce segundos y levantan el
 servidor solas, con **las cabeceras de producción** que declara `vercel.json`:
 probar contra un servidor más permisivo esconde justo lo que interesa mirar.
@@ -392,6 +392,7 @@ publicado, porque dependen de la plataforma.
 | 82e2 | Un sitio cuya función responde con error (variables mal puestas, token sin permiso, rama inexistente) | "Responde con error" **y debajo el texto exacto del servidor**, que es lo que dice qué arreglar |
 | 82f | Cortar el programa a mitad de carga (recargar con la red muy lenta o borrar un archivo del despliegue) | A los 18 segundos aparece **"El recetario está tardando demasiado"** con dos salidas: reintentar y borrar la copia guardada |
 | 82g | Pulsar "Borrar la copia guardada y recargar" | El recetario vuelve a cargar limpio y **las recetas del equipo siguen ahí** |
+| 82h | Dañar a mano la copia local (`zahavi_recetario_v1` con texto truncado) y recargar | Avisa de que estaba dañada, **la aparta en `zahavi_recetario_rescate_crudo`** y sigue con la versión publicada. No la sobrescribe en silencio |
 
 ### 2.10 Pantallas
 
