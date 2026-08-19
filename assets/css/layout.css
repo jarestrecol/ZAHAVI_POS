@@ -122,6 +122,19 @@
   position: relative;
 }
 
+/*
+ * EL CAMPO SE HUNDE; LOS FILTROS SE ELEVAN.
+ *
+ * Los dos vivian en el mismo panel, con el mismo borde y con dos tintes de
+ * blanco casi iguales (6% el campo, 14% el filtro activo): pegados uno debajo
+ * del otro se leian como cuatro cajas de la misma familia, y no se sabia cual
+ * era para escribir y cuales para pulsar.
+ *
+ * Ahora el campo va MAS OSCURO que el panel que lo contiene, que es como se
+ * lee un hueco donde se escribe, y los filtros siguen mas claros, que es como
+ * se lee algo que se pulsa. La lupa se pone en ambar de marca: identifica el
+ * buscador antes de leer nada.
+ */
 .search__field {
   width: 100%;
   min-height: var(--tap-row);
@@ -129,21 +142,21 @@
   font-family: var(--font-ui);
   font-size: var(--text-base);
   color: var(--on-rail);
-  background: rgba(245, 241, 234, 0.06);
+  background: var(--rail);
   border: 1px solid var(--rail-line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
 }
 
 .search__field:hover {
-  background: rgba(245, 241, 234, 0.12);
+  border-color: var(--on-rail-2);
 }
 
 .search__field:focus {
-  background: rgba(245, 241, 234, 0.16);
+  background: var(--rail);
   border-color: var(--amber-on-rail);
-  box-shadow: 0 0 0 4px rgba(231, 129, 59, 0.22);
+  box-shadow: 0 0 0 3px rgba(231, 129, 59, 0.22);
   outline: none;
 }
 
@@ -152,6 +165,8 @@
   opacity: 1;
 }
 
+/* En ambar: es la marca del sitio donde se busca, y de paso separa el campo de
+   los filtros de al lado sin necesidad de leerlos. */
 .search__icon {
   position: absolute;
   left: calc(var(--space-3) + 0.7rem);
@@ -160,7 +175,7 @@
   height: 15px;
   transform: translateY(-50%);
   fill: none;
-  stroke: var(--on-rail-2);
+  stroke: var(--amber-on-rail);
   stroke-width: 2.2;
   pointer-events: none;
 }
@@ -366,10 +381,13 @@
    filtrar son la misma tarea (acotar el listado), asi que sus dos controles
    van juntos y justo encima de lo que afectan. */
 
+/* Con linea arriba tambien: separa el bloque de buscar del de filtrar, que
+   comparten fondo y estaban pegados sin nada entre medias. */
 .sidebar__search {
   position: relative;
   padding: var(--space-3);
   background: var(--rail-2);
+  border-top: 1px solid var(--rail-line);
   border-bottom: 1px solid var(--rail-line);
 }
 
