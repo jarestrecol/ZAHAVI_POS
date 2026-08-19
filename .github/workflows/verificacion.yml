@@ -1,0 +1,53 @@
+# Verificacion del recetario en cada envio.
+#
+# Dos capas, y las dos tienen que pasar antes de publicar:
+#
+#   1. `verificar`  la logica y los datos, sin navegador. Segundos.
+#   2. `qa`         el navegador de verdad, en escritorio, celular y tableta.
+#                   Existe porque hay una familia entera de fallos que la
+#                   primera capa no puede ver: el foco que no entra en una
+#                   ventana, la hoja que se imprime antes de existir, la barra
+#                   que se cree flotante y esta atrapada.
+name: Verificacion
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificacion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # `ci` y no `install`: instala exactamente lo que dice el candado, para
+      # que aqui se pruebe lo mismo que en el equipo de quien lo escribio.
+      - name: Instalar dependencias de desarrollo
+        run: npm ci
+
+      - name: Datos, esquemas y coherencia del CSS
+        run: npm run verificar
+
+      # Solo Chromium: las pruebas comprueban el reparto de la pantalla y el
+      # comportamiento del teclado, no diferencias entre motores.
+      - name: Preparar el navegador
+        run: npx playwright install --with-deps chromium
+
+      - name: Pruebas de navegador
+        run: npm run qa
+
+      - name: Guardar el informe si algo falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-qa
+          path: playwright-report/
+          retention-days: 7

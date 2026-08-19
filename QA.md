@@ -3,11 +3,13 @@
 Guía para comprobar que el recetario funciona antes de darlo por bueno, después
 de un cambio o antes de entregarlo a la panadería.
 
-Dos partes:
+Tres partes:
 
 - **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
-- **Manual**: lo que solo se puede confirmar mirando la pantalla.
+- **De navegador**: 32 pruebas en escritorio, celular y tableta, que fijan lo
+  que solo se rompe con una pantalla delante.
+- **Manual**: lo que sigue necesitando un par de ojos.
 
 > **Regla que no se rompe nunca**: las pruebas manuales se hacen sobre recetas
 > creadas para la prueba, con el prefijo `QA-TEST-`, y se borran al terminar.
@@ -52,15 +54,50 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 
 ---
 
+## 1b. Pruebas de navegador
+
+```bash
+npm run qa
+```
+
+Treinta y dos pruebas en un navegador de verdad, repartidas en tres tamaños:
+escritorio, celular y tableta. Tardan unos diez segundos y levantan el servidor
+solas, con **las cabeceras de producción** que declara `vercel.json`: probar
+contra un servidor más permisivo esconde justo lo que interesa mirar.
+
+Existen porque hay una familia entera de fallos que la verificación automática
+no puede ver, por buena que sea: no abre ningún navegador. Los seis defectos de
+la última revisión pasaron por delante de siete bloques en verde.
+
+| Archivo | Qué fija |
+|---|---|
+| `tests/recorrido.spec.js` | Entrar, buscar, abrir una receta y escalar la tanda: el camino de todos los días |
+| `tests/dialogos.spec.js` | Que el foco entre en cada ventana y el teclado del Modo Pesar responda sin pulsar Tab antes |
+| `tests/impresion.spec.js` | Que se imprima lo que se está mirando: el plan cuando es el plan, la ficha escalada con sus cifras |
+| `tests/celular.spec.js` | Barra de acciones al alcance del pulgar, nada solapado a 320 px y los cinco factores alcanzables |
+| `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral |
+
+Con `npm run qa:ver` se abren en modo visual, para verlas ejecutarse paso a
+paso. Los informes quedan en `playwright-report/` y no entran al repositorio.
+
+> Las pruebas **leen** las 121 recetas y no escriben ninguna. La única que crea
+> algo lo descarta con Escape sin llegar a guardar.
+
+---
+
 ## 2. Verificación manual
 
 Levantar el sitio en local, que **no** toca el sitio publicado:
 
 ```bash
-python -m http.server 8000
+npm run servidor
 ```
 
-Entrar con `zahavi` / `zahavi2026`.
+Sirve en el puerto 8000 con las mismas cabeceras que Vercel, CSP incluida.
+También vale `python -m http.server 8000`, pero entonces se prueba con reglas
+más blandas que las de producción.
+
+Entrar con la clave `zahavi2026`.
 
 ### 2.1 Entrada
 

@@ -1,6 +1,13 @@
-# Dependencias: este proyecto no necesita ninguna en tiempo de ejecucion.
+# Dependencias: ninguna en tiempo de ejecucion. La unica de desarrollo es el
+# navegador de pruebas, y su version SI se versiona (`package-lock.json`): si
+# la integracion continua instala una distinta, las pruebas dejan de decir lo
+# mismo aqui que alli.
 node_modules/
-package-lock.json
+
+# Resultados de las pruebas de navegador: se regeneran en cada pasada.
+test-results/
+playwright-report/
+.playwright-mcp/
 
 # Datos reales de la panaderia. Nunca deben entrar al repositorio publico.
 RESPALDO-PRIVADO-*.json

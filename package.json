@@ -2,13 +2,19 @@
   "name": "zahavi-recetario",
   "version": "1.0.0",
   "private": true,
-  "description": "Recetario de produccion para panaderia, reposteria y cafe. Sin dependencias, sin compilacion.",
+  "description": "Recetario de produccion para panaderia, reposteria y cafe. Sin dependencias en tiempo de ejecucion, sin compilacion.",
   "type": "module",
   "license": "MIT",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "verificar": "node scripts/verificar.mjs"
+    "verificar": "node scripts/verificar.mjs",
+    "qa": "playwright test",
+    "qa:ver": "playwright test --ui",
+    "servidor": "node scripts/servidor.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

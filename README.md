@@ -713,8 +713,13 @@ Los módulos ES necesitan servirse por HTTP; abrir `index.html` con doble clic n
 funciona.
 
 ```bash
-python -m http.server 8000
+npm run servidor
 ```
+
+Sirve en el puerto 8000 con **las cabeceras que aplica Vercel**, leídas del
+propio `vercel.json`: misma CSP, mismos tipos de contenido. Un servidor de
+desarrollo más permisivo esconde justo los fallos que solo aparecen publicados.
+`python -m http.server 8000` sigue valiendo para mirar algo rápido.
 
 ### Verificación
 
@@ -741,6 +746,34 @@ Archivo offline…                ok
 | `test-datos.mjs` | Arranque limpio, integridad, edición, borrado, recarga con cambios pendientes, conflicto de versiones, descarte y ausencia de red |
 | `test-api.mjs` | Que el recetario real pasa la validación del servidor sin alterarse, que se rechazan los envíos que lo destruirían, y que cliente y servidor coinciden sobre los datos reales |
 | `test-qa.mjs` | Alta y baja masiva (crea 20 recetas y 5 usuarios, comprueba que sobreviven a una recarga, los borra y verifica que el recetario vuelve a su estado inicial), más escalado, catálogo de ingredientes y plan de producción. Del plan se comprueba lo que no se puede romper: que **nunca** suma unidades distintas, que el desglose por receta **cuadra exactamente** con el total de cada línea, que las cantidades cero o negativas se descartan, y que consolidar no altera ni una cifra del recetario |
+
+### Pruebas de navegador
+
+```bash
+npm run qa
+```
+
+Treinta y dos pruebas en escritorio, celular y tableta, en unos diez segundos.
+La suite levanta el servidor sola, con las cabeceras de producción.
+
+Existen por una razón concreta: **la verificación anterior no abre ningún
+navegador**, y hay una familia entera de fallos que solo se ve ahí. Los seis
+defectos de la última revisión (el foco que no entraba en las ventanas, la hoja
+del plan que se imprimía después de borrarse, la barra flotante atrapada bajo la
+cabecera, el listado que se iba de lado en tableta, dos botones montados y un
+control inalcanzable) pasaron por delante de siete bloques de pruebas en verde.
+
+| Archivo | Qué fija |
+|---|---|
+| `tests/recorrido.spec.js` | Entrar, buscar, abrir una receta y escalar la tanda |
+| `tests/dialogos.spec.js` | Que el foco entre en cada ventana y el teclado del Modo Pesar responda de inmediato |
+| `tests/impresion.spec.js` | Que se imprima lo que se está mirando |
+| `tests/celular.spec.js` | Acciones al alcance del pulgar y nada inalcanzable a 320 px |
+| `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral |
+
+Es la única dependencia del proyecto, y es de desarrollo: en tiempo de ejecución
+el recetario sigue sin ninguna. `.github/workflows/verificacion.yml` ejecuta las
+dos capas en cada envío.
 
 La comprobación de integridad incluye el **sha256 del archivo de recetas**: si
 una sola cifra de una sola fórmula cambiara sin querer, la verificación falla.
@@ -839,7 +872,7 @@ Sigue en el historial de git por si algún día hace falta recuperarlo.
 
 ```
 index.html                 Punto de entrada
-package.json               Solo "type": "module". Cero dependencias
+package.json               Cero dependencias en tiempo de ejecución
 vercel.json                Cabeceras de seguridad y política de caché
 sw.js                      Service worker: funcionamiento sin conexión
 manifest.webmanifest       Instalación como aplicación
@@ -902,6 +935,15 @@ scripts/
   test-datos.mjs           Pruebas de la capa de datos
   test-api.mjs             Pruebas del validador del servidor
   test-qa.mjs              Alta y baja masiva de recetas y usuarios
+  servidor.mjs             Servidor local con las cabeceras de producción
+
+tests/                     Pruebas de navegador (npm run qa)
+  apoyo.js                 Entrar, interceptar impresión, medir desbordes
+  recorrido.spec.js        El camino de todos los días
+  dialogos.spec.js         Foco y teclado de las ventanas
+  impresion.spec.js        Que se imprima lo que se está mirando
+  celular.spec.js          Lo que solo se rompe en un teléfono
+  tableta.spec.js          Lo que solo se rompe en una tableta
 
 QA.md                      Lista de verificación manual (187 puntos)
 
