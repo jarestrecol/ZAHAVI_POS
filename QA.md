@@ -7,7 +7,7 @@ Tres partes:
 
 - **Automática**: siete bloques que ejecuta la máquina en segundos, con 161
   comprobaciones solo en la prueba de alta y baja.
-- **De navegador**: 47 pruebas en escritorio, celular y tableta, que fijan lo
+- **De navegador**: 48 pruebas en escritorio, celular y tableta, que fijan lo
   que solo se rompe con una pantalla delante.
 - **Manual**: lo que sigue necesitando un par de ojos.
 
@@ -60,7 +60,7 @@ La prueba de alta y baja masiva (`scripts/test-qa.mjs`) cubre por sí sola:
 npm run qa
 ```
 
-Cuarenta y siete pruebas en un navegador de verdad, repartidas en tres
+Cuarenta y ocho pruebas en un navegador de verdad, repartidas en tres
 tamaños: escritorio, celular y tableta. Tardan unos doce segundos y levantan el
 servidor solas, con **las cabeceras de producción** que declara `vercel.json`:
 probar contra un servidor más permisivo esconde justo lo que interesa mirar.

@@ -483,7 +483,15 @@ export function renderPlaceholder(params) {
         height: 78,
       }),
       el('h1', { class: 'welcome__title', text: 'Recetario de producción' }),
-      el('p', { class: 'welcome__lead', text: 'Elige una receta del listado o busca por nombre o ingrediente.' }),
+      // El texto decia "busca por nombre o ingrediente" y la busqueda NO mira
+      // los ingredientes: solo nombre y codigo. Prometer lo que no se hace es
+      // peor que no prometer nada, porque quien busca "harina" y no encuentra
+      // nada concluye que el recetario esta incompleto. Lo que si contesta esa
+      // pregunta es el catalogo de Ingredientes, y ahi es donde se manda.
+      el('p', {
+        class: 'welcome__lead',
+        text: 'Elige una receta del listado, o búscala por su nombre o su código.',
+      }),
       el('dl', { class: 'welcome__stats' }, [
         ...stat('Recetas', String(params.count)),
         ...stat('Categorías', String(params.categories)),

@@ -36,6 +36,25 @@ test('la sesion sobrevive a recargar', async ({ page }) => {
   await expect(page.getByRole('textbox', { name: 'clave' })).toHaveCount(0);
 });
 
+test('pero no sobrevive a la caducidad de la clave', async ({ page }) => {
+  await entrar(page);
+
+  // Ocho dias atras: la clave dura siete. Es lo que le pasa a la tableta de
+  // pared del obrador, que nunca cierra sesion y donde por eso la caducidad
+  // semanal no llegaba a aplicarse nunca.
+  await page.evaluate(() => {
+    const acceso = JSON.parse(window.localStorage.getItem('zahavi_acceso_v1'));
+    acceso.changedAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    window.localStorage.setItem('zahavi_acceso_v1', JSON.stringify(acceso));
+  });
+
+  await page.reload();
+
+  // Pide la clave otra vez, y al darla correcta obliga a renovarla: nadie se
+  // queda fuera, pero la clave vieja deja de servir.
+  await expect(page.getByRole('textbox', { name: 'clave' })).toBeVisible();
+});
+
 test('la busqueda filtra por nombre, por codigo y sin acentos', async ({ page }) => {
   await entrar(page);
   const buscador = page.getByRole('searchbox', { name: 'Buscar receta' });

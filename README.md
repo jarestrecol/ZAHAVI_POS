@@ -6,6 +6,10 @@ y funcionamiento garantizado sin conexión.
 
 **Estado**: Fase 1 en producción · 121 recetas · 187 componentes · 1.282 líneas de ingrediente
 
+> Este documento es técnico. Para el equipo de la panadería está
+> **[MANUAL.md](MANUAL.md)**, que cabe en dos caras impresas y no da por
+> supuesto nada de informática.
+
 ---
 
 ## Índice
@@ -817,7 +821,7 @@ Archivo offline…                ok
 npm run qa
 ```
 
-Cuarenta y siete pruebas en escritorio, celular y tableta, en unos doce
+Cuarenta y ocho pruebas en escritorio, celular y tableta, en unos doce
 segundos. La suite levanta el servidor sola, con las cabeceras de producción.
 
 Existen por una razón concreta: **la verificación anterior no abre ningún
@@ -1017,6 +1021,7 @@ tests/                     Pruebas de navegador (npm run qa)
   resiliencia.spec.js      Lo que pasa cuando algo va mal
 
 QA.md                      Lista de verificación manual (211 puntos)
+MANUAL.md                  Cómo se usa, para el equipo de la panadería
 
 data/
   recipes.json             Recetario publicado

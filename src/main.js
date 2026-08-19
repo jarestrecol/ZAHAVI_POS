@@ -29,7 +29,7 @@ import { setInert, recordarFoco } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
-import { ensureAccess, isSignedIn, isUsingDefaultPassword } from './core/access.js';
+import { ensureAccess, isSignedIn, isUsingDefaultPassword, estadoClave, signOut } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
 import { getEditKey } from './core/remote.js';
@@ -99,6 +99,18 @@ async function boot() {
   // dejarlos fuera: ver `ensureAccess` en `core/access.js`.
   await ensureAccess();
   usingDefaultPassword = await isUsingDefaultPassword();
+
+  // La caducidad de la clave solo se comprobaba AL ENTRAR, y la sesion no
+  // vence: un equipo que nunca cierra sesion -la tableta de pared del obrador,
+  // que es el caso normal- no la aplicaba jamas. La clave semanal existe para
+  // que quien dejo de trabajar aqui deje de poder entrar, y sobre ese aparato
+  // no dejaba de poder entrar nadie.
+  //
+  // Se comprueba al arrancar y no mientras se trabaja: sacar a alguien de la
+  // pantalla a media tanda seria peor que el riesgo que se evita. En la
+  // practica el equipo se recarga a diario, y quien conoce la clave vigente la
+  // renueva en el mismo formulario de entrada, sin quedarse fuera.
+  if (isSignedIn() && estadoClave().caducada) signOut();
 
   setState({
     authed: isSignedIn(),
