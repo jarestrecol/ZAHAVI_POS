@@ -279,3 +279,83 @@ Sigue en el historial de git por si algún día hace falta recuperarlo.
 
 ---
 
+
+## Cuando algo sale mal de verdad
+
+Los procedimientos de recuperación, escritos antes de necesitarlos. Cada uno
+dice cuánto se tarda y qué se pierde.
+
+### Alguien publicó un recetario equivocado
+
+Es el caso más probable de los graves: se borran recetas por error, se pega
+mal una fórmula, o una sede publica encima de la otra a sabiendas.
+
+**No se ha perdido nada.** Cada publicación es un commit sobre
+`data/recipes.json`, así que todas las versiones anteriores están íntegras en
+el historial del repositorio.
+
+1. En GitHub, abre `data/recipes.json` y pulsa **History**. Cada entrada es una
+   publicación, con su fecha.
+2. Abre la versión buena y pulsa **Raw**. Copia todo el contenido.
+3. Vuelve a `data/recipes.json`, pulsa el lápiz de editar, borra todo y pega la
+   versión buena. Confirma el commit.
+4. Vercel despliega solo. En el siguiente arranque, las dos sedes ven la versión
+   restaurada.
+
+Tarda unos tres minutos. Antes de dar por buena la restauración, ejecuta
+`node scripts/verificar.mjs` en local sobre esa misma versión: comprueba las
+121 recetas y el `sha` del contenido.
+
+**Ojo con los equipos que tengan cambios sin publicar.** Al recargar verán el
+aviso rojo de conflicto de versiones, y deberán decidir en Ajustes qué
+conservar. No publiques desde un equipo con cambios pendientes hasta haber
+resuelto eso, o volverías a pisar la restauración.
+
+### El token de GitHub caducó o fue revocado
+
+El síntoma es "Responde con error" en Ajustes → Conexión, con el mensaje del
+servidor debajo. El recetario **sigue funcionando para consultar**: cada equipo
+lee su copia local y el archivo publicado del sitio. Lo que se detiene es la
+publicación.
+
+1. Genera un token nuevo con **Contents: Read and write** sobre el repositorio.
+2. Reemplázalo en Vercel, en la variable `GITHUB_TOKEN`.
+3. **Vuelve a desplegar**: las variables se leen al construir la función.
+
+Mientras tanto, nadie pierde trabajo: lo guardado espera en cada equipo y se
+publica solo cuando el servidor vuelva.
+
+### La función de publicación no responde
+
+Comprueba primero si es la plataforma o la configuración:
+
+```bash
+curl -i https://<el-sitio>/api/recipes
+```
+
+- `200` con las recetas: la función está bien; el problema es del navegador o
+  de la red del local.
+- `500` con `{"error": ...}`: falta configuración. El mensaje dice cuál.
+- `502`: el repositorio rechazó la petición. Token sin permiso, repositorio mal
+  escrito o GitHub caído.
+- Sin respuesta: mira el estado de Vercel y sus registros de la función.
+
+### Un equipo no arranca
+
+Que la persona pulse **"Borrar la copia guardada y recargar"** en la pantalla de
+fallo. Ese botón borra la copia del programa, no las recetas. Si la pantalla de
+fallo no llega a aparecer, el mismo efecto se consigue borrando los datos del
+sitio desde los ajustes del navegador, con una advertencia: **eso sí borra los
+cambios sin publicar de ese equipo**. Pregunta antes si los hay.
+
+### Hay que dejar el recetario en manos de otro proveedor
+
+Todo lo necesario está en el repositorio y no hay nada más:
+
+- Las 121 fórmulas, en `data/recipes.json`, en JSON legible.
+- El programa entero, sin compilar, sin dependencias y sin ofuscar.
+- La documentación, en `README.md`, `docs/`, `QA.md` y `MANUAL.md`.
+
+No hay base de datos que exportar, ni servicios de terceros que traspasar más
+allá de la cuenta de Vercel y el repositorio de GitHub. Clonar el repositorio y
+declarar las cuatro variables de entorno reconstruye el sistema completo.
