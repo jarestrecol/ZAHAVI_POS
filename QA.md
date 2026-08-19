@@ -322,6 +322,24 @@ Entrar con la clave `zahavi2026`.
 > Estas pruebas escriben en el recetario **compartido**. Hacerlas solo con
 > intención de publicar de verdad, nunca "para probar".
 
+**Cómo probarlas sin arriesgar las 121 recetas.** El servidor escribe en la rama
+que le diga `GITHUB_BRANCH`, y si no se le dice nada, en `main`
+([api/recipes.js](api/recipes.js)). Basta con un despliegue de vista previa
+apuntado a una rama de pruebas del mismo repositorio:
+
+```bash
+git switch -c qa-publicacion && git push -u origin qa-publicacion
+```
+
+En ese despliegue, `GITHUB_BRANCH=qa-publicacion` y una `EDIT_PASSWORD` propia.
+Así el ciclo completo se ejerce de verdad (commit incluido) contra un archivo
+que se puede tirar después, y `main` no se toca.
+
+El conflicto del punto 77 se provoca con dos navegadores: cargar el recetario en
+los dos, publicar en el primero y publicar después en el segundo, que sigue
+teniendo el `sha` viejo. La respuesta esperada es un 409 con "Conflicto al
+publicar. Vuelve a cargar y reintenta.".
+
 | # | Comprobación | Esperado |
 |---|---|---|
 | 73 | Publicar sin clave de edición | Pide la clave, no publica |
