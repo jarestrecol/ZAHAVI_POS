@@ -715,11 +715,11 @@ Vercel las busca en un despliegue estático. La de 500 lleva los marcadores
 al servirla: son lo único que permite decir por teléfono qué falló, así que no
 se borran aunque parezcan texto raro.
 
-Conviene **comprobarlo en el primer despliegue**, porque es lo único de esta
-lista que no se puede verificar en local: abrir `<el-sitio>/loquesea` y confirmar
-que sale la página con la marca Zahavi y no la pantalla de Vercel. El servidor
-local sí la sirve, y hay una prueba automática que comprueba el estado 404 y que
-la hoja de estilo se aplica.
+**Comprobado en producción** el 19 de agosto de 2026: `/una-direccion-que-no-existe`
+devuelve estado `404` con `Content-Type: text/html` y la página propia, no la de
+la plataforma. Vercel la toma de la raíz sin necesidad de declararla en
+`vercel.json`. El servidor local la sirve igual, y hay una prueba automática que
+comprueba el estado y que la hoja de estilo se aplica bajo la CSP real.
 
 ### Variables de entorno
 
