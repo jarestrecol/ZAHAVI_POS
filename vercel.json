@@ -67,12 +67,6 @@
       ]
     },
     {
-      "_comentario": [
-        "Las tipografias no cambian NUNCA: si alguna vez cambia una, cambia su",
-        "nombre de archivo. Un año de cache y sin revalidar ahorra 148 KB y una",
-        "tanda de peticiones en cada arranque, que en la tableta del obrador con",
-        "mala señal se nota."
-      ],
       "source": "/assets/fonts/(.*)",
       "headers": [
         {
@@ -82,23 +76,6 @@
       ]
     },
     {
-      "_comentario": [
-        "EL CODIGO Y LOS ESTILOS SE REVALIDAN SIEMPRE.",
-        "",
-        "Aqui habia `max-age=3600`, y costo caro: un equipo que ya tenia la pagina",
-        "abierta servia su copia durante una hora SIN PREGUNTAR al servidor, asi",
-        "que un despliegue tardaba hasta sesenta minutos en llegarle. El service",
-        "worker pide estos archivos por red primero, pero su `fetch` respeta la",
-        "cache del navegador, asi que aquello anulaba la estrategia entera.",
-        "",
-        "Para un recetario de produccion eso no vale: una correccion que evita",
-        "perder trabajo tiene que llegar en la siguiente carga, no dentro de una",
-        "hora.",
-        "",
-        "`no-cache` NO significa no guardar: significa guardar y PREGUNTAR antes",
-        "de usar. Con el ETag que ya pone la plataforma, la pregunta se contesta",
-        "con un 304 vacio cuando nada cambio, asi que no se descarga de nuevo."
-      ],
       "source": "/assets/css/(.*)",
       "headers": [
         {

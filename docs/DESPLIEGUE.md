@@ -104,6 +104,45 @@ Antes esta clave caducaba cada 7 días. Se retiró porque no revocaba nada —qu
 la conocía se la renovaba a sí mismo— y había que renovarla en cada aparato por
 separado. Era un ritual semanal con la apariencia de un control.
 
+### Política de caché
+
+Está en `vercel.json`, y cada línea responde a un motivo distinto:
+
+| Ruta | Cabecera | Por qué |
+|---|---|---|
+| `/src/` y `/assets/css/` | `no-cache, must-revalidate` | El código y los estilos se revalidan **siempre** |
+| `/assets/fonts/` | `max-age=31536000, immutable` | Las tipografías no cambian nunca |
+| `/assets/` (imágenes) | `max-age=3600` | Cambian poco y no rompen nada si tardan |
+| `/data/recipes.json` y `/sw.js` | `no-cache, must-revalidate` | Una publicación nueva debe verse en la siguiente carga |
+| `/api/` | `no-store` | Nunca se guarda una respuesta del servidor |
+
+El código llevaba `max-age=3600`, y costó caro: un equipo con la página ya
+abierta usaba su copia durante una hora **sin preguntar al servidor**, así que un
+despliegue tardaba hasta sesenta minutos en llegarle. Peor aún, anulaba la
+estrategia del service worker sin que se notara: `sw.js` pide el código por red
+primero, pero su `fetch` respeta la caché del navegador, así que durante esa hora
+"red primero" devolvía la copia vieja igualmente.
+
+Se descubrió porque una versión recién puesta en la barra no aparecía en el
+navegador de quien la había pedido, estando desplegada y servida correctamente.
+El código estaba bien; lo que fallaba era que no llegaba.
+
+> `no-cache` **no** significa "no guardar": significa guardar y **preguntar**
+> antes de usar. Con el ETag que ya pone la plataforma, esa pregunta se contesta
+> con un `304` vacío cuando nada cambió, así que no se vuelve a descargar nada.
+> El coste es una petición condicional por archivo; la garantía es que lo
+> desplegado es lo que se ejecuta.
+
+**`vercel.json` no admite comentarios ni propiedades inventadas.** Valida contra
+el esquema que declara en `$schema`, y una clave de más hace que la plataforma
+ignore el archivo: el despliegue se completa, el sitio sigue vivo con la
+configuración anterior, y **no hay ningún error visible**. Si cambias una
+cabecera y no la ves aplicada, comprueba eso antes que nada:
+
+```bash
+curl -sI https://<el-sitio>/src/main.js | grep -i cache-control
+```
+
 ### Dominio propio
 
 En **Settings → Domains**, añade el dominio y usa los registros DNS que Vercel
