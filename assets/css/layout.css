@@ -339,8 +339,53 @@
   font-weight: 700;
 }
 
+/*
+ * TODAS NO ES UNA CATEGORIA MAS: es la salida.
+ *
+ * Las otras tres dicen QUE tipo de receta se esta viendo. Esta dice "quita el
+ * filtro y enseñamelo todo", que es un gesto distinto y el que mas se usa: se
+ * llega a el desde cualquier busqueda que no dio lo que se esperaba.
+ *
+ * Iba igual que las demas, con el color solo en el punto, y habia que leer las
+ * cuatro etiquetas para encontrarla. Con cuerpo propio se distingue sin leer.
+ *
+ * `--brand-strong` es el ambar profundo de la casa, y es el unico de la paleta
+ * que cumple las dos condiciones a la vez:
+ *
+ *   texto claro encima      5,28:1   (hace falta 4,5:1, la etiqueta es de 12 px)
+ *   el boton contra el rail 3,00:1   (hace falta 3:1 para que se vea como objeto)
+ *
+ * Un naranja mas vivo destacaria mas pero dejaria el texto en 4,09:1, y uno mas
+ * oscuro leeria mejor pero se fundiria con el fondo. Se probaron los tres.
+ */
+.chip[data-category='TODAS'] {
+  background: var(--brand-strong);
+  color: var(--on-rail);
+}
+
+.chip[data-category='TODAS']:hover {
+  background: var(--brand-strong-hover);
+  color: var(--on-rail);
+}
+
+/* Sobre el ambar, el gris del contador cae a 2,7:1 y el punto casi desaparece:
+   los dos pasan al claro, que da los mismos 5,28:1 que la etiqueta. */
+.chip[data-category='TODAS'] .chip__count,
+.chip[data-category='TODAS'][aria-pressed='true'] .chip__count {
+  color: var(--on-rail);
+}
+
+.chip[data-category='TODAS'] .chip__dot {
+  background: var(--on-rail);
+}
+
+/* Seleccionada conserva su cuerpo ambar y añade la barra lateral clara, que es
+   la marca comun de "esta es la activa" en las cuatro. */
 .chip[data-category='TODAS'][aria-pressed='true'] {
-  box-shadow: inset 4px 0 0 0 var(--amber-on-rail);
+  background: var(--brand-strong);
+  color: var(--on-rail);
+  border-color: var(--brand-strong);
+  box-shadow: inset 4px 0 0 0 var(--on-rail);
 }
 
 .chip[data-category='PASTELERÍA'][aria-pressed='true'] {
@@ -363,9 +408,9 @@
   background: var(--cat-otros-rail);
 }
 
-/* "Todas" tambien lleva punto, en color de marca: sin el, su nombre empezaba
-   dos posiciones antes que el de las demas y rompia la columna. */
-.chip[data-category='TODAS'] .chip__dot { background: var(--amber-on-rail); }
+/* "Todas" tambien lleva punto: sin el, su nombre empezaba dos posiciones antes
+   que el de las demas y rompia la columna. Su color se declara arriba, con el
+   resto de lo suyo. */
 .chip[data-category='PASTELERÍA'] .chip__dot { background: var(--cat-pasteleria-rail); }
 .chip[data-category='PANADERÍA'] .chip__dot { background: var(--cat-panaderia-rail); }
 .chip[data-category='GALLETAS'] .chip__dot { background: var(--cat-galletas-rail); }
