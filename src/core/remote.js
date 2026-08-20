@@ -227,6 +227,66 @@ export async function fetchShared() {
 }
 
 /**
+ * Comprueba una clave de edicion contra el servidor, sin publicar nada.
+ *
+ * Es lo que permite pedir la clave ANTES de dejar tocar una receta, en vez de
+ * descubrir que estaba mal al final, con el trabajo ya hecho.
+ *
+ * La comprobacion la hace el SERVIDOR, no este archivo. Compararla aqui seria
+ * teatro: basta con abrir las herramientas del navegador para saltarse
+ * cualquier comprobacion que viva en el cliente.
+ *
+ * @param {string} password
+ * @returns {Promise<{ok: true, value: undefined} | {ok: false, code: string, message: string}>}
+ */
+export async function verificarClave(password) {
+  if (!available) {
+    return {
+      ok: false,
+      code: 'sin_api',
+      message: 'Este sitio no tiene recetario compartido, así que no hay clave que comprobar.',
+    };
+  }
+
+  try {
+    const response = await withTimeout(
+      fetch(ENDPOINT, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, verificar: true }),
+      }),
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      return { ok: false, code: 'clave', message: data.error || 'Clave de edición incorrecta.' };
+    }
+    if (!response.ok) {
+      return { ok: false, code: 'servidor', message: data.error || 'No se pudo comprobar la clave.' };
+    }
+
+    // Un 200 no basta, por el mismo motivo que en `publishShared`: quien
+    // contesta tiene que ser esta funcion y no un intermediario cualquiera.
+    if (data.verificada !== true) {
+      return {
+        ok: false,
+        code: 'formato',
+        message: 'El servidor respondió algo inesperado. Vuelve a intentarlo.',
+      };
+    }
+
+    return { ok: true, value: undefined };
+  } catch {
+    return {
+      ok: false,
+      code: 'red',
+      message: 'Sin conexión con el servidor, así que no se puede comprobar la clave ahora.',
+    };
+  }
+}
+
+/**
  * Publica el recetario para todas las sedes.
  *
  * @param {{recipes: Array, ingredientes: Array, password: string, author?: string}} payload

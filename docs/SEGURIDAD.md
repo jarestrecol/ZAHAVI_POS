@@ -85,6 +85,23 @@ respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
   nunca queda fuera. Esa es también la razón de que la clave de acceso no pueda
   validarse en el servidor: el recetario tiene que abrir a las cinco de la
   mañana aunque no haya cobertura.
+- **Crear, modificar y eliminar piden la clave de edición**, no solo publicar.
+  Antes la clave se pedía al final, y con la publicación automática en marcha
+  eso dejaba un hueco real: eliminar una receta salía hacia las dos sedes sin
+  que nadie volviera a preguntar nada, así que quien se encontrara la tableta
+  del mostrador abierta podía borrar una fórmula para la panadería y para la
+  casa de producción conociendo solo la clave de entrar.
+
+  La comprobación la hace el **servidor**, en `/api/recipes` con `verificar:
+  true`, que valida la clave sin escribir nada. Comprobarla en el navegador
+  sería teatro: basta con abrir las herramientas de desarrollo para saltarse
+  cualquier control que viva en el cliente. Esa comprobación pasa por el mismo
+  contador de intentos fallidos que la publicación, así que tampoco sirve de
+  atajo para probar claves más rápido.
+
+  Consultar, buscar, escalar tandas, imprimir y el Modo Pesar siguen sin pedir
+  nada: son de todo el obrador.
+
 - **Credenciales con SHA-256**, nunca en claro.
 - **Cierre de sesión revoca la clave de edición** en caché, para que quien entre
   después no herede capacidad de publicar.

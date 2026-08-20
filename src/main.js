@@ -32,7 +32,7 @@ import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js
 import { ensureAccess, isSignedIn, estadoClave, signOut, anotarGeneracion } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
-import { getEditKey } from './core/remote.js';
+import { getEditKey, setEditKey } from './core/remote.js';
 import { saveRecipe, deleteRecipe, publish, discardChanges } from './app/commands.js';
 import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
 import { renderLogin } from './views/login.js';
@@ -43,6 +43,7 @@ import { renderSkeleton } from './views/skeleton.js';
 import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
 import { openPublicar } from './views/publicar.js';
+import { openDesbloquear } from './views/desbloquear.js';
 import { openConfirmDelete } from './views/confirm.js';
 import { openProduction } from './views/production.js';
 import { openPlan } from './views/plan.js';
@@ -613,12 +614,17 @@ function renderDialogs(shell) {
   }
 
   if (state.production) openDialog = buildProduction(state);
-  else if (state.confirmDelete) openDialog = buildConfirmDelete(state);
-  else if (state.pedirClave) openDialog = buildPublicar();
+  else if (state.confirmDelete) {
+    // Eliminar sale hacia las dos sedes en cuanto se publica, asi que pide la
+    // clave de edicion antes incluso de enseñar la confirmacion.
+    openDialog = faltaLaClave() ? buildDesbloquear('delete', state.confirmDelete) : buildConfirmDelete(state);
+  } else if (state.pedirClave) openDialog = buildPublicar();
   else if (state.planOpen) openDialog = buildPlan(state);
   else if (state.ingredientsOpen) openDialog = buildIngredients(state);
   else if (state.settingsOpen) openDialog = buildSettings(state);
-  else if (route.name === 'new' || route.name === 'edit') openDialog = buildEditor(route);
+  else if (route.name === 'new' || route.name === 'edit') {
+    openDialog = faltaLaClave() ? buildDesbloquear(route.name, route.id) : buildEditor(route);
+  }
 
   openDialogKey = openDialog ? key : null;
   setInert(shell, Boolean(openDialog));
@@ -636,7 +642,11 @@ function renderDialogs(shell) {
  */
 function dialogKey(state, route) {
   if (state.production) return 'prod:' + state.production;
-  if (state.confirmDelete) return 'delete:' + state.confirmDelete;
+  // El prefijo cambia cuando falta la clave, para que al ponerla se
+  // reconstruya el dialogo y aparezca lo que se estaba pidiendo.
+  if (state.confirmDelete) {
+    return (faltaLaClave() ? 'clave-delete:' : 'delete:') + state.confirmDelete;
+  }
 
   // Clave fija: el dialogo lleva por dentro el campo de la clave a medio
   // escribir, y cualquier repintado de la aplicacion lo borraria.
@@ -667,8 +677,11 @@ function dialogKey(state, route) {
     ].join(':');
   }
 
-  if (route.name === 'new') return 'new';
-  if (route.name === 'edit') return 'edit:' + route.id;
+  // El prefijo cambia cuando falta la clave, igual que en el borrado: sin eso,
+  // poner la clave no reconstruia el dialogo y la puerta se quedaba puesta con
+  // el editor detras, esperando a nadie.
+  if (route.name === 'new') return faltaLaClave() ? 'clave-new' : 'new';
+  if (route.name === 'edit') return (faltaLaClave() ? 'clave-edit:' : 'edit:') + route.id;
 
   return null;
 }
@@ -746,6 +759,58 @@ function buildConfirmDelete(state) {
     recipe,
     onCancel: () => setState({ confirmDelete: null }),
     onConfirm: () => deleteRecipe(recipe.id),
+  });
+}
+
+/**
+ * Indica si hay que pedir la clave de edicion antes de dejar tocar el recetario.
+ *
+ * Consultar, buscar, escalar la tanda, imprimir y el Modo Pesar no pasan por
+ * aqui: son de todo el obrador. Lo que se protege es lo que CAMBIA formulas,
+ * porque con la publicacion automatica en marcha eso llega a las dos sedes.
+ *
+ * Sin recetario compartido no se pide nada. Ahi no hay servidor que pueda
+ * comprobar la clave, y tampoco hay a donde publicar: lo que se escriba se
+ * queda en el aparato. Exigir una clave que nadie puede verificar seria pedir
+ * algo que no existe y dejar el recetario inservible en local.
+ *
+ * @returns {boolean}
+ */
+function faltaLaClave() {
+  if (!repo.canPublishToAll()) return false;
+  return !getEditKey();
+}
+
+/**
+ * Pide la clave de edicion antes de crear, modificar o eliminar.
+ *
+ * Al acertar, la clave queda en la sesion y este mismo repintado sustituye el
+ * dialogo por lo que se estaba pidiendo: el editor o la confirmacion de
+ * borrado. No hay que volver a pulsar nada.
+ *
+ * @param {"new"|"edit"|"delete"} accion
+ * @param {string|null} id
+ */
+function buildDesbloquear(accion, id) {
+  const recipe = id ? repo.findById(id) : null;
+
+  return openDesbloquear({
+    accion,
+    nombre: recipe ? recipe.nombre : '',
+    onVerificar: async (password) => {
+      const result = await repo.verificarClaveEdicion(password);
+      if (result.ok) {
+        setEditKey(password);
+        render();
+      }
+      return result;
+    },
+    onClose: () => {
+      // Cancelar deshace lo que se pedia, para no dejar el recetario en un
+      // estado a medias donde el dialogo vuelve a aparecer solo.
+      if (accion === 'delete') setState({ confirmDelete: null });
+      else navigate({ name: id ? 'detail' : 'index', id: id || null }, { replace: true });
+    },
   });
 }
 

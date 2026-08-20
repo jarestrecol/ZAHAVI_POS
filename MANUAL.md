@@ -108,6 +108,19 @@ esté puesto.
 Con el botón **Editar** dentro de una receta, o **Nueva receta** en la barra de
 arriba.
 
+**Hace falta la clave de edición.** La primera vez que en el día se va a crear,
+modificar o eliminar una receta, el recetario la pide. No es la clave con la que
+se entra: es la que da la panadería para publicar, y la sabe menos gente a
+propósito.
+
+Se escribe una vez y vale para el resto del día en ese aparato. Consultar,
+buscar, escalar la tanda, imprimir y el Modo Pesar **no** la piden: eso es de
+todo el obrador.
+
+> Por qué: cambiar una fórmula no se queda en el aparato, sale hacia la
+> panadería y la casa de producción. Antes bastaba con encontrarse una tableta
+> abierta para borrar una receta de las dos sedes.
+
 Al escribir un ingrediente, el recetario **sugiere** los que ya existen. Conviene
 elegir el sugerido en vez de escribirlo de otra forma: así los totales de
 Ingredientes y el plan del día siguen cuadrando.
@@ -127,9 +140,8 @@ que dice cuántas unidades, porciones o moldes salen.
 | **Franja roja** | Este equipo **no puede** publicar: lo que se guarde se queda aquí | Avisar a quien lleva el sistema. No es un fallo del equipo |
 
 **Guardar** deja la receta en este aparato. **Publicar** la manda a las dos
-sedes. Normalmente ocurre solo, pero la primera vez de cada día hay que
-publicar a mano una vez, escribiendo la clave de edición: a partir de ahí ese
-aparato ya publica solo.
+sedes, y normalmente ocurre solo: como la clave de edición ya se escribió al
+empezar a editar, ese aparato publica sin que haya que pulsar nada más.
 
 ---
 

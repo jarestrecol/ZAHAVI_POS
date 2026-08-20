@@ -156,6 +156,23 @@ async function handlePut(request, response, config) {
     return send(response, auth.status, { error: auth.error });
   }
 
+  // SOLO COMPROBAR LA CLAVE, SIN ESCRIBIR NADA.
+  //
+  // El recetario pide la clave de edicion antes de dejar crear, modificar o
+  // eliminar una receta, y para eso necesita saber si es correcta ANTES de que
+  // haya nada que publicar. Sin esto, la unica forma de comprobarla seria
+  // intentar una publicacion de verdad.
+  //
+  // Va despues de `checkAuth`, asi que una clave incorrecta sigue contando
+  // como intento fallido y sigue arrastrando el retraso creciente: esta puerta
+  // no es un atajo para probar claves mas rapido que por la via normal.
+  //
+  // Y va ANTES de validar el recetario, porque una comprobacion no lleva
+  // recetas dentro.
+  if (body.value.verificar === true) {
+    return send(response, 200, { ok: true, verificada: true });
+  }
+
   // La validacion del navegador no cuenta aqui: quien llame a la API
   // directamente se la salta entera.
   const validated = validatePayload(body.value.recipes, body.value.ingredientes);

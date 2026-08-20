@@ -7,41 +7,33 @@
  * pruebas estaban en verde.
  *
  * El motivo es que ninguna comprobaba el camino completo. Habia una prueba que
- * verificaba que NO se publica cuando hay conflicto, que es la mitad
- * defensiva, y ninguna que verificara que SI se publica cuando debe.
+ * verificaba que NO se publica cuando hay conflicto, que es la mitad defensiva,
+ * y ninguna que verificara que SI se publica cuando debe.
  *
- * Aqui se recorre entero: guardar, que se pida la clave de edicion donde hace
- * falta, escribirla, y comprobar que el envio sale con la receta dentro.
+ * Ademas cubre LA PUERTA: crear, modificar y eliminar piden la clave de edicion
+ * antes de dejar tocar nada, porque con la publicacion automatica en marcha esos
+ * tres gestos llegan a las dos sedes.
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar } from './apoyo.js';
+import { entrar, RECETA } from './apoyo.js';
 
 /** La clave de edicion que acepta el servidor simulado de estas pruebas. */
 const CLAVE_EDICION = 'clave-de-edicion-de-prueba';
 
-/** Titulo del dialogo, que es tambien su etiqueta accesible. */
-const TITULO = 'Publicar para todas las sedes';
+/** El campo de la puerta que pide la clave antes de editar. */
+const puerta = (page) => page.locator('#desbloquear-clave');
 
 /**
- * El dialogo de publicar.
+ * Servidor simulado con recetario compartido de verdad: entrega `sha`, atiende
+ * la comprobacion de clave y atiende el PUT de publicacion.
  *
- * Se acota a proposito: la cabecera tiene su propio boton "Publicar" cuando hay
- * cambios pendientes, y buscar por rol a secas alcanza a los dos.
- *
- * @param {import('@playwright/test').Page} page
- */
-const dialogo = (page) => page.getByLabel(TITULO);
-
-/**
- * Servidor simulado con recetario compartido de verdad: entrega `sha`, sin el
- * cual no se puede publicar, y atiende el PUT.
- *
- * Devuelve la lista de envios recibidos, que es lo que de verdad viajo.
+ * Devuelve la lista de publicaciones recibidas, que es lo que de verdad viajo.
  *
  * @param {import('@playwright/test').Page} page
+ * @param {{respuestaRara?: boolean}} [opciones]
  */
-async function servidorQuePublica(page) {
+async function servidorQuePublica(page, opciones = {}) {
   const envios = [];
   let sha = 'sha-uno';
 
@@ -49,7 +41,7 @@ async function servidorQuePublica(page) {
     if (route.request().method() === 'PUT') {
       const cuerpo = JSON.parse(route.request().postData() || '{}');
 
-      // La clave se comprueba en el servidor, igual que en produccion.
+      // La clave la comprueba el servidor, igual que en produccion.
       if (cuerpo.password !== CLAVE_EDICION) {
         await route.fulfill({
           status: 401,
@@ -59,7 +51,29 @@ async function servidorQuePublica(page) {
         return;
       }
 
+      // Comprobacion de clave: vale, y no hay nada que publicar todavia.
+      if (cuerpo.verificar === true) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, verificada: true }),
+        });
+        return;
+      }
+
       envios.push(cuerpo);
+
+      // Un 200 que NO es una publicacion: lo que devolveria un proxy o el
+      // cortafuegos de la plataforma metidos por medio.
+      if (opciones.respuestaRara) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ recipes: [], sha: 'lo-que-sea' }),
+        });
+        return;
+      }
+
       sha = 'sha-' + (envios.length + 1);
       await route.fulfill({
         status: 200,
@@ -87,13 +101,30 @@ async function servidorQuePublica(page) {
 }
 
 /**
- * Crea una receta de prueba y la guarda.
+ * Pasa la puerta si esta puesta.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} [clave]
+ */
+async function pasarLaPuerta(page, clave = CLAVE_EDICION) {
+  // Se ESPERA a que aparezca. Comprobar el contador a secas justo despues del
+  // clic devolvia cero porque el dialogo aun no estaba montado, asi que el
+  // helper se saltaba la puerta y la prueba fallaba mas adelante buscando un
+  // editor que seguia detras de ella.
+  await puerta(page).waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+  if (!(await puerta(page).count())) return;
+  await puerta(page).fill(clave);
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(puerta(page)).toHaveCount(0);
+}
+
+/**
+ * Rellena el editor ya abierto y guarda.
  *
  * @param {import('@playwright/test').Page} page
  * @param {string} nombre
  */
-async function crearReceta(page, nombre) {
-  await page.getByRole('button', { name: 'Nueva receta' }).click();
+async function rellenarYGuardar(page, nombre) {
   await page.getByRole('textbox', { name: 'nombre de la receta' }).fill(nombre);
   await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-HARINA');
   await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('1000');
@@ -101,95 +132,98 @@ async function crearReceta(page, nombre) {
 }
 
 /**
- * Escribe la clave en el dialogo y pulsa Publicar.
+ * Crea una receta de prueba entera, pasando la puerta.
  *
  * @param {import('@playwright/test').Page} page
- * @param {string} clave
+ * @param {string} nombre
  */
-async function publicarCon(page, clave) {
-  await dialogo(page).getByLabel('clave de edición').fill(clave);
-  await dialogo(page).getByRole('button', { name: 'Publicar', exact: true }).click();
+async function crearReceta(page, nombre) {
+  await page.getByRole('button', { name: 'Nueva receta' }).click();
+  await pasarLaPuerta(page);
+  await rellenarYGuardar(page, nombre);
 }
 
-test('guardar pide la clave de edición ahí mismo, y publica de verdad', async ({ page }) => {
+/* ===========================================================================
+ *  LA PUERTA
+ * ======================================================================== */
+
+test('la clave se pide antes de tocar la receta, y despues se publica sola', async ({ page }) => {
   const envios = await servidorQuePublica(page);
   await entrar(page);
 
-  await crearReceta(page, 'QA-TEST-PUBLICAR');
+  // Crear una receta ya no es gratis: cambiar una formula llega a las dos
+  // sedes, asi que pide la clave de edicion ANTES de abrir el editor.
+  await page.getByRole('button', { name: 'Nueva receta' }).click();
+  await expect(puerta(page)).toBeVisible();
 
-  // AQUI ESTABA EL MURO. La clave de edicion solo se pedia en Ajustes, en una
-  // pantalla a la que habia que saber ir, y por eso no se publicaba nunca.
-  // Ahora se pide en el momento, con el cambio ya guardado y a salvo.
-  await expect(dialogo(page)).toBeVisible();
+  // Y no deja pasar con la clave equivocada.
+  await puerta(page).fill('no-es-la-clave');
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page.getByText('Clave de edición incorrecta.')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'nombre de la receta' })).toHaveCount(0);
 
-  await publicarCon(page, CLAVE_EDICION);
+  // Con la buena se abre el editor sin volver a pulsar nada.
+  await pasarLaPuerta(page);
+  await expect(page.getByRole('textbox', { name: 'nombre de la receta' })).toBeVisible();
 
-  // El dialogo se cierra solo cuando la publicacion sale bien.
-  await expect(dialogo(page)).toHaveCount(0);
+  await rellenarYGuardar(page, 'QA-TEST-PUBLICAR');
 
-  // Y lo importante: el envio salio, y llevaba la receta dentro.
-  expect(envios).toHaveLength(1);
+  // Como la clave quedo en la sesion al pasar la puerta, no hay que volver a
+  // escribirla: se publica sola.
+  await expect.poll(() => envios.length, { timeout: 7000 }).toBe(1);
   expect(envios[0].recipes.some((r) => r.nombre === 'QA-TEST-PUBLICAR')).toBe(true);
   expect(envios[0].sha).toBe('sha-uno');
 
-  // Ya no queda nada pendiente: el aviso de la cabecera desaparece.
   await expect(page.locator('.context-badge')).toHaveCount(0);
 });
 
-test('una clave equivocada se dice en el propio diálogo, sin cerrarlo', async ({ page }) => {
-  const envios = await servidorQuePublica(page);
-  await entrar(page);
+test('eliminar tambien pide la clave, antes incluso de la confirmacion', async ({ page }) => {
+  await servidorQuePublica(page);
+  await entrar(page, `#/receta/${RECETA}`);
 
-  await crearReceta(page, 'QA-TEST-CLAVE-MALA');
-  await expect(dialogo(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Eliminar la receta' }).click();
 
-  await publicarCon(page, 'no-es-la-clave');
+  // La puerta va PRIMERO: sin clave no se llega ni a ver los tres pasos de la
+  // confirmacion de borrado.
+  await expect(puerta(page)).toBeVisible();
+  // Se busca el primer paso de la confirmacion, no su texto: la propia puerta
+  // dice tambien "vas a eliminar esta receta", que es justo lo que tiene que
+  // decir para que se sepa que se esta autorizando.
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toHaveCount(0);
 
-  // El error se enseña donde la persona esta mirando, y el dialogo sigue
-  // abierto para poder reintentar sin volver a empezar.
-  await expect(dialogo(page).getByText('Clave de edición incorrecta.')).toBeVisible();
-  await expect(dialogo(page)).toBeVisible();
-  expect(envios).toHaveLength(0);
-
-  // Y a la segunda, con la buena, publica.
-  await publicarCon(page, CLAVE_EDICION);
-  await expect(dialogo(page)).toHaveCount(0);
-  expect(envios).toHaveLength(1);
+  await pasarLaPuerta(page);
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toBeVisible();
 });
 
-test('con la clave ya puesta, el siguiente guardado publica solo', async ({ page }) => {
-  const envios = await servidorQuePublica(page);
-  await entrar(page);
+test('cancelar la puerta no deja el recetario a medias', async ({ page }) => {
+  await servidorQuePublica(page);
+  await entrar(page, `#/receta/${RECETA}`);
 
-  // Primera vez: se pide la clave.
-  await crearReceta(page, 'QA-TEST-PRIMERA');
-  await publicarCon(page, CLAVE_EDICION);
-  await expect(dialogo(page)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Eliminar la receta' }).click();
+  await expect(puerta(page)).toBeVisible();
 
-  // Segunda vez: ya no se pide nada, y sale solo. Esta es la promesa que hace
-  // el propio dialogo -"este equipo publicará solo el resto del día"- y que
-  // conviene tener sujeta con una prueba.
-  await crearReceta(page, 'QA-TEST-SEGUNDA');
-  await expect(dialogo(page)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancelar' }).click();
 
-  await expect.poll(() => envios.length, { timeout: 7000 }).toBe(2);
-  expect(envios[1].recipes.some((r) => r.nombre === 'QA-TEST-SEGUNDA')).toBe(true);
+  // Vuelve a la receta, sin puerta y sin confirmacion pendiente que reaparezca.
+  await expect(puerta(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toHaveCount(0);
+  await expect(page.locator('.panel')).toBeVisible();
 });
 
-test('"Ahora no" deja el cambio guardado en el equipo, sin publicar', async ({ page }) => {
-  const envios = await servidorQuePublica(page);
+test('sin recetario compartido no se pide clave: no hay a donde publicar', async ({ page }) => {
+  // Este sitio no tiene la funcion de servidor. Exigir una clave que nadie
+  // puede comprobar dejaria el recetario inservible en local.
+  await page.route('**/api/recipes', (route) => route.fulfill({ status: 404, body: '' }));
   await entrar(page);
 
-  await crearReceta(page, 'QA-TEST-AHORA-NO');
-  await expect(dialogo(page)).toBeVisible();
-
-  await dialogo(page).getByRole('button', { name: 'Ahora no' }).click();
-  await expect(dialogo(page)).toHaveCount(0);
-
-  // No se publico nada, la receta sigue en el equipo, y la cabecera lo dice.
-  expect(envios).toHaveLength(0);
-  await expect(page.locator('.context-badge')).toContainText('sin publicar');
+  await page.getByRole('button', { name: 'Nueva receta' }).click();
+  await expect(puerta(page)).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'nombre de la receta' })).toBeVisible();
 });
+
+/* ===========================================================================
+ *  LA PUBLICACION
+ * ======================================================================== */
 
 test('un 200 que no es una publicación no se anuncia como publicado', async ({ page }) => {
   // Un intermediario -proxy de la red del local, cortafuegos de la plataforma,
@@ -197,30 +231,45 @@ test('un 200 que no es una publicación no se anuncia como publicado', async ({ 
   // eso se tomaba por buena: la pantalla decia "Publicado para todas las sedes"
   // y el aviso de cambios pendientes desaparecia, con el trabajo todavia solo
   // en este equipo y sin que nadie fuera a reintentarlo.
-  await page.route('**/api/recipes', async (route) => {
-    const publicado = await route.fetch({ url: 'http://127.0.0.1:8123/data/recipes.json' });
-    const datos = await publicado.json();
-
-    // Al PUT le contesta lo mismo que al GET: 200, JSON valido, y ni rastro de
-    // una publicacion.
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ ...datos, sha: 'sha-uno' }),
-    });
-  });
-
+  const envios = await servidorQuePublica(page, { respuestaRara: true });
   await entrar(page);
+
   await crearReceta(page, 'QA-TEST-RESPUESTA-RARA');
-  await expect(dialogo(page)).toBeVisible();
 
-  await publicarCon(page, CLAVE_EDICION);
+  await expect.poll(() => envios.length, { timeout: 7000 }).toBe(1);
 
-  // Se dice que no se publico, el dialogo sigue abierto para reintentar, y el
-  // aviso de cambios pendientes NO desaparece.
-  await expect(dialogo(page).getByText(/no es una publicación/i)).toBeVisible();
-  await expect(dialogo(page)).toBeVisible();
-
-  await dialogo(page).getByRole('button', { name: 'Ahora no' }).click();
+  // El envio salio, pero NO se da por publicado: el aviso de cambios pendientes
+  // sigue en la cabecera.
   await expect(page.locator('.context-badge')).toContainText('sin publicar');
+});
+
+test('con la clave puesta, el segundo guardado tambien publica solo', async ({ page }) => {
+  const envios = await servidorQuePublica(page);
+  await entrar(page);
+
+  await crearReceta(page, 'QA-TEST-PRIMERA');
+  await expect.poll(() => envios.length, { timeout: 7000 }).toBe(1);
+
+  // La segunda vez la puerta ya no aparece: la clave sigue en la sesion.
+  await page.getByRole('button', { name: 'Nueva receta' }).click();
+  await expect(puerta(page)).toHaveCount(0);
+  await rellenarYGuardar(page, 'QA-TEST-SEGUNDA');
+
+  await expect.poll(() => envios.length, { timeout: 7000 }).toBe(2);
+  expect(envios[1].recipes.some((r) => r.nombre === 'QA-TEST-SEGUNDA')).toBe(true);
+});
+
+test('si se pierde la clave de la sesion, la puerta vuelve a pedirla', async ({ page }) => {
+  const envios = await servidorQuePublica(page);
+  await entrar(page);
+
+  await crearReceta(page, 'QA-TEST-CLAVE-PERDIDA');
+  await expect.poll(() => envios.length, { timeout: 7000 }).toBe(1);
+
+  // Es lo que hace `sync.js` cuando el servidor rechaza la clave: la borra para
+  // no reintentar en bucle contra una clave que ya no vale.
+  await page.evaluate(() => window.sessionStorage.removeItem('zahavi_edit_key'));
+
+  await page.getByRole('button', { name: 'Nueva receta' }).click();
+  await expect(puerta(page)).toBeVisible();
 });

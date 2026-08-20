@@ -84,6 +84,37 @@ día siguiente hay que escribirla otra vez. Guardarla de forma permanente
 ahorraría ese gesto y dejaría la llave del repositorio escrita en un equipo del
 mostrador, y eso no compensa.
 
+### Por qué la clave se pide antes de editar y no solo al publicar
+
+Durante un tiempo la clave de edición se pedía al final, cuando ya había algo
+que publicar. Parecía suficiente: lo que llega a las dos sedes es la
+publicación, y ahí estaba el control.
+
+No lo era, y el motivo es la publicación automática. Desde que existe, guardar
+o borrar **dispara el envío solo**, sin volver a preguntar nada. Es decir: con
+la clave ya puesta en la sesión, eliminar una receta la borraba de la panadería
+y de la casa de producción con dos clics, y cualquiera que se encontrara la
+tableta del mostrador abierta podía hacerlo sabiendo solo la clave de entrar.
+
+Mover la clave al principio cierra eso sin inventar ningún mecanismo nuevo: se
+reutiliza la misma clave, comprobada por el mismo servidor, guardada en la
+misma sesión del navegador. El coste es un gesto más al empezar a editar, y a
+cambio el gesto del final desaparece, porque la clave ya está puesta.
+
+**Se comprueba en el servidor**, con `verificar: true` en `/api/recipes`.
+Compararla en el navegador no habría costado nada y no habría servido de nada:
+cualquiera con las herramientas de desarrollo abiertas se la salta.
+
+**Sin recetario compartido no se pide.** En un despliegue sin las variables de
+entorno, o abriendo el archivo en local, no hay servidor que pueda comprobar la
+clave ni sitio a donde publicar: exigirla dejaría el recetario inservible a
+cambio de ninguna protección, porque lo que se escriba se queda en el aparato.
+
+**Sin conexión sí se puede seguir**, si la clave ya se puso antes: vive en la
+sesión del navegador. Lo que no se puede es empezar a editar sin red y sin
+haberla puesto nunca, porque no hay a quien preguntar. Se dice al intentarlo,
+en vez de dejar escribir media receta para rechazarla al final.
+
 ### Por qué la red de seguridad del arranque es un script suelto y no un módulo
 
 `src/salvavidas.js` existe porque `index.html` pinta "Cargando recetario…" y

@@ -265,6 +265,12 @@ test.describe('Dos sedes editando', () => {
     await servirRecetario(page, { revision: '2026-01-01', sha: 'sha-uno' });
     await entrar(page);
 
+    // La clave de edición, guardada como la deja pasar la puerta. Va ANTES de
+    // editar por dos motivos: sin ella la puerta pediría la clave y no se
+    // llegaría al editor, y sin ella tampoco habría publicación automática, así
+    // que la prueba pasaría sola sin comprobar nada.
+    await page.evaluate(() => window.sessionStorage.setItem('zahavi_edit_key', 'clave-de-prueba'));
+
     // Este equipo edita y su cambio queda pendiente, apoyado en la revisión 1.
     await page.getByRole('button', { name: 'Nueva receta' }).click();
     await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-DOS-SEDES');
@@ -273,10 +279,6 @@ test.describe('Dos sedes editando', () => {
     await page.getByRole('button', { name: 'Guardar' }).click();
     await expect(page.locator('.context-badge')).toContainText('sin publicar');
 
-    // La clave de edición, guardada como la deja una publicación manual: sin
-    // ella no habría publicación automática y la prueba pasaría sola, sin
-    // comprobar nada.
-    await page.evaluate(() => window.sessionStorage.setItem('zahavi_edit_key', 'clave-de-prueba'));
 
     // Mientras tanto, la otra sede publica: al recargar hay una revisión nueva.
     await servirRecetario(page, { revision: '2026-01-02', sha: 'sha-dos' });

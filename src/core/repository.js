@@ -24,6 +24,7 @@ import {
   needsReload,
   serverStatus,
   generacionAcceso as generacionAccesoRemota,
+  verificarClave as verificarClaveRemota,
 } from './remote.js';
 
 /** Clave de los cambios locales sin publicar. */
@@ -479,6 +480,16 @@ export function canPublishToAll() {
  *
  * @returns {number}
  */
+/**
+ * Comprueba una clave de edicion contra el servidor, sin publicar nada.
+ *
+ * @param {string} password
+ * @returns {Promise<{ok: true, value: undefined} | {ok: false, code: string, message: string}>}
+ */
+export function verificarClaveEdicion(password) {
+  return verificarClaveRemota(password);
+}
+
 /**
  * Indica si hay una publicacion viajando ahora mismo.
  * @returns {boolean}
