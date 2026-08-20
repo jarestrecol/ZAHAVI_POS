@@ -325,6 +325,16 @@
 
 /* La regla de un campo, pegada a su campo: mas pequeña que la ayuda de la
    seccion, porque habla de una sola casilla y no de la pantalla. */
+/*
+ * La conexion es un panel de CONSULTA, no un formulario, y va sobre superficie
+ * hundida, que es como el resto de la aplicacion marca "esto se lee". Con tres
+ * secciones de la misma versalita sobre el mismo fondo, las tres pesaban igual
+ * y no se distinguia lo que se usa de lo que se mira.
+ */
+.settings__row--diagnostico {
+  background: var(--surface-sunk);
+}
+
 .settings__pista {
   margin-top: var(--space-2);
   font-size: var(--text-2xs);
@@ -384,9 +394,17 @@
   overflow: hidden;
 }
 
+/*
+ * PISTA FIJA PARA LOS VALORES.
+ *
+ * Con `auto`, cada fila se repartia el ancho por su cuenta y los cuatro valores
+ * empezaban con 203 px de diferencia entre si. Una tabla de estado se lee
+ * bajando por la columna, y para eso tiene que haber columna: el caso peor era
+ * "Ultima lectura", con su valor flotando a medio metro de su etiqueta.
+ */
 .diag__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 14rem;
   gap: var(--space-3);
   align-items: baseline;
   padding: var(--space-2) var(--space-3);
@@ -406,7 +424,8 @@
   font-family: var(--font-num);
   font-size: var(--text-sm);
   font-weight: 600;
-  text-align: right;
+  /* A la izquierda de su pista, no al borde: es lo que crea la columna. */
+  text-align: left;
   color: var(--ink);
 }
 

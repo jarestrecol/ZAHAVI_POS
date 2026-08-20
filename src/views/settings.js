@@ -22,7 +22,6 @@
  */
 
 import { el } from '../lib/dom.js';
-import { announce } from '../lib/a11y.js';
 import {
   changePassword,
   signOut,
@@ -50,9 +49,17 @@ import { createWindow } from './window.js';
  */
 export function openSettings(options) {
   const body = el('div', { class: 'settings' }, [
+    // ORDEN POR LO QUE TRAE A LA GENTE AQUI.
+    //
+    // Primero lo que se mira -que hay y que falta por salir-, luego lo unico que
+    // se rellena, y el diagnostico al final. Estaba en medio, con lo accionable
+    // detras de todo: en celular la seccion de la clave mide 604 px sobre un
+    // area visible de 623, asi que habia que bajar hasta el fondo para llegar a
+    // ella. El diagnostico al final es ademas donde lo pone cualquier panel de
+    // sistema y donde se va a buscar cuando a uno le dicen que lo mire.
     renderStatusBlock(options),
-    renderDiagnosisBlock(options),
     renderPasswordBlock(),
+    renderDiagnosisBlock(options),
   ]);
 
   return createWindow({
@@ -170,7 +177,7 @@ function renderDiagnosisBlock(options) {
   const server = options.server || { state: 'desconocido', readAt: null };
   const sync = options.sync || { motivo: '', texto: '' };
 
-  return el('section', { class: 'settings__row' }, [
+  return el('section', { class: 'settings__row settings__row--diagnostico' }, [
     el('h3', { class: 'section-label', text: 'Conexión' }),
 
     el('dl', { class: 'diag' }, [
@@ -393,13 +400,16 @@ function renderPasswordBlock() {
     if (!result.ok) {
       message.textContent = result.message;
       message.classList.add('is-error');
-      announce(result.message, 'assertive');
+      // El nodo ya lleva `role="status"`, que lo anuncia solo al cambiar su
+      // texto. Llamar ademas a `announce()` escribia el mismo mensaje en la
+      // region viva compartida, que es unica: el segundo borraba al primero
+      // antes de que terminara de leerse.
       return;
     }
 
     message.classList.remove('is-error');
     message.textContent = 'Clave actualizada.';
-    announce('Clave actualizada.');
+
     current.value = '';
     next.value = '';
     confirmation.value = '';
