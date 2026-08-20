@@ -36,6 +36,54 @@ servidor no lo comprueba; cuando editen a la vez más de dos o tres sedes, porqu
 el `sha` es del archivo entero y dos personas en recetas distintas chocan igual;
 o cuando hagan falta informes que no se puedan calcular en el navegador.
 
+### Por qué la clave de acceso no puede validarse en el servidor
+
+Es la pregunta que vuelve cada vez que alguien mira este código, y la respuesta
+cierra el espacio de diseño entero, así que conviene tenerla escrita.
+
+La clave de acceso se comprueba **dentro del navegador**, contra un resumen
+guardado en el propio aparato. Eso tiene una consecuencia incómoda y asumida:
+no es una cerradura, es una cortina (ver [SEGURIDAD.md](SEGURIDAD.md)). La
+tentación evidente es moverla al servidor, donde sí podría ser real.
+
+No se puede, y no por comodidad: **el recetario tiene que abrir a las cinco de
+la mañana en un obrador sin cobertura.** Si entrar exigiera hablar con el
+servidor, un corte de red dejaría al equipo sin las fórmulas a media
+producción. Ese es el requisito número uno del sistema, por encima de todo lo
+demás, y es también la razón de que exista el modo sin conexión.
+
+De ahí se sigue todo lo demás. La comprobación tiene que poder hacerse sin red,
+luego el material con el que se compara tiene que estar en el aparato, luego
+quien tenga el aparato puede leerlo, luego no es una cerradura. La única
+protección real del sistema es `EDIT_PASSWORD`, que sí se comprueba en el
+servidor y sí controla lo único que importa: escribir.
+
+Lo que sí se puede hacer sin romper el requisito es **retirar** la clave desde
+el servidor, que es lo que hace `ACCESS_GENERATION`: el servidor no valida nada,
+solo anuncia un número, y el aparato decide. Sin red se usa el último número
+conocido, así que un obrador aislado nunca queda fuera; se entera cuando vuelva
+la señal, igual que se entera de una receta nueva.
+
+### Por qué la clave de edición se pide al guardar y no solo en Ajustes
+
+Publicar necesita la clave de edición, y durante meses solo se pedía en Ajustes.
+Sobre el papel bastaba: una vez por sesión y listo. El resultado real fue que
+**no llegó a publicarse ni una sola vez** — el historial de `data/recipes.json`
+no tiene un solo commit de la función de publicación.
+
+La aplicación no mentía. Decía "Receta guardada en este equipo" y la cabecera
+avisaba de los cambios sin publicar. Pero un paso obligatorio escondido detrás
+de un menú no es un paso, es un muro: nadie descubre por su cuenta que hay que
+ir a otra pantalla a escribir una segunda clave que además se llama parecido a
+la de entrar.
+
+Ahora se pide **en el momento del primer guardado de cada sesión**, con el
+cambio ya a salvo en el aparato, y "Ahora no" deja todo como estaba. La clave
+sigue **sin** guardarse en disco: vive en la sesión del navegador, así que al
+día siguiente hay que escribirla otra vez. Guardarla de forma permanente
+ahorraría ese gesto y dejaría la llave del repositorio escrita en un equipo del
+mostrador, y eso no compensa.
+
 ### Por qué la red de seguridad del arranque es un script suelto y no un módulo
 
 `src/salvavidas.js` existe porque `index.html` pinta "Cargando recetario…" y

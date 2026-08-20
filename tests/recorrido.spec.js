@@ -8,7 +8,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, CLAVE, RECETA, desbordeHorizontal } from './apoyo.js';
+import { entrar, CLAVE, CLAVE_NUEVA, RECETA, desbordeHorizontal } from './apoyo.js';
 
 test('la clave incorrecta no dice cual de los dos datos fallo', async ({ page }) => {
   await page.goto('/index.html');
@@ -53,23 +53,37 @@ test('la sesion sobrevive a recargar', async ({ page }) => {
   await expect(page.getByRole('textbox', { name: 'clave' })).toHaveCount(0);
 });
 
-test('pero no sobrevive a la caducidad de la clave', async ({ page }) => {
+test('pero no sobrevive a que la panaderia retire la clave', async ({ page }) => {
   await entrar(page);
 
-  // Ocho dias atras: la clave dura siete. Es lo que le pasa a la tableta de
-  // pared del obrador, que nunca cierra sesion y donde por eso la caducidad
-  // semanal no llegaba a aplicarse nunca.
-  await page.evaluate(() => {
-    const acceso = JSON.parse(window.localStorage.getItem('zahavi_acceso_v1'));
-    acceso.changedAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
-    window.localStorage.setItem('zahavi_acceso_v1', JSON.stringify(acceso));
+  // La panaderia sube la generacion de acceso en el servidor. Eso es lo que
+  // retira la clave en TODOS los aparatos a la vez, que es lo que la caducidad
+  // semanal prometia y no cumplia: aquella obligaba a renovar por calendario en
+  // cada equipo por separado, y no dejaba a nadie fuera de verdad.
+  //
+  // La tableta de pared del obrador, que no cierra sesion nunca, es justo el
+  // caso donde la comprobacion tenia que llegar y no llegaba.
+  await page.route('**/api/recipes', async (route) => {
+    const publicado = await route.fetch({ url: 'http://127.0.0.1:8123/data/recipes.json' });
+    const datos = await publicado.json();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...datos, sha: 'sha-uno', accesoGen: 1 }),
+    });
   });
 
   await page.reload();
 
-  // Pide la clave otra vez, y al darla correcta obliga a renovarla: nadie se
-  // queda fuera, pero la clave vieja deja de servir.
-  await expect(page.getByRole('textbox', { name: 'clave' })).toBeVisible();
+  // La sesion se cierra: la clave de este equipo dejo de valer.
+  await expect(page.getByRole('textbox', { name: 'clave', exact: true })).toBeVisible();
+  await expect(page.locator('nav[aria-label="Listado de recetas"]')).toHaveCount(0);
+
+  // Pero nadie se queda fuera: con la clave que tenia se entra, y lo que se
+  // pide es ponerla nueva, diciendo por que.
+  await page.getByRole('textbox', { name: 'clave', exact: true }).fill(CLAVE_NUEVA);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByText('La panadería retiró esta clave')).toBeVisible();
 });
 
 test('la busqueda filtra por nombre, por codigo y sin acentos', async ({ page }) => {

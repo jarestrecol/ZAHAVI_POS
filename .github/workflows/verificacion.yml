@@ -15,6 +15,13 @@ on:
     branches: [main]
   pull_request:
 
+# El token automatico de Actions solo necesita LEER el codigo. Declararlo
+# explicitamente evita que herede permisos de escritura del repositorio el dia
+# que se añada un paso que si escriba: un workflow que solo corre pruebas no
+# tiene por que poder tocar nada.
+permissions:
+  contents: read
+
 jobs:
   verificacion:
     runs-on: ubuntu-latest

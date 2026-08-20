@@ -28,9 +28,14 @@ arquitectura.
 pantalla de entrada para que nadie se quedara fuera el primer día, pero no era
 cosa de un día: cada equipo nuevo empieza con ella y la volvía a mostrar, así
 que cualquiera que abriera el enlace la leía. Ahora se comunica por fuera y el
-sistema **obliga a cambiarla en el primer acceso de cada equipo**, reutilizando
-la misma pantalla que ya existía para la renovación semanal. Una clave idéntica
-en todas las instalaciones no es una clave.
+sistema **obliga a cambiarla en el primer acceso de cada equipo**. Una clave
+idéntica en todas las instalaciones no es una clave.
+
+> **Matiz honesto, porque el resto de este documento lo es:** retirarla de la
+> pantalla evita que se lea sin querer, pero la constante sigue estando en
+> `src/core/access.js`, que el navegador descarga. Quien vaya a buscarla la
+> encuentra. Cierra la lectura casual, no la deliberada — y como el contenido
+> ya es público por decisión consciente, no hay nada detrás que proteger.
 
 Lo que sí está protegido de verdad es la escritura. `EDIT_PASSWORD` vive como
 variable de entorno en el servidor, se compara con un algoritmo de tiempo
@@ -53,14 +58,33 @@ respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
   nombre de receta o de ingrediente.
 - **Sin `innerHTML` en todo el proyecto**: `lib/dom.js` es la única vía de
   construcción de nodos y solo escribe texto.
-- **Una sola clave para todo el equipo, que caduca cada 7 días.** Hubo usuarios
-  con nombre y clave por persona, y se retiraron: se guardaban EN CADA APARATO y
-  no en el servidor, así que dar de alta a alguien en la panadería no lo daba de
-  alta en la casa de producción, y cada baja había que repetirla equipo por
-  equipo. Una lista de usuarios que nadie actualiza es peor que no tenerla,
-  porque aparenta un control que no existe. La caducidad hace el mismo trabajo
-  sin depender de que nadie se acuerde: quien dejó de trabajar aquí deja de
-  entrar en cuanto la clave rota, en todas las sedes a la vez.
+- **Una sola clave para todo el equipo, retirable desde el servidor.** Hubo
+  usuarios con nombre y clave por persona, y se retiraron: se guardaban EN CADA
+  APARATO y no en el servidor, así que dar de alta a alguien en la panadería no
+  lo daba de alta en la casa de producción, y cada baja había que repetirla
+  equipo por equipo. Una lista de usuarios que nadie actualiza es peor que no
+  tenerla, porque aparenta un control que no existe.
+
+  Lo que la sustituyó primero fue una **caducidad semanal**, y también se
+  retiró, porque tenía el defecto que venía a corregir. No revocaba: quien
+  conocía la clave se la renovaba a sí mismo indefinidamente. Y no propagaba:
+  cada aparato guarda su clave y rotaba por su cuenta, así que cuatro aparatos
+  eran cuatro cambios que alguien tenía que coordinar por teléfono cada siete
+  días. Una rotación por calendario que además empuja hacia `zahavi1`,
+  `zahavi2`, `zahavi3`.
+
+  Ahora hay una **generación de acceso**: la variable `ACCESS_GENERATION` que
+  el servidor entrega junto al recetario. Cada equipo recuerda con qué
+  generación guardó su clave; cuando el servidor anuncia una mayor, esa clave
+  deja de valer y la siguiente carga pide una nueva. **Eso sí revoca y sí
+  propaga**: subir el número una vez retira el acceso en las dos sedes y en
+  todos los aparatos, y se hace cuando hay motivo, no porque toque.
+
+  Sigue funcionando **sin conexión**, que era la condición innegociable: sin
+  servidor se usa la última generación conocida, así que un obrador sin señal
+  nunca queda fuera. Esa es también la razón de que la clave de acceso no pueda
+  validarse en el servidor: el recetario tiene que abrir a las cinco de la
+  mañana aunque no haya cobertura.
 - **Credenciales con SHA-256**, nunca en claro.
 - **Cierre de sesión revoca la clave de edición** en caché, para que quien entre
   después no herede capacidad de publicar.

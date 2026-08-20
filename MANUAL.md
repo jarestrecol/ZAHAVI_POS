@@ -16,9 +16,14 @@ abre igual que cualquier aplicación y va más rápido.
 - En Android: menú del navegador, *Añadir a pantalla de inicio*.
 - En iPhone o iPad: botón de compartir, *Añadir a pantalla de inicio*.
 
-**La clave es una sola para todo el equipo y se cambia cada semana.** Cuando
-toca, el propio recetario la pide al entrar: se escribe la que está en uso y él
-mismo hace poner una nueva. No hay que llamar a nadie.
+**La clave es una sola para todo el equipo y no caduca.** Antes se cambiaba cada
+semana y era un engorro sin provecho: había que renovarla en cada aparato por
+separado y no dejaba fuera a nadie de verdad.
+
+Ahora se cambia **cuando hace falta**: si alguien deja el equipo, o si la clave
+se ha sabido de más, se retira desde el servidor y **todos los aparatos piden
+una nueva a la vez**, en la siguiente vez que se abran. El recetario lo dice al
+entrar y explica por qué. No hay que llamar a nadie.
 
 Guardad la clave donde la vea el equipo, no en un solo teléfono.
 
@@ -30,7 +35,10 @@ deja quedarse con ella**: pide poner la clave del equipo antes de dejar pasar.
 
 Poned **la misma clave que usan los demás aparatos**, para que el equipo maneje
 una sola. Cada aparato guarda la suya, así que cambiarla en la tableta no la
-cambia en el teléfono: cuando toque renovarla, hay que hacerlo en cada uno.
+cambia en el teléfono. La pantalla de Ajustes lo avisa donde se cambia.
+
+La excepción es cuando la panadería **retira** la clave desde el servidor: eso
+sí llega a todos los aparatos a la vez, y cada uno pedirá la nueva al abrirse.
 
 ---
 

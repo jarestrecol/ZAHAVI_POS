@@ -18,6 +18,11 @@
  *   GITHUB_REPO    "usuario/repositorio"
  *   GITHUB_BRANCH  rama de publicacion (por defecto main)
  *   EDIT_PASSWORD  clave que habilita la edicion
+ *
+ * Y una opcional:
+ *   ACCESS_GENERATION  numero entero. Subirlo obliga a TODAS las sedes a poner
+ *                      una clave de acceso nueva en la siguiente carga. Ver
+ *                      `src/core/access.js`.
  */
 
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -83,7 +88,32 @@ function readConfig() {
   if (!token || !repo) {
     return { ok: false, error: 'El servidor no tiene configurado el acceso al repositorio.' };
   }
-  return { ok: true, value: { token, repo, branch, password } };
+  return { ok: true, value: { token, repo, branch, password, generacion: leerGeneracion() } };
+}
+
+/**
+ * Generacion de acceso vigente.
+ *
+ * Es el sustituto de la caducidad semanal que llevaba la clave de acceso. Aquella
+ * obligaba a cambiarla cada siete dias en CADA aparato por separado, y no
+ * revocaba nada: quien conocia la clave se la renovaba a si mismo, y quien se
+ * habia ido seguia dentro en cualquier equipo donde no tocara renovar todavia.
+ * Era un ritual semanal con la apariencia de un control.
+ *
+ * Esto hace el trabajo que aquella prometia: subir el numero aqui invalida la
+ * clave guardada en todos los aparatos a la vez, y la siguiente carga de cada
+ * uno pide una nueva. Se dispara cuando hay motivo -alguien deja el equipo, la
+ * clave corrio de boca en boca- y no por calendario.
+ *
+ * Ausente o ilegible vale 0, que es "no se ha revocado nunca": un despliegue sin
+ * la variable se comporta como si la caducidad no existiera, que es justo lo que
+ * se queria.
+ *
+ * @returns {number}
+ */
+function leerGeneracion() {
+  const bruto = Number.parseInt(process.env.ACCESS_GENERATION || '0', 10);
+  return Number.isFinite(bruto) && bruto > 0 ? bruto : 0;
 }
 
 async function handleGet(response, config) {
@@ -94,7 +124,11 @@ async function handleGet(response, config) {
 
   // Sin cache: una publicacion nueva debe verse en la siguiente carga.
   response.setHeader('Cache-Control', 'no-store, must-revalidate');
-  return send(response, 200, { ...file.value.data, sha: file.value.sha });
+  return send(response, 200, {
+    ...file.value.data,
+    sha: file.value.sha,
+    accesoGen: config.generacion,
+  });
 }
 
 async function handlePut(request, response, config) {

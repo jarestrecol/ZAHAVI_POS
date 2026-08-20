@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v18';
+const CACHE_VERSION = 'zahavi-v20';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -37,11 +37,6 @@ const SHELL = [
   './assets/css/fallback.css',
   './assets/css/responsive.css',
   './assets/fonts/plus-jakarta-sans-400.woff2',
-  './assets/fonts/plus-jakarta-sans-500.woff2',
-  './assets/fonts/plus-jakarta-sans-600.woff2',
-  './assets/fonts/plus-jakarta-sans-700.woff2',
-  './assets/fonts/plus-jakarta-sans-800.woff2',
-  './assets/fonts/lora-500.woff2',
   './assets/fonts/lora-500i.woff2',
   './assets/fonts/lora-600.woff2',
   './assets/fonts/ibm-plex-mono-400.woff2',
@@ -74,6 +69,7 @@ const SHELL = [
   './src/views/detail.js',
   './src/views/editor.js',
   './src/views/settings.js',
+  './src/views/publicar.js',
   './src/views/confirm.js',
   './src/views/print.js',
   './src/views/production.js',

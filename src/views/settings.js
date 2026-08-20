@@ -10,7 +10,7 @@
  *         cambios que las demas sedes todavia no ven. Desde aqui se publica.
  *
  *      2. LA CLAVE DE ESTE EQUIPO
- *         Cambiarla, y ver cuantos dias le quedan antes de caducar.
+ *         Cambiarla, y saber que alcanza solo a este aparato.
  *
  *  LO QUE NO ESTA, Y POR QUE
  *  -------------------------
@@ -26,9 +26,7 @@ import { announce } from '../lib/a11y.js';
 import {
   changePassword,
   signOut,
-  estadoClave,
   MIN_PASSWORD_LENGTH,
-  PASSWORD_MAX_AGE_DAYS,
 } from '../core/access.js';
 import { setState } from '../core/store.js';
 import { createWindow } from './window.js';
@@ -397,19 +395,16 @@ function renderPasswordBlock() {
     confirmation.value = '';
   };
 
-  const estado = estadoClave();
-
   return el('section', { class: 'settings__row' }, [
     el('h3', { class: 'section-label', text: 'Clave de acceso' }),
 
-    // Cuanto le queda. Se dice antes del formulario para que quien entre a otra
-    // cosa se entere de que le toca renovar, sin tener que llegar al final.
+    // DONDE VIVE ESTA CLAVE, dicho en la pantalla donde se cambia y no solo en
+    // el manual. Cambiarla aqui no la cambia en la tableta del obrador, y eso
+    // hay que saberlo ANTES de cambiarla, no despues de que la otra sede llame
+    // preguntando por que no entra.
     el('p', { class: 'settings__count' }, [
-      estado.caducada
-        ? el('strong', { text: 'Caducada: se pedirá cambiarla al volver a entrar.' })
-        : estado.restantes === 0
-          ? el('strong', { text: 'Caduca hoy.' })
-          : `Le ${estado.restantes === 1 ? 'queda' : 'quedan'} ${estado.restantes} ${estado.restantes === 1 ? 'día' : 'días'}.`,
+      el('strong', { text: 'Esta clave es de este aparato.' }),
+      ' Cambiarla aquí no la cambia en los demás equipos.',
     ]),
 
     el('div', { class: 'settings__grid settings__grid--3' }, [
@@ -425,7 +420,7 @@ function renderPasswordBlock() {
 
     el('p', {
       class: 'settings__help',
-      text: `Es una sola clave para todo el equipo y se renueva cada ${PASSWORD_MAX_AGE_DAYS} días. Esa caducidad es lo que retira el acceso a quien ya no trabaja aquí, sin depender de que nadie se acuerde de darlo de baja. Mínimo ${MIN_PASSWORD_LENGTH} caracteres y distinta de la anterior.`,
+      text: `No caduca por tiempo. Cuando alguien deja el equipo o la clave se sabe de más, la panadería la retira desde el servidor y todos los aparatos piden una nueva a la vez, en la siguiente carga. Mínimo ${MIN_PASSWORD_LENGTH} caracteres y distinta de la anterior.`,
     }),
 
     el('p', {

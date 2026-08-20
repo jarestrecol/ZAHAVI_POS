@@ -23,6 +23,7 @@ import {
   canPublish as canPublishRemote,
   needsReload,
   serverStatus,
+  generacionAcceso as generacionAccesoRemota,
 } from './remote.js';
 
 /** Clave de los cambios locales sin publicar. */
@@ -76,6 +77,15 @@ let baseRevision = '';
  * Se avisa porque hay que decidir cual conservar.
  */
 let conflict = false;
+
+/**
+ * Hay un envio en vuelo hacia el servidor.
+ *
+ * Vive aqui y no en `app/sync.js` porque a publicar se llega por dos caminos
+ * -el automatico y el boton de Ajustes- y el cerrojo tiene que ser el mismo
+ * para los dos. Ver `publishToAll`.
+ */
+let publicando = false;
 
 /**
  * Carga el recetario. Siempre intenta primero la version publicada, para que
@@ -461,8 +471,43 @@ export function canPublishToAll() {
  *
  * @returns {boolean}
  */
+/**
+ * Generacion de acceso que declara el servidor.
+ *
+ * Vive aqui porque el repositorio es la unica puerta al almacenamiento: las
+ * vistas y el arranque no hablan con `remote.js`.
+ *
+ * @returns {number}
+ */
+/**
+ * Indica si hay una publicacion viajando ahora mismo.
+ * @returns {boolean}
+ */
+export function publicacionEnCurso() {
+  return publicando;
+}
+
+export function generacionAcceso() {
+  return generacionAccesoRemota();
+}
+
 export function needsReloadBeforePublish() {
-  return needsReload();
+  // DOS CAMINOS LLEVAN AQUI, y los dos tienen que cerrar la publicacion.
+  //
+  //   `needsReload()` es el 409 del servidor: alguien publico entre la
+  //   lectura y la escritura, y el envio se rechazo.
+  //
+  //   `conflict` es el que se detecta al arrancar: la version publicada
+  //   cambio mientras este equipo tenia cambios sin publicar.
+  //
+  // El segundo no estaba contemplado, y era el peligroso. `sync.js` frena la
+  // publicacion AUTOMATICA en ese caso, pero el boton de Ajustes seguia
+  // activo, y publicar a mano enviaba el recetario entero de este equipo con
+  // el sha recien leido al arrancar: el servidor no tenia motivo para
+  // rechazarlo, asi que lo aceptaba y el trabajo de la otra sede desaparecia
+  // sin que nadie lo hubiera rechazado ni avisado. Solo un parrafo en rojo
+  // separaba a quien estaba delante de borrar la jornada de la otra sede.
+  return needsReload() || conflict;
 }
 
 /**
@@ -484,24 +529,94 @@ export function serverDiagnosis() {
  * @returns {Promise<{ok: true, value: {revision: string, count: number}} | {ok: false, code: string, error: string}>}
  */
 export async function publishToAll(options) {
+  // UN SOLO CANDADO, Y VIVE AQUI.
+  //
+  // Hay dos caminos hasta esta funcion: la publicacion automatica de
+  // `app/sync.js` y la manual de Ajustes o del dialogo de guardar. `sync.js`
+  // tenia su propio cerrojo, pero solo se protegia de si mismo: el boton de
+  // Ajustes no lo consultaba.
+  //
+  // Con una publicacion automatica todavia en vuelo -red lenta- bastaba con
+  // abrir Ajustes y pulsar Publicar para lanzar un segundo PUT. Los dos leian
+  // el mismo sha, uno ganaba y al otro le contestaban 409, que este equipo
+  // interpreta como "otra sede publico antes" y deja la publicacion automatica
+  // bloqueada pidiendo recargar. No se perdian datos, pero el aviso era falso
+  // y el bloqueo real.
+  //
+  // Poniendo el cerrojo en la unica puerta al almacenamiento, los dos caminos
+  // pasan por el mismo sitio y el caso deja de existir.
+  if (publicando) {
+    return err('en_curso', 'Ya hay una publicación en marcha. Espera a que termine.');
+  }
+
+  publicando = true;
+  try {
+    return await enviarPublicacion(options);
+  } finally {
+    // Pase lo que pase. Si una excepcion dejara el cerrojo echado, este equipo
+    // no volveria a publicar hasta recargar la pagina.
+    publicando = false;
+  }
+}
+
+/**
+ * El envio en si, ya con el cerrojo echado.
+ *
+ * @param {{password: string, author?: string}} options
+ */
+async function enviarPublicacion(options) {
+  // INSTANTANEA DE LO QUE VIAJA, tomada antes de soltar el hilo.
+  //
+  // Conservarla es la diferencia entre publicar bien y perder una receta sin
+  // que nadie se entere. Entre el envio y la respuesta caben varios segundos,
+  // y en ese hueco alguien puede guardar: `save()` no modifica `current`, lo
+  // SUSTITUYE por un objeto nuevo, asi que al volver del `await` ya no es lo
+  // que el servidor recibio.
+  //
+  // Antes se volvia a leer `current` aqui abajo y se declaraba publicado. El
+  // resultado era el peor posible: el servidor tenia una version, este equipo
+  // afirmaba tener publicada otra, `dirty` pasaba a false, el aviso de cambios
+  // pendientes desaparecia de la cabecera, y en la siguiente carga `hydrate()`
+  // tomaba la rama "sin cambios locales" y escribia encima la del servidor. La
+  // receta guardada durante la publicacion se borraba sola, sin error, sin
+  // aviso y sin que nadie la hubiera rechazado.
+  const enviado = { recipes: current.recipes, ingredientes: current.ingredientes };
+
   const result = await publishShared({
-    recipes: current.recipes,
-    ingredientes: current.ingredientes,
+    recipes: enviado.recipes,
+    ingredientes: enviado.ingredientes,
     password: options.password,
     author: options.author,
   });
 
   if (result.ok) {
-    // Lo publicado pasa a ser la referencia: ya no hay nada pendiente.
+    // Lo publicado es lo que VIAJO, no lo que hay ahora en pantalla.
     published = {
-      recipes: current.recipes,
-      ingredientes: current.ingredientes,
+      recipes: enviado.recipes,
+      ingredientes: enviado.ingredientes,
       revision: result.value.revision,
     };
-    dirty = false;
     conflict = false;
     baseRevision = result.value.revision;
-    cachePublished();
+
+    // Comparacion por identidad, no por contenido: `save()` y `remove()`
+    // siempre construyen listas nuevas, asi que si la referencia sigue siendo
+    // la misma es que nadie escribio mientras se publicaba.
+    const nadieEscribioMientrasTanto =
+      current.recipes === enviado.recipes && current.ingredientes === enviado.ingredientes;
+
+    if (nadieEscribioMientrasTanto) {
+      dirty = false;
+      const guardado = cachePublished();
+      if (!guardado.ok) return guardado;
+    } else {
+      // Se guardo algo mientras el envio viajaba, y eso NO esta publicado. Se
+      // mantiene la marca de pendiente y se reescribe la copia local contra la
+      // revision nueva, para que el siguiente intento lo recoja.
+      dirty = true;
+      const guardado = persist();
+      if (!guardado.ok) return guardado;
+    }
   }
 
   return result;

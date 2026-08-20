@@ -302,30 +302,38 @@ al dar de alta cualquier equipo nuevo.
 | 58 | Sin cambios pendientes | "Este equipo está igual que la versión publicada" |
 | 59 | Con cambios pendientes | Detalla cuántas nuevas, modificadas y eliminadas |
 | 60 | **Tras crear y borrar lo mismo** | Vuelve a "igual que la versión publicada", **no** "0 cambios" |
-| 61 | El bloque de clave | Dice cuántos días le quedan antes de caducar |
+| 61 | El bloque de clave | Avisa de que **esa clave es de ese aparato** y que cambiarla ahí no la cambia en los demás |
 | 62 | Cambiar la clave con la actual mal | Error, no cambia nada |
 | 63 | Cambiar poniendo la misma clave | Error: tiene que ser distinta de la actual |
 | 64 | Cambiar con claves nuevas que no coinciden | Error claro |
-| 65 | Cambiar correctamente | Confirma, y el contador vuelve a 7 días |
+| 65 | Cambiar correctamente | Confirma, y la clave nueva entra en vigor en ese aparato |
 | 66 | Entrar con la clave nueva | Funciona |
 | 67 | Entrar con la anterior | Ya no funciona |
 | 70 | Cerrar sesión | Vuelve a la pantalla de entrada |
 | 71 | Tras cerrar sesión, reentrar y abrir Ajustes | **El campo de clave de edición está vacío** |
 | 72 | No hay botón de descargar ni de cargar archivo | Correcto: está prohibido a propósito |
 
-### 2.7b Caducidad semanal de la clave
+### 2.7b Retirada de la clave desde el servidor
 
-> Para probar sin esperar una semana: en la consola del navegador, editar
-> `zahavi_acceso_v1` en `localStorage` y retrasar su campo `changedAt` ocho días.
+> Sustituye a la caducidad semanal, que se retiró: no revocaba nada (quien
+> conocía la clave se la renovaba a sí mismo) y había que renovarla en cada
+> aparato por separado.
+>
+> Para probarlo sin tocar Vercel: en la consola del navegador, bajar el campo
+> `gen` de `zahavi_acceso_v1` en `localStorage`, o interceptar `/api/recipes`
+> para que devuelva un `accesoGen` mayor.
 
 | # | Comprobación | Esperado |
 |---|---|---|
-| 72a | Entrar con la clave caducada | Pide **renovarla antes de entrar**, no deja pasar |
-| 72b | El aviso de esa pantalla | Explica que se cambia cada 7 días |
-| 72c | Poner una clave nueva válida | Entra directamente, sin volver a pedir la anterior |
-| 72d | Intentar poner la misma que tenía | La rechaza |
-| 72e | Tras renovar, abrir Ajustes | El contador vuelve a marcar 7 días |
-| 72f | Un equipo que venía de la versión con usuarios | Entra con la clave que tenía el usuario `zahavi`, no se queda fuera |
+| 72a | Subir `ACCESS_GENERATION` y volver a desplegar | En la siguiente carga, cada aparato cierra sesión y pide la clave |
+| 72b | El aviso de esa pantalla | Dice que **la panadería retiró** la clave, no que haya caducado por tiempo |
+| 72c | Entrar con la clave que tenía el aparato | Deja pasar a la pantalla de cambio: **nadie se queda fuera** |
+| 72d | Poner una clave nueva válida | Entra directamente, sin volver a pedir la anterior |
+| 72e | Intentar poner la misma que tenía | La rechaza |
+| 72f | Tras renovar, recargar | Ya no vuelve a pedirla |
+| 72g | **Sin conexión**, con el servidor inalcanzable | **No** deja fuera a nadie: se usa la última generación conocida |
+| 72h | Sin la variable puesta en Vercel | La clave no caduca nunca; el sistema se comporta como si esto no existiera |
+| 72i | Un equipo que venía de la versión con usuarios | Entra con la clave que tenía el usuario `zahavi`, no se queda fuera |
 
 ### 2.8 Publicación
 

@@ -3,7 +3,7 @@
  *  ACCESO AL RECETARIO
  * =============================================================================
  *
- *  UNA sola clave para todo el equipo, que caduca cada semana.
+ *  UNA sola clave para todo el equipo, que se retira cuando hace falta.
  *
  *  Antes habia usuarios: cada persona con su nombre y su clave. Sobre el papel
  *  era mejor, pero en la practica no lo era, porque los usuarios se guardan EN
@@ -14,10 +14,34 @@
  *  actualiza es peor que no tener lista: da la impresion de un control que no
  *  existe.
  *
- *  La caducidad semanal hace el trabajo que hacia la baja de usuarios, y lo hace
- *  sin depender de que alguien se acuerde: quien dejo de trabajar aqui deja de
- *  poder entrar en cuanto la clave rota, en todos los equipos a la vez y sin que
- *  nadie tenga que hacer nada.
+ *  LA GENERACION DE ACCESO
+ *  -----------------------
+ *  Aqui hubo una caducidad semanal, y hay que contar por que se retiro, porque
+ *  la idea era buena y la ejecucion no podia funcionar.
+ *
+ *  Prometia lo que prometia la baja de usuarios: que quien dejara de trabajar
+ *  aqui dejara de poder entrar, en todos los equipos a la vez. No lo cumplia en
+ *  ninguno de los dos extremos. No REVOCABA, porque quien conocia la clave se la
+ *  renovaba a si mismo indefinidamente. Y no PROPAGABA, porque cada aparato
+ *  guarda su clave y rota por su cuenta: cuatro aparatos eran cuatro cambios que
+ *  alguien tenia que coordinar por telefono cada siete dias. Una rotacion
+ *  obligatoria por calendario que ademas empuja hacia zahavi1, zahavi2, zahavi3.
+ *
+ *  Lo que hay ahora es un numero, `ACCESS_GENERATION`, que sirve el servidor
+ *  junto al recetario. Cada equipo recuerda con que generacion guardo su clave.
+ *  Cuando el servidor anuncia una mayor, la clave de ese equipo deja de valer y
+ *  la siguiente carga pide una nueva.
+ *
+ *  Eso si revoca y si propaga: subir el numero una vez retira el acceso en las
+ *  dos sedes y en todos los aparatos. Y se hace cuando hay MOTIVO -alguien deja
+ *  el equipo, la clave corrio de boca en boca-, no cada siete dias porque toque.
+ *
+ *  Sigue funcionando SIN CONEXION, que era la condicion innegociable: sin
+ *  servidor se usa la ultima generacion conocida, asi que un equipo sin señal
+ *  nunca queda fuera. Se entera cuando vuelva la red, igual que se entera de una
+ *  receta nueva. Por eso la clave de acceso no puede validarse en el servidor:
+ *  el recetario tiene que abrir a las cinco de la mañana en un obrador sin
+ *  cobertura.
  *
  *  SIGUE SIENDO UNA CORTINA, NO UNA CERRADURA
  *  ------------------------------------------
@@ -58,11 +82,28 @@ export const DEFAULT_PASSWORD = 'zahavi2026';
 /** Longitud minima de una clave. */
 export const MIN_PASSWORD_LENGTH = 4;
 
-/** Cada cuantos dias hay que cambiarla. */
-export const PASSWORD_MAX_AGE_DAYS = 7;
+/**
+ * Generacion de acceso que declara el servidor, anotada al cargar.
+ *
+ * Arranca en 0 -"nunca se ha revocado"- y solo la mueve `anotarGeneracion`. Que
+ * el valor por defecto sea 0 es lo que hace que un despliegue sin la variable
+ * puesta se comporte exactamente como si esto no existiera.
+ */
+let generacionServidor = 0;
 
-/** Milisegundos de un dia, para las cuentas de caducidad. */
-const DIA_MS = 24 * 60 * 60 * 1000;
+/**
+ * Anota la generacion que viene del servidor.
+ *
+ * La llama el arranque despues de leer el recetario. Solo acepta subidas: un
+ * servidor que de pronto contesta 0 -variable borrada por error, despliegue a
+ * medias- no puede reactivar claves que ya se habian retirado.
+ *
+ * @param {number} valor
+ */
+export function anotarGeneracion(valor) {
+  const numero = Number.parseInt(valor, 10);
+  if (Number.isFinite(numero) && numero > generacionServidor) generacionServidor = numero;
+}
 
 /* ===========================================================================
  *  RESUMEN DE LA CLAVE
@@ -149,16 +190,25 @@ function readAccess() {
  * @returns {Promise<void>}
  */
 export async function ensureAccess() {
-  if (readAccess()) return;
+  if (readAccess()) return ok(undefined);
 
   const migrada = leerCredencialAnterior();
   const credential = migrada ? migrada.credential : await toCredential(DEFAULT_PASSWORD);
   const changedAt = migrada && migrada.changedAt ? migrada.changedAt : new Date().toISOString();
 
-  writeJson(ACCESS_KEY, { credential, changedAt });
+  // El resultado SE MIRA antes de borrar nada. Si esta escritura falla -cuota
+  // agotada, almacenamiento no disponible- y aun asi se borraran las claves
+  // heredadas, el arranque siguiente no encontraria ni la nueva ni la vieja y
+  // caeria a la clave de fabrica: el equipo quedaria abierto con la clave de
+  // instalacion sin decirselo a nadie. Dejando la migracion sin tocar, se
+  // reintenta sola en el proximo arranque.
+  const written = writeJson(ACCESS_KEY, { credential, changedAt, gen: generacionServidor });
+  if (!written.ok) return written;
 
   removeKey(LEGACY_USERS_KEY);
   removeKey(LEGACY_PASSWORD_KEY);
+
+  return ok(undefined);
 }
 
 /**
@@ -199,8 +249,8 @@ export async function verifyPassword(password) {
 /**
  * Cambia la clave, comprobando antes la actual.
  *
- * Reinicia el contador de la semana: la fecha de cambio es lo unico de lo que
- * depende la caducidad.
+ * La clave nueva queda sellada con la generacion de acceso vigente, que es de
+ * lo unico que depende que vuelva a pedirse un cambio.
  *
  * @param {string} current
  * @param {string} next
@@ -220,15 +270,18 @@ export async function changePassword(current, next, confirmation) {
   if (next !== confirmation) {
     return err('clave_distinta', 'Las dos claves nuevas no coinciden.');
   }
-  // Repetir la misma clave dejaria el contador a cero sin cambiar nada, que es
-  // exactamente lo que la caducidad viene a evitar.
+  // Repetir la misma clave daria por atendida una retirada sin haber cambiado
+  // nada, que es exactamente lo que la retirada viene a evitar.
   if (await matches(next, acceso.credential)) {
     return err('clave_repetida', 'La clave nueva tiene que ser distinta de la actual.');
   }
 
+  // La clave nueva se sella con la generacion vigente: es lo que hace que deje
+  // de pedirse el cambio hasta que alguien vuelva a subir el numero.
   const written = writeJson(ACCESS_KEY, {
     credential: await toCredential(next),
     changedAt: new Date().toISOString(),
+    gen: generacionServidor,
   });
   if (!written.ok) return written;
 
@@ -236,32 +289,39 @@ export async function changePassword(current, next, confirmation) {
 }
 
 /* ===========================================================================
- *  CADUCIDAD
+ *  RETIRADA DE LA CLAVE
  * ======================================================================== */
 
 /**
- * Estado de la clave respecto a la semana.
+ * Estado de la clave de este equipo frente a la generacion del servidor.
  *
- * `dias` es cuantos han pasado desde el ultimo cambio. Una fecha ausente o
- * ilegible cuenta como caducada: ante la duda, se pide el cambio, que es la
- * salida segura y siempre esta al alcance de quien acaba de escribir la clave
- * actual.
+ * `caducada` conserva el nombre que ya usaban el arranque y la pantalla de
+ * entrada, pero ya no significa "cumplio siete dias" sino "la panaderia retiro
+ * esta clave". `motivo` dice cual de los dos casos es, para poder explicarlo en
+ * pantalla en vez de soltar un "toca renovar" sin razon visible.
  *
- * @returns {{dias: number, restantes: number, caducada: boolean}}
+ * @returns {{caducada: boolean, motivo: string, generacion: number, vigente: number}}
  */
 export function estadoClave() {
   const acceso = readAccess();
-  const marca = acceso ? Date.parse(acceso.changedAt) : NaN;
 
-  if (!Number.isFinite(marca)) {
-    return { dias: PASSWORD_MAX_AGE_DAYS, restantes: 0, caducada: true };
+  // Sin clave guardada no hay nada que comprobar, y pedir una nueva es la
+  // salida segura: siempre esta al alcance de quien acaba de demostrar que
+  // conoce la actual.
+  if (!acceso) {
+    return { caducada: true, motivo: 'sin_clave', generacion: 0, vigente: generacionServidor };
   }
 
-  const dias = Math.floor((Date.now() - marca) / DIA_MS);
+  // Una entrada anterior a este modelo no lleva `gen`. Cuenta como 0, que es
+  // lo mismo que declara un servidor sin la variable puesta: nadie queda fuera
+  // por actualizar.
+  const propia = Number.isFinite(acceso.gen) ? acceso.gen : 0;
+
   return {
-    dias,
-    restantes: Math.max(0, PASSWORD_MAX_AGE_DAYS - dias),
-    caducada: dias >= PASSWORD_MAX_AGE_DAYS,
+    caducada: propia < generacionServidor,
+    motivo: propia < generacionServidor ? 'revocada' : '',
+    generacion: propia,
+    vigente: generacionServidor,
   };
 }
 

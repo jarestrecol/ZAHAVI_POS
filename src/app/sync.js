@@ -152,7 +152,22 @@ export function publicarEnSegundoPlano() {
  * @returns {Promise<{ok: boolean, code: string}>}
  */
 async function publicar() {
-  if (enCurso) return { ok: false, code: 'en_curso' };
+  // YA HAY UNA PUBLICACION EN VUELO.
+  //
+  // Lo que se acaba de guardar NO viaja en ella: el envio se serializo antes.
+  // Antes se salia aqui en silencio, sin pasar por `terminar()`, asi que no
+  // quedaba marca de pendiente ni reintento programado, y ese cambio no volvia
+  // a intentarse nunca. Junto con la carrera de `repository.publishToAll` era
+  // la receta exacta para perder trabajo sin un solo aviso.
+  //
+  // Ahora queda anotado, y al terminar la publicacion en curso se relanza.
+  //
+  // Se pregunta al repositorio y no a la variable de este modulo: a publicar
+  // tambien se llega desde Ajustes, y ese camino no pasa por aqui.
+  if (enCurso || repo.publicacionEnCurso()) {
+    pendiente = true;
+    return { ok: false, code: 'en_curso' };
+  }
 
   const cambios = repo.localChanges();
   if (!cambios.dirty) return terminar('sin_cambios', false);
@@ -191,6 +206,23 @@ async function publicar() {
     // que cambia es la referencia de lo publicado, y de ahi sale el aviso de
     // "cambios sin publicar" que debe desaparecer de la cabecera.
     setState({ recipes: repo.findAll(), ingredientes: repo.allIngredients() });
+
+    // Alguien guardo mientras esto viajaba. Ese cambio no iba dentro, asi que
+    // sigue sin publicar: se encadena otra vuelta en lugar de esperar a que
+    // esa persona vuelva a guardar por su cuenta.
+    const quedan = repo.localChanges();
+    if (quedan.dirty) {
+      notify(
+        quedan.total === 1
+          ? 'Publicado. Queda un cambio más por enviar…'
+          : `Publicado. Quedan ${quedan.total} cambios más por enviar…`,
+        'success',
+      );
+      const otraVuelta = terminar('', false);
+      publicarEnSegundoPlano();
+      return otraVuelta;
+    }
+
     notify('Publicado para todas las sedes.', 'success');
     announce('Cambios publicados.');
     return terminar('', false);

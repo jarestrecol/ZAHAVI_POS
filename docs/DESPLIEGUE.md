@@ -65,6 +65,12 @@ funcione la publicación compartida:
 | `GITHUB_BRANCH` | `main` | Qué rama |
 | `EDIT_PASSWORD` | Clave larga y aleatoria | Autorizar la publicación |
 
+Y una **opcional**:
+
+| Variable | Valor | Para qué |
+|---|---|---|
+| `ACCESS_GENERATION` | Número entero, empieza sin poner | Retirar la clave de acceso en todas las sedes a la vez |
+
 El token se crea en GitHub → Settings → Developer settings → Personal access
 tokens → Fine-grained tokens, con acceso **solo a este repositorio** y permiso de
 **lectura y escritura en Contents**. Nunca debe aparecer en el código.
@@ -75,6 +81,29 @@ tokens → Fine-grained tokens, con acceso **solo a este repositorio** y permiso
 Sin esas variables el sitio despliega igual y funciona en modo consulta, pero sin
 publicación compartida.
 
+### Retirar la clave de acceso de todas las sedes
+
+Cuando alguien deja el equipo, o la clave se ha sabido de más, hay que retirarla
+de **todos** los aparatos, no solo del que se tenga a mano.
+
+1. En Vercel, **Settings → Environment Variables**, sube `ACCESS_GENERATION` en
+   uno. Si no existe todavía, créala con valor `1`.
+2. **Vuelve a desplegar.** Las variables se leen al construir la función.
+3. Comunica la clave nueva al equipo por el canal de siempre.
+
+En la siguiente vez que cada aparato abra el recetario, cerrará la sesión y
+pedirá la clave nueva, diciendo que la panadería retiró la anterior. Nadie se
+queda fuera: con la clave vieja se entra a la pantalla que pide poner la nueva.
+
+**Un aparato sin señal no se entera hasta que vuelva la red**, y eso es
+deliberado: el recetario tiene que abrir en un obrador sin cobertura. Si hace
+falta cortar el acceso de un aparato concreto de inmediato, hay que hacerlo en
+el aparato.
+
+Antes esta clave caducaba cada 7 días. Se retiró porque no revocaba nada —quien
+la conocía se la renovaba a sí mismo— y había que renovarla en cada aparato por
+separado. Era un ritual semanal con la apariencia de un control.
+
 ### Dominio propio
 
 En **Settings → Domains**, añade el dominio y usa los registros DNS que Vercel
@@ -83,7 +112,21 @@ certificado HTTPS lo emite Vercel automáticamente.
 
 ### Diagnóstico
 
-**Lo primero, sin abrir nada técnico:** el propio recetario lo dice en
+**Antes que nada, mira la barra de direcciones.** Es la comprobación más barata
+y la que más veces acierta cuando alguien dice *"cambié la clave y al siguiente
+despliegue ya no estaba"* o *"lo que guardé ha desaparecido"*.
+
+Cada despliegue de Vercel tiene su **propia dirección única**
+(`zahavi-recetario-<algo>.vercel.app`), que es la que abre el botón *Visit* del
+panel. Para el navegador esa dirección es **otro sitio distinto**: otra clave de
+acceso, otra sesión, otros cambios sin publicar. Todo lo guardado se queda en la
+dirección anterior, intacto pero invisible.
+
+Trabajad **siempre desde la dirección de producción**, la fija, y desde el acceso
+directo instalado en la pantalla de inicio. Nunca desde el enlace de un
+despliegue concreto.
+
+**Lo segundo, sin abrir nada técnico:** el propio recetario lo dice en
 **Ajustes → Conexión**. Cuatro líneas que contestan la pregunta de siempre, "no
 me guarda":
 

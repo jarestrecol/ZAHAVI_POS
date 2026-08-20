@@ -234,7 +234,7 @@ src/
     schema.js              Esquema, normalización y validación
     repository.js          Única puerta a los datos
     remote.js              Cliente de /api/recipes
-    access.js              Clave del equipo, caducidad semanal y sesión
+    access.js              Clave del equipo, generación de acceso y sesión
     store.js               Estado de la aplicación y suscripciones
     router.js              Enrutado por hash
     search.js              Filtrado, orden y recuentos (funciones puras)

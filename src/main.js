@@ -29,7 +29,7 @@ import { setInert, recordarFoco } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
-import { ensureAccess, isSignedIn, estadoClave, signOut } from './core/access.js';
+import { ensureAccess, isSignedIn, estadoClave, signOut, anotarGeneracion } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
 import { getEditKey } from './core/remote.js';
@@ -42,6 +42,7 @@ import { renderDetail, renderPlaceholder, renderNotFound } from './views/detail.
 import { renderSkeleton } from './views/skeleton.js';
 import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
+import { openPublicar } from './views/publicar.js';
 import { openConfirmDelete } from './views/confirm.js';
 import { openProduction } from './views/production.js';
 import { openPlan } from './views/plan.js';
@@ -89,19 +90,14 @@ async function boot() {
   // Si el equipo venia de un modelo anterior (la lista de usuarios, o la clave
   // unica de antes), se conserva la que ya conocia el personal en vez de
   // dejarlos fuera: ver `ensureAccess` en `core/access.js`.
-  await ensureAccess();
-
-  // La caducidad de la clave solo se comprobaba AL ENTRAR, y la sesion no
-  // vence: un equipo que nunca cierra sesion -la tableta de pared del obrador,
-  // que es el caso normal- no la aplicaba jamas. La clave semanal existe para
-  // que quien dejo de trabajar aqui deje de poder entrar, y sobre ese aparato
-  // no dejaba de poder entrar nadie.
   //
-  // Se comprueba al arrancar y no mientras se trabaja: sacar a alguien de la
-  // pantalla a media tanda seria peor que el riesgo que se evita. En la
-  // practica el equipo se recarga a diario, y quien conoce la clave vigente la
-  // renueva en el mismo formulario de entrada, sin quedarse fuera.
-  if (isSignedIn() && estadoClave().caducada) signOut();
+  // El resultado SE MIRA. Si la escritura de la credencial falla -cuota
+  // agotada, modo privado-, `readAccess()` seguira devolviendo null en cada
+  // arranque, y entonces `verifyPassword` contesta false hasta para la clave
+  // correcta: la pantalla de entrada diria "clave incorrecta" sin una sola
+  // pista de que el problema es del almacenamiento y no de lo que se escribio.
+  const acceso = await ensureAccess();
+  if (!acceso.ok) notify(acceso.message, 'error');
 
   setState({
     authed: isSignedIn(),
@@ -116,6 +112,25 @@ async function boot() {
     recipes: loaded.recipes,
     ingredientes: loaded.ingredientes,
   });
+
+  // LA CLAVE RETIRADA SE COMPRUEBA AQUI, y no antes, porque la generacion
+  // vigente viaja con el recetario: hasta haberlo leido no se sabe si la
+  // panaderia retiro la clave de este equipo.
+  //
+  // Se comprueba al arrancar y no mientras se trabaja: sacar a alguien de la
+  // pantalla a media tanda seria peor que el riesgo que se evita. Tampoco
+  // basta con mirarlo al entrar, porque la sesion no vence y la tableta de
+  // pared del obrador no cierra sesion nunca: ahi no dejaba de poder entrar
+  // nadie. En la practica el equipo se recarga a diario, y quien conoce la
+  // clave vigente la pone en el mismo formulario de entrada.
+  //
+  // Sin red, `generacionAcceso()` sigue valiendo la ultima conocida, asi que un
+  // obrador sin señal nunca queda fuera por esto.
+  anotarGeneracion(repo.generacionAcceso());
+  if (isSignedIn() && estadoClave().caducada) {
+    signOut();
+    setState({ authed: false });
+  }
 
   // `hydrate` avisa cuando algo no salio como esperaba: sin conexion, sin
   // recetas, o cambios locales danados que hubo que apartar.
@@ -599,6 +614,7 @@ function renderDialogs(shell) {
 
   if (state.production) openDialog = buildProduction(state);
   else if (state.confirmDelete) openDialog = buildConfirmDelete(state);
+  else if (state.pedirClave) openDialog = buildPublicar();
   else if (state.planOpen) openDialog = buildPlan(state);
   else if (state.ingredientsOpen) openDialog = buildIngredients(state);
   else if (state.settingsOpen) openDialog = buildSettings(state);
@@ -621,6 +637,10 @@ function renderDialogs(shell) {
 function dialogKey(state, route) {
   if (state.production) return 'prod:' + state.production;
   if (state.confirmDelete) return 'delete:' + state.confirmDelete;
+
+  // Clave fija: el dialogo lleva por dentro el campo de la clave a medio
+  // escribir, y cualquier repintado de la aplicacion lo borraria.
+  if (state.pedirClave) return 'publicar';
 
   // Clave fija a proposito: el plan lleva su propia seleccion por dentro y se
   // repinta solo. Si la clave cambiara, cualquier repintado de la aplicacion
@@ -726,6 +746,21 @@ function buildConfirmDelete(state) {
     recipe,
     onCancel: () => setState({ confirmDelete: null }),
     onConfirm: () => deleteRecipe(recipe.id),
+  });
+}
+
+/**
+ * Pide la clave de edicion justo despues de guardar, que es donde hace falta.
+ *
+ * Se cierra pase lo que pase con la publicacion: si sale bien no queda nada que
+ * decir aqui, y si sale mal el mensaje se enseña dentro del propio dialogo antes
+ * de que nadie lo cierre.
+ */
+function buildPublicar() {
+  return openPublicar({
+    pendientes: repo.localChanges().total,
+    onPublish: publish,
+    onClose: () => setState({ pedirClave: false }),
   });
 }
 

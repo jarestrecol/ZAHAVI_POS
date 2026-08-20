@@ -806,34 +806,36 @@ comprobar('la nueva funciona', await acceso.verifyPassword('NuevaClave123'));
 comprobar('la anterior ya no', !(await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)));
 comprobar('y deja de ser la de fabrica', !(await acceso.isUsingDefaultPassword()));
 
-console.log('\n9. Caducidad semanal');
+console.log('\n9. Retirada de la clave por generacion de acceso');
+
+// Sustituye a la caducidad semanal, que obligaba a renovar por calendario en
+// cada aparato por separado y no retiraba el acceso a nadie. Ahora la panaderia
+// sube un numero en el servidor y todos los equipos piden clave nueva a la vez.
 let vigencia = acceso.estadoClave();
-comprobar('recien cambiada no esta caducada', vigencia.caducada === false, `dias ${vigencia.dias}`);
+comprobar('sin generacion nueva, la clave no caduca', vigencia.caducada === false);
+comprobar('la generacion vigente arranca en cero', vigencia.vigente === 0, String(vigencia.vigente));
+
+// El servidor anuncia que se ha retirado el acceso.
+acceso.anotarGeneracion(1);
+vigencia = acceso.estadoClave();
 comprobar(
-  `le quedan ${acceso.PASSWORD_MAX_AGE_DAYS} dias`,
-  vigencia.restantes === acceso.PASSWORD_MAX_AGE_DAYS,
-  String(vigencia.restantes),
+  'al subir la generacion, la clave de este equipo queda retirada',
+  vigencia.caducada === true && vigencia.motivo === 'revocada',
+  JSON.stringify(vigencia),
 );
+comprobar('retirada, todavia sirve para entrar y poder cambiarla', await acceso.verifyPassword('NuevaClave123'));
 
-// Se retrasa la fecha de cambio para comprobar el corte, sin esperar una semana.
-function envejecerClave(dias) {
-  const guardado = JSON.parse(almacen.get('zahavi_acceso_v1'));
-  guardado.changedAt = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
-  almacen.set('zahavi_acceso_v1', JSON.stringify(guardado));
-}
-
-envejecerClave(acceso.PASSWORD_MAX_AGE_DAYS - 1);
-vigencia = acceso.estadoClave();
-comprobar('el dia anterior todavia vale', vigencia.caducada === false, `dias ${vigencia.dias}`);
-
-envejecerClave(acceso.PASSWORD_MAX_AGE_DAYS);
-vigencia = acceso.estadoClave();
-comprobar('al cumplir la semana caduca', vigencia.caducada === true, `dias ${vigencia.dias}`);
-comprobar('y no le quedan dias', vigencia.restantes === 0, String(vigencia.restantes));
-
-comprobar('caducada, la clave sigue siendo valida para entrar', await acceso.verifyPassword('NuevaClave123'));
 r = await acceso.changePassword('NuevaClave123', 'OtraMas456', 'OtraMas456');
-comprobar('cambiarla reinicia el contador', r.ok && acceso.estadoClave().caducada === false);
+comprobar('poner una clave nueva la sella con la generacion vigente', r.ok, r.ok ? '' : r.message);
+comprobar('y deja de pedirse el cambio', acceso.estadoClave().caducada === false);
+comprobar('la generacion quedo anotada', acceso.estadoClave().generacion === 1, String(acceso.estadoClave().generacion));
+
+// Un servidor que de pronto contesta menos no puede reactivar claves retiradas.
+acceso.anotarGeneracion(0);
+comprobar('la generacion no baja nunca', acceso.estadoClave().vigente === 1, String(acceso.estadoClave().vigente));
+
+// Sin red no se anota nada nuevo, asi que un obrador sin señal sigue entrando.
+comprobar('sin generacion nueva no queda nadie fuera', acceso.estadoClave().caducada === false);
 
 console.log('\n10. Migracion desde los modelos anteriores');
 // Un equipo que venia de la lista de usuarios: se conserva la clave de zahavi.

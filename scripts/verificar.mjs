@@ -129,6 +129,12 @@ paso('Capa de datos', () => {
   return '9 bloques';
 });
 
+paso('Publicacion y conflictos', () => {
+  const out = run('test-publicacion.mjs');
+  const total = (out.match(/^\s+OK\s/gm) || []).length;
+  return `${total} comprobaciones`;
+});
+
 paso('Validacion del servidor', () => {
   run('test-api.mjs');
   return '28 comprobaciones';

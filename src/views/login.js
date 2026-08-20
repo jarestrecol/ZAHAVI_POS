@@ -4,8 +4,8 @@
  * Dos momentos en la misma pantalla:
  *
  *   1. ENTRAR      una sola clave, la del equipo.
- *   2. RENOVAR     si esa clave ya cumplio la semana, no se entra hasta
- *                  cambiarla.
+ *   2. RENOVAR     si esa clave fue retirada -o es todavia la de instalacion-,
+ *                  no se entra hasta cambiarla.
  *
  *  El cambio se pide DESPUES de comprobar la clave actual, nunca antes. Asi no
  *  hay riesgo de dejar a nadie fuera: quien llega hasta aqui acaba de demostrar
@@ -21,7 +21,6 @@ import {
   estadoClave,
   DEFAULT_PASSWORD,
   MIN_PASSWORD_LENGTH,
-  PASSWORD_MAX_AGE_DAYS,
 } from '../core/access.js';
 import { setState, getState } from '../core/store.js';
 
@@ -78,7 +77,7 @@ export function renderLogin() {
       //      sin esto quedaria puesta para siempre en cuanto alguien no se
       //      acordara de cambiarla, y una clave que es la misma en todas las
       //      instalaciones del mundo no es una clave.
-      //   2. Ya cumplio la semana.
+      //   2. La panaderia la retiro, subiendo la generacion de acceso.
       //
       // El cambio se pide DESPUES de comprobar la clave, nunca antes: quien
       // llega hasta aqui acaba de demostrar que la conoce, asi que puede
@@ -86,7 +85,7 @@ export function renderLogin() {
       const esDeFabrica = clave.value === DEFAULT_PASSWORD;
       if (esDeFabrica || estadoClave().caducada) {
         setState({ loginError: '' });
-        mostrar(formularioRenovacion(clave.value, esDeFabrica ? 'inicial' : 'caducada'));
+        mostrar(formularioRenovacion(clave.value, esDeFabrica ? 'inicial' : 'retirada'));
         return;
       }
 
@@ -112,15 +111,15 @@ export function renderLogin() {
   }
 
   /* ---------------------------------------------------------------------
-   *  2. Renovar la clave de la semana
+   *  2. Renovar la clave retirada
    * ------------------------------------------------------------------ */
 
   /**
    * @param {string} actual la clave que se acaba de comprobar
-   * @param {'inicial'|'caducada'} motivo por que hay que cambiarla
+   * @param {'inicial'|'retirada'} motivo por que hay que cambiarla
    * @returns {HTMLElement}
    */
-  function formularioRenovacion(actual, motivo = 'caducada') {
+  function formularioRenovacion(actual, motivo = 'retirada') {
     const nueva = el('input', {
       type: 'password',
       id: 'renew-password',
@@ -159,11 +158,13 @@ export function renderLogin() {
         ? el('p', { class: 'login__aviso' }, [
             el('strong', { text: 'Pon la clave de tu equipo.' }),
             ' La que acabas de usar es la de instalación y es igual en todas partes,' +
-              ` así que no sirve como clave. Después se renueva cada ${PASSWORD_MAX_AGE_DAYS} días.`,
+              ' así que no sirve como clave. Esta se queda en este aparato y no caduca:' +
+              ' solo se pedirá otra si la panadería retira la actual.',
           ])
         : el('p', { class: 'login__aviso' }, [
-            el('strong', { text: 'Toca renovar la clave.' }),
-            ` Se cambia cada ${PASSWORD_MAX_AGE_DAYS} días, y la de este equipo ya los cumplió.`,
+            el('strong', { text: 'La panadería retiró esta clave.' }),
+            ' Pon la nueva que os hayan dado. No es que haya caducado por tiempo:' +
+              ' alguien la ha retirado a propósito, y el cambio vale para las dos sedes.',
           ]),
       el('label', { class: 'label', for: 'renew-password', text: 'clave nueva' }),
       nueva,

@@ -20,6 +20,7 @@
  * @property {object|null} planPrint plan pendiente de imprimir
  * @property {boolean} online hay conexion en este momento
  * @property {boolean} settingsOpen
+ * @property {boolean} pedirClave hay que pedir la clave de edicion para publicar
  * @property {string} notice mensaje visible para la persona usuaria
  * @property {'info'|'error'|'success'} noticeKind
  * @property {string} loginError
@@ -45,6 +46,9 @@ const INITIAL = Object.freeze({
   planPrint: null,
   online: true,
   settingsOpen: false,
+  // Se acaba de guardar algo que puede publicarse pero falta la clave de
+  // edicion. Es estado de PANTALLA: no se guarda, y "Ahora no" lo apaga.
+  pedirClave: false,
   notice: '',
   noticeKind: 'info',
   loginError: '',

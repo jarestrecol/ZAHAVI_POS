@@ -60,6 +60,16 @@ let lastError = '';
 let currentSha = null;
 
 /**
+ * Generacion de acceso que declara el servidor. Ver `core/access.js`.
+ *
+ * Empieza en 0 y solo sube cuando alguien la sube en la configuracion del
+ * despliegue. Sin servidor se queda en 0, que significa "nunca se ha revocado":
+ * un equipo sin red nunca queda fuera por esto, que es la condicion que hace
+ * viable comprobar el acceso sin conexion.
+ */
+let accesoGen = 0;
+
+/**
  * Se pone cuando el servidor rechaza por conflicto. Mientras siga en pie no se
  * puede volver a publicar: hay que recargar y aplicar los cambios sobre la
  * version nueva. Sin esto, un segundo clic en Publicar borraba el trabajo de la
@@ -108,6 +118,14 @@ export function serverStatus() {
  * Clave de edicion guardada en este navegador, si la hay.
  * @returns {string}
  */
+/**
+ * Generacion de acceso vigente segun el servidor.
+ * @returns {number}
+ */
+export function generacionAcceso() {
+  return accesoGen;
+}
+
 export function getEditKey() {
   try {
     return window.sessionStorage.getItem(KEY_STORAGE) || '';
@@ -186,6 +204,12 @@ export async function fetchShared() {
     staleSinceConflict = false;
     serverState = 'ok';
     lastReadAt = new Date();
+
+    // Solo se acepta hacia arriba. Un servidor que de pronto contesta 0 -una
+    // variable borrada por error, un despliegue a medias- no debe poder
+    // rebajar la generacion y reactivar claves que ya se habian retirado.
+    const recibida = Number.parseInt(data.accesoGen, 10);
+    if (Number.isFinite(recibida) && recibida > accesoGen) accesoGen = recibida;
 
     return {
       ok: true,

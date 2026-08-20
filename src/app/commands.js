@@ -36,8 +36,38 @@ import * as repo from '../core/repository.js';
 import { setState, notify } from '../core/store.js';
 import { navigate, ALL_CATEGORIES } from '../core/router.js';
 import { announce } from '../lib/a11y.js';
-import { setEditKey } from '../core/remote.js';
+import { setEditKey, getEditKey } from '../core/remote.js';
 import { publicarEnSegundoPlano, sePuedePublicarSolo } from './sync.js';
+
+/**
+ * Pide la clave de edicion si es lo unico que falta para publicar.
+ *
+ * SE COMPRUEBA LA CONDICION, NO EL MOTIVO QUE DEJO `sync.js`. El motivo cuenta
+ * como acabo el ULTIMO intento, y eso no es lo mismo que lo que pasa ahora:
+ * despues de publicar a mano, la clave ya esta puesta pero el motivo sigue
+ * diciendo `sin_clave`, y el dialogo reaparecia en cada guardado siguiente
+ * pidiendo algo que ya se habia dado.
+ *
+ * Las cuatro condiciones son las de publicar, en el orden en que dejan de
+ * tener sentido:
+ *
+ *   sin cambios          no hay nada que enviar
+ *   con conflicto        hay dos versiones y eso se decide en Ajustes, mirando
+ *                        las dos; la clave no arregla nada
+ *   sin servidor         no hay a donde publicar (archivo local, o despliegue
+ *                        sin las variables puestas)
+ *   con clave ya puesta  este equipo ya publica solo
+ *
+ * Sin red no se pide tampoco, porque `canPublishToAll()` exige haber leido el
+ * recetario del servidor: sin esa lectura no hay referencia con la que publicar.
+ */
+function pedirClaveSiEsLoUnicoQueFalta() {
+  const cambios = repo.localChanges();
+  if (!cambios.dirty || cambios.conflict) return;
+  if (!repo.canPublishToAll()) return;
+  if (getEditKey()) return;
+  setState({ pedirClave: true });
+}
 
 /**
  * Vuelca al estado lo que el repositorio tenga ahora mismo.
@@ -85,6 +115,7 @@ export function saveRecipe(recipe) {
   announce('Receta guardada.');
   navigate({ name: 'detail', id: recipe.id });
   publicarEnSegundoPlano();
+  pedirClaveSiEsLoUnicoQueFalta();
 
   return result;
 }
@@ -120,6 +151,7 @@ export function deleteRecipe(id) {
   announce('Receta eliminada.');
   navigate({ name: 'index', id: null });
   publicarEnSegundoPlano();
+  pedirClaveSiEsLoUnicoQueFalta();
 
   return result;
 }
