@@ -876,6 +876,77 @@ comprobar('y la clave de edicion se borra', remote.getEditKey() === '', remote.g
  *  CIERRE: EL ARCHIVO REAL NO SE TOCO
  * ======================================================================== */
 
+console.log('\n14b. Un ingrediente a medias no se guarda');
+
+// Antes bastaba con el nombre: se podia guardar "AZUCAR" sin cantidad y sin
+// unidad. Ese ingrediente envenena todo lo que toca -escalar, consolidar la
+// compra, el Modo Pesar junto a la bascula, y la hoja que se lleva al obrador-,
+// asi que ahora se rechaza al guardar.
+function receta(items, componentes) {
+  return {
+    nombre: 'QA-TEST-VALIDACION X 1 UND',
+    categoria: 'PANADERÍA',
+    metodo: '',
+    componentes: componentes || [{ nombre: 'PRINCIPAL', items }],
+  };
+}
+
+let v = validateRecipe(receta([{ ingrediente: 'AZUCAR', cantidad: '100', unidad: 'GR' }]));
+comprobar('un ingrediente completo se acepta', v.ok, v.ok ? '' : v.message);
+
+v = validateRecipe(receta([{ ingrediente: 'AZUCAR', cantidad: '', unidad: 'GR' }]));
+comprobar('sin cantidad se rechaza', !v.ok && v.code === 'cantidad_required', v.ok ? 'lo acepto' : v.message);
+
+v = validateRecipe(receta([{ ingrediente: 'AZUCAR', cantidad: '100', unidad: '' }]));
+comprobar('sin unidad se rechaza', !v.ok && v.code === 'unidad_required', v.ok ? 'lo acepto' : v.message);
+
+v = validateRecipe(receta([{ ingrediente: 'AZUCAR', cantidad: 'un poco', unidad: 'GR' }]));
+comprobar('una cantidad que no es numero se rechaza', !v.ok && v.code === 'cantidad_invalid', v.ok ? 'lo acepto' : v.message);
+
+v = validateRecipe(receta([{ ingrediente: 'AZUCAR', cantidad: '0', unidad: 'GR' }]));
+comprobar('una cantidad de cero se rechaza', !v.ok && v.code === 'cantidad_cero', v.ok ? 'lo acepto' : v.message);
+
+v = validateRecipe(receta([{ ingrediente: 'AZUCAR', cantidad: '-5', unidad: 'GR' }]));
+comprobar('una cantidad negativa se rechaza', !v.ok, v.ok ? 'lo acepto' : v.message);
+
+// La fila libre que el editor deja siempre al final no puede dar error.
+v = validateRecipe(
+  receta([
+    { ingrediente: 'AZUCAR', cantidad: '100', unidad: 'GR' },
+    { ingrediente: '', cantidad: '', unidad: '' },
+  ]),
+);
+comprobar('la fila vacia del final se ignora, no da error', v.ok, v.ok ? '' : v.message);
+
+// Decimales con coma, que es como se escriben aqui.
+v = validateRecipe(receta([{ ingrediente: 'SAL', cantidad: '2,5', unidad: 'GR' }]));
+comprobar('acepta decimales con coma', v.ok, v.ok ? '' : v.message);
+
+// Con varios componentes, el mensaje tiene que decir en cual falla: con catorce
+// lineas en pantalla, "falta una cantidad" obliga a buscarla a ojo.
+v = validateRecipe(
+  receta(null, [
+    { nombre: 'BASE', items: [{ ingrediente: 'HARINA', cantidad: '1', unidad: 'KG' }] },
+    { nombre: 'RELLENO', items: [{ ingrediente: 'CREMA', cantidad: '', unidad: 'GR' }] },
+  ]),
+);
+comprobar(
+  'dice el ingrediente y el componente donde falla',
+  !v.ok && v.message.includes('CREMA') && v.message.includes('RELLENO'),
+  v.ok ? 'lo acepto' : v.message,
+);
+
+// Y lo que ya existe tiene que seguir entrando: las 121 reales estan completas.
+let realesValidas = 0;
+for (const r of publicado.recipes) {
+  if (validateRecipe(r).ok) realesValidas += 1;
+}
+comprobar(
+  'las 121 recetas reales pasan la validacion nueva',
+  realesValidas === publicado.recipes.length,
+  realesValidas + ' de ' + publicado.recipes.length,
+);
+
 console.log('\n15. El archivo de recetas reales no se modifico');
 const shaDespues = createHash('sha256').update(readFileSync(rutaDatos)).digest('hex');
 comprobar('mismo resumen sha256', shaAntes === shaDespues, shaDespues.slice(0, 8));

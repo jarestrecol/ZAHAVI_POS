@@ -112,7 +112,80 @@ export function validateRecipe(draft) {
   if (normalized.componentes.length === 0) {
     return err('items_required', 'Agrega al menos un ingrediente con nombre.');
   }
+
+  // UN INGREDIENTE A MEDIAS ES PEOR QUE NO TENERLO.
+  const incompleto = primerIngredienteIncompleto(normalized);
+  if (incompleto) return incompleto;
+
   return ok(normalized);
+}
+
+/**
+ * Busca el primer ingrediente al que le falte la cantidad o la unidad.
+ *
+ * POR QUE ES UN ERROR Y NO ALGO QUE SE REPARE.
+ *
+ * El resto del esquema limpia y rellena: un componente sin nombre pasa a ser
+ * "PRINCIPAL", una categoria desconocida pasa a "PASTELERIA". Eso vale para lo
+ * accesorio, pero una cantidad no se puede inventar, y sin ella el ingrediente
+ * envenena todo lo que toca:
+ *
+ *   Escalar        multiplicar una cantidad vacia no da nada
+ *   Plan del dia   consolidar la compra suma un hueco
+ *   Modo Pesar     sale el nombre junto a la bascula y ninguna cifra
+ *   La hoja        se lleva al obrador un ingrediente sin cuanto
+ *
+ * Y la unidad es la otra mitad del dato: 250 de azucar no dice nada si no se
+ * sabe si son gramos o mililitros.
+ *
+ * Una fila ENTERAMENTE vacia no da error: `normalizeComponent` la descarta
+ * antes de llegar aqui, que es lo correcto, porque el editor siempre ofrece una
+ * fila libre al final para seguir escribiendo. Lo que se rechaza es la fila a
+ * medias, que es la que se cuela sin querer.
+ *
+ * El mensaje dice QUE ingrediente falla, y en que componente cuando hay mas de
+ * uno: con catorce lineas en pantalla, "falta una cantidad" obliga a buscarla a
+ * ojo.
+ *
+ * @param {{componentes: Array}} recipe receta ya normalizada
+ * @returns {{ok: false, code: string, message: string}|null}
+ */
+function primerIngredienteIncompleto(recipe) {
+  const variosComponentes = recipe.componentes.length > 1;
+
+  for (const componente of recipe.componentes) {
+    for (const item of componente.items) {
+      const donde = variosComponentes
+        ? `«${item.ingrediente}», en ${componente.nombre}`
+        : `«${item.ingrediente}»`;
+
+      if (item.cantidad === '') {
+        return err('cantidad_required', `Falta la cantidad de ${donde}.`);
+      }
+
+      // Mismo criterio que usa el escalado para leer una cantidad, para que no
+      // se acepte aqui algo que alli no se pueda multiplicar.
+      const numero = Number.parseFloat(item.cantidad.replace(',', '.'));
+      if (!Number.isFinite(numero)) {
+        return err(
+          'cantidad_invalid',
+          `La cantidad de ${donde} tiene que ser un número: "${item.cantidad}".`,
+        );
+      }
+      if (numero <= 0) {
+        return err('cantidad_cero', `La cantidad de ${donde} tiene que ser mayor que cero.`);
+      }
+
+      if (item.unidad === '') {
+        return err(
+          'unidad_required',
+          `Falta la unidad de ${donde}: gramos, mililitros, unidades…`,
+        );
+      }
+    }
+  }
+
+  return null;
 }
 
 /**

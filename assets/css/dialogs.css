@@ -280,6 +280,13 @@
   margin: 0 var(--space-5) var(--space-4);
 }
 
+/* Dentro del pie ya hay relleno propio: el margen lateral lo desalinearia de
+   los botones que tiene al lado. */
+.win__footer .form-error {
+  margin: 0 0 var(--space-3);
+  flex-basis: 100%;
+}
+
 /* ---- Ajustes ---- */
 
 .settings__row {

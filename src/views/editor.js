@@ -461,7 +461,6 @@ export function openEditor(options) {
         }),
       ]),
     ]),
-    errorBox,
     buildDatalist(CATALOG_ID, options.ingredientes.map((i) => i.nombre)),
     buildDatalist(UNITS_ID, UNITS),
   ]);
@@ -500,6 +499,13 @@ export function openEditor(options) {
     onClose: options.onCancel,
     body,
     footer: [
+      // EL ERROR VA EN EL PIE, junto al boton que lo provoca.
+      //
+      // Estaba al final del formulario, despues del metodo de preparacion, que
+      // ocupa toda la mitad derecha: quedaba fuera de la vista. Se pulsaba
+      // Guardar, no se guardaba, y en pantalla no pasaba nada. El motivo estaba
+      // escrito, pero en un sitio donde nadie mira.
+      errorBox,
       el('p', { class: 'win__hint', text: 'Los cambios se guardan en este dispositivo.' }),
       el('div', { class: 'win__actions' }, [
         el('button', {
