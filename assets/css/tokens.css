@@ -199,6 +199,15 @@
   --line-cell: #eae7e0;
   --line-strong: #7c7770;
 
+  /*
+   * Borde de un control sobre estructura oscura.
+   *
+   * Habia tres valores sueltos para lo mismo, y los tres por debajo del 3:1 que
+   * pide la norma al contorno de un control: 0,22 (1,93:1) en `.btn--dark-ghost`
+   * y 0,28 (2,37:1) en `.prod__close`. A 0,40 da 3,53:1 sobre `--rail`.
+   */
+  --line-on-rail: rgba(245, 241, 234, 0.4);
+
   /* Halo cálido de marca en las pantallas de entrada y bienvenida. */
   --glow: rgba(246, 138, 30, 0.14);
 

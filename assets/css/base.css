@@ -314,9 +314,62 @@ button {
   stroke-linejoin: round;
 }
 
+/*
+ * El borde de `--line` da 1,41:1 sobre blanco: no se ve. Estaba corregido a mano
+ * en tres botones concretos de la ficha, y quedaban otros once con el borde
+ * invisible (confirmacion, editor, plan, Modo Pesar, ajustes, listado). Se
+ * arregla en el origen: `--line-strong` da 3,86:1, que es lo que la norma pide
+ * al contorno de un control.
+ */
 .btn--quiet {
   background: transparent;
+  border-color: var(--line-strong);
+}
+
+/*
+ * DESHABILITADO.
+ *
+ * No habia ningun estilo para esto, y hay botones que se deshabilitan de verdad:
+ * Eliminar hasta que se escribe el nombre, Imprimir sin nada seleccionado,
+ * Publicar sin cambios. Como `.btn` declara fondo, color y borde propios, un
+ * boton deshabilitado se veia EXACTAMENTE IGUAL que uno activo y conservaba el
+ * cursor de mano: se toca, no pasa nada, y no hay explicacion.
+ */
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  cursor: not-allowed;
+  background: var(--surface-sunk);
   border-color: var(--line);
+  color: var(--ink-4); /* 4,97:1 sobre `--surface-sunk`: apagado pero legible */
+  box-shadow: none;
+}
+
+.btn:disabled:hover,
+.btn[aria-disabled='true']:hover {
+  background: var(--surface-sunk);
+  border-color: var(--line);
+  color: var(--ink-4);
+}
+
+/*
+ * FOCO HACIA DENTRO, para los controles que viven en un contenedor con
+ * `overflow: hidden`.
+ *
+ * Un antepasado con `overflow: hidden` recorta el `outline` de sus
+ * descendientes, y el `outline-offset: 2px` de arriba lo dibuja justo fuera de
+ * la caja. En los dos segmentados el borde del boton coincide con la caja de
+ * recorte, asi que el anillo quedaba ENTERO fuera y no se veia nada: quien
+ * navega con teclado no sabia en que factor de tanda estaba.
+ *
+ * Dibujarlo hacia dentro lo resuelve sin tocar el `overflow`, que esta puesto
+ * para que el redondeo del grupo recorte a sus hijos.
+ */
+.scaler__btn:focus-visible,
+.ings__orden-btn:focus-visible,
+.plan__fila:focus-visible,
+.ings__fila:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
 }
 
 .btn--danger {
@@ -356,7 +409,7 @@ button {
 .btn--dark-ghost {
   background: rgba(245, 241, 234, 0.06);
   color: var(--on-rail);
-  border-color: rgba(245, 241, 234, 0.22);
+  border-color: var(--line-on-rail);
 }
 
 .btn--dark-ghost:hover {

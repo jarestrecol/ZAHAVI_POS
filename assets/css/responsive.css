@@ -104,7 +104,10 @@
      que se queda sin sitio primero. La cifra sigue alineada a la derecha y con
      su separador: lo unico que cambia es cuanto reserva. */
   .items {
-    grid-template-columns: minmax(0, 1fr) 7.5rem;
+    /* 7.5rem recortaba: la cifra se desborda hacia la IZQUIERDA por el
+       `justify-content: flex-end`, y se montaba encima del nombre del
+       ingrediente cruzando su propia linea de columna. */
+    grid-template-columns: minmax(0, 1fr) 9rem;
   }
 
   /* Canalón de tableta: 24px. Antes eran 16px, y solo para tres de las cinco
@@ -140,7 +143,7 @@
      mitad del ancho y es justo donde mas aprieta. Se toca el token y no cada
      rejilla: el encabezado, las lineas y el desglose lo comparten. */
   .plan__resultado {
-    --plan-cols: minmax(0, 1fr) 5.5rem;
+    --plan-cols: minmax(0, 1fr) 8rem;
   }
 
   /* Identidad del editor: las cuatro columnas no caben. La categoria baja a su
@@ -719,6 +722,25 @@
   .chip,
   .btn-icon {
     min-height: 2.75rem;
+  }
+
+  /*
+   * Faltaban justo los del control de tanda, que es lo ULTIMO que se toca
+   * antes de empezar a pesar y por tanto lo que mas se toca con las manos
+   * ocupadas. Medidos en tableta tactil se quedaban en 36 px de alto y 48 de
+   * ancho, los objetivos mas pequeños de la ficha, mientras los botones de al
+   * lado ya subian a 44.
+   */
+  .scaler__btn,
+  .ings__orden-btn,
+  .search__clear,
+  .notice__close,
+  .field {
+    min-height: 2.75rem;
+  }
+
+  .scaler__btn {
+    min-width: 2.75rem;
   }
 
   .recipe-link {

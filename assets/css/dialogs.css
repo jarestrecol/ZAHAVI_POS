@@ -270,6 +270,12 @@
   margin-top: var(--space-2);
 }
 
+/* A 40rem de ancho de ventana, un parrafo de 13px da unos 100 caracteres por
+   linea, muy por encima de la medida comoda de lectura. */
+.settings__help {
+  max-width: 58ch;
+}
+
 .form-error {
   margin: 0 var(--space-5) var(--space-4);
 }
@@ -560,7 +566,17 @@
    columnas, declaradas una sola vez. Es lo que deja los rotulos a plomo sobre
    sus cifras y las cifras a plomo entre si al recorrer la lista en vertical. */
 .plan__resultado {
-  --plan-cols: minmax(0, 1fr) 7rem;
+  /*
+   * La pista se dimensiona al PEOR CASO REAL, no al caso comodo. El recetario
+   * ya tiene "10008 GR" en una receta, y un plan consolidado llega a seis
+   * cifras con decimal ("36037,3 gr" necesita 116 px). Con 7rem el ultimo
+   * digito se cortaba, y como `.plan__lista` va en `overflow: hidden` no
+   * aparecia ni barra de desplazamiento: se perdia sin avisar.
+   *
+   * Un nombre truncado se reconoce igual. Un numero truncado MIENTE, y de esa
+   * cifra sale lo que se pesa.
+   */
+  --plan-cols: minmax(0, 1fr) 8rem;
   min-width: 0;
 }
 

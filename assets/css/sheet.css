@@ -824,7 +824,7 @@
      muy por debajo del 3:1 que exige la norma, y el boton se leia como texto
      suelto. El mismo tratamiento neutro translucido que los botones de la
      barra superior, y el radio de control, no el de superficie. */
-  border: 1px solid rgba(245, 241, 234, 0.28);
+  border: 1px solid var(--line-on-rail);
   border-radius: var(--radius-control);
   cursor: pointer;
 }
@@ -1101,6 +1101,53 @@
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--rail-line);
+}
+
+/*
+ * LOS BOTONES DEL PIE VAN SOBRE ESTRUCTURA OSCURA.
+ *
+ * `.btn` esta pensado para superficie clara, y aqui heredaba sus colores tal
+ * cual sobre el rail. Los numeros de lo que habia:
+ *
+ *   Anterior   `--ink-2` sobre `--rail`  ->  1,50:1   texto casi negro
+ *   Siguiente  `--ink`   sobre `--rail`  ->  1,04:1   el cuerpo del boton no
+ *                                                    existia, solo flotaba su
+ *                                                    etiqueta
+ *
+ * Y en la pantalla de "Todo pesado" Siguiente se retira, asi que Anterior se
+ * queda como una de las dos unicas acciones, invisible.
+ *
+ * Por que no se vio antes: `.btn:hover` cambia el fondo a `--surface-hover`,
+ * que sobre el rail da 16:1. CON RATON SE VE PERFECTO. Esta es la pantalla que
+ * se usa de pie junto a la bascula, donde no hay raton y no hay hover.
+ */
+.prod__foot .btn {
+  background: rgba(245, 241, 234, 0.06); /* `--on-rail` encima: 13,7:1 */
+  color: var(--on-rail);
+  border-color: var(--line-on-rail);
+}
+
+.prod__foot .btn:hover {
+  background: rgba(245, 241, 234, 0.14);
+  border-color: rgba(245, 241, 234, 0.55);
+  color: var(--on-rail);
+}
+
+/*
+ * Avanzar es la accion principal de esta pantalla, y aqui si toca el ambar
+ * profundo: el cuerpo da 3,0:1 sobre el rail, asi que el boton se ve como
+ * objeto, y admite blanco encima a 5,9:1.
+ */
+.prod__foot .btn--primary {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+  color: #fff;
+}
+
+.prod__foot .btn--primary:hover {
+  background: var(--brand-strong-hover);
+  border-color: var(--brand-strong-hover);
+  color: #fff;
 }
 
 .prod__next {

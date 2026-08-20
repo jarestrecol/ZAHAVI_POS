@@ -14,73 +14,63 @@
  *   - IBM Plex Mono       cifras: cantidades, códigos, fechas de publicación
  *
  * `font-display: swap` evita el texto invisible mientras carga el archivo: se
- * ve al instante con la tipografía del sistema y cambia sin salto de maqueta
- * en cuanto el archivo llega (los tres son "font-metric compatible" con sus
- * alternativas de sistema en el orden declarado en tokens.css).
+ * ve al instante con la tipografía del sistema y cambia en cuanto llega.
+ *
+ * Aquí decía que ese cambio ocurre "sin salto de maqueta" porque las tres son
+ * compatibles en métricas con sus alternativas del sistema. NO ES CIERTO, y
+ * conviene no repetirlo: no hay ni un `size-adjust`, `ascent-override` ni
+ * `descent-override` en este archivo, y las cajas no coinciden. Plus Jakarta
+ * Sans ocupa 1,260 em de alto con altura de x 0,536; Roboto, que es el
+ * `system-ui` real de una tableta Android, ocupa 1,171 em. El salto ocurre.
+ *
+ * Corregirlo de verdad pide una cara de respaldo con métricas ajustadas, y los
+ * porcentajes hay que medirlos contra el respaldo real de cada plataforma, no
+ * copiarlos de ningún sitio. Queda anotado como lo que es: pendiente.
  */
 
+/*
+ * UNA CARA POR FAMILIA, PORQUE SON FUENTES VARIABLES.
+ *
+ * Aqui habia cinco declaraciones de Plus Jakarta Sans apuntando a cinco
+ * archivos que resultaron ser EL MISMO ARCHIVO, byte a byte (mismo md5). Lo
+ * mismo pasaba con `lora-500` y `lora-600`. No era un despiste al copiar: los
+ * archivos son variables, con un eje de peso dentro, y la descarga los trajo
+ * repetidos con un nombre por peso.
+ *
+ * Se comprobo midiendo, no suponiendo: el ancho del mismo texto cambia con el
+ * peso (Jakarta va de 485,6 px a 507,7 px entre 200 y 800), asi que el eje
+ * funciona y una sola cara con rango cubre todos los pesos.
+ *
+ * Importa mas de lo que parece porque `sw.js` precacheaba los doce archivos por
+ * nombre: la tableta del obrador se descargaba las cinco copias enteras en cada
+ * instalacion y en cada cambio de version de la cache.
+ *
+ * Los rangos en `font-weight` de `@font-face` son CSS Fonts 4, soportados por
+ * los tres motores desde 2018.
+ */
 @font-face {
   font-family: 'Plus Jakarta Sans';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 200 800; /* el eje `wght` real del archivo */
   font-display: swap;
   src: url('../fonts/plus-jakarta-sans-400.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: 'Plus Jakarta Sans';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('../fonts/plus-jakarta-sans-500.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Plus Jakarta Sans';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('../fonts/plus-jakarta-sans-600.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Plus Jakarta Sans';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../fonts/plus-jakarta-sans-700.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Plus Jakarta Sans';
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src: url('../fonts/plus-jakarta-sans-800.woff2') format('woff2');
-}
-
-@font-face {
   font-family: 'Lora';
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400 700;
   font-display: swap;
-  src: url('../fonts/lora-500.woff2') format('woff2');
+  src: url('../fonts/lora-600.woff2') format('woff2');
 }
 
+/* La italica si es un archivo propio: no se toca. */
 @font-face {
   font-family: 'Lora';
   font-style: italic;
-  font-weight: 500;
+  font-weight: 400 700;
   font-display: swap;
   src: url('../fonts/lora-500i.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Lora';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('../fonts/lora-600.woff2') format('woff2');
 }
 
 @font-face {

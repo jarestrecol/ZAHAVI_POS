@@ -1,61 +1,5 @@
 [
   {
-    "family": "Plus Jakarta Sans",
-    "style": "normal",
-    "weight": "400",
-    "fileName": "plus-jakarta-sans-400.woff2",
-    "bytes": 27348
-  },
-  {
-    "family": "Plus Jakarta Sans",
-    "style": "normal",
-    "weight": "500",
-    "fileName": "plus-jakarta-sans-500.woff2",
-    "bytes": 27348
-  },
-  {
-    "family": "Plus Jakarta Sans",
-    "style": "normal",
-    "weight": "600",
-    "fileName": "plus-jakarta-sans-600.woff2",
-    "bytes": 27348
-  },
-  {
-    "family": "Plus Jakarta Sans",
-    "style": "normal",
-    "weight": "700",
-    "fileName": "plus-jakarta-sans-700.woff2",
-    "bytes": 27348
-  },
-  {
-    "family": "Plus Jakarta Sans",
-    "style": "normal",
-    "weight": "800",
-    "fileName": "plus-jakarta-sans-800.woff2",
-    "bytes": 27348
-  },
-  {
-    "family": "Lora",
-    "style": "italic",
-    "weight": "500",
-    "fileName": "lora-500i.woff2",
-    "bytes": 23376
-  },
-  {
-    "family": "Lora",
-    "style": "normal",
-    "weight": "500",
-    "fileName": "lora-500.woff2",
-    "bytes": 37788
-  },
-  {
-    "family": "Lora",
-    "style": "normal",
-    "weight": "600",
-    "fileName": "lora-600.woff2",
-    "bytes": 37788
-  },
-  {
     "family": "IBM Plex Mono",
     "style": "normal",
     "weight": "400",
@@ -75,5 +19,33 @@
     "weight": "600",
     "fileName": "ibm-plex-mono-600.woff2",
     "bytes": 15620
+  },
+  {
+    "family": "IBM Plex Mono",
+    "style": "normal",
+    "weight": "700",
+    "fileName": "ibm-plex-mono-700.woff2",
+    "bytes": 14908
+  },
+  {
+    "family": "Lora",
+    "style": "italic",
+    "weight": "400 700",
+    "fileName": "lora-500i.woff2",
+    "bytes": 23376
+  },
+  {
+    "family": "Lora",
+    "style": "normal",
+    "weight": "400 700",
+    "fileName": "lora-600.woff2",
+    "bytes": 37788
+  },
+  {
+    "family": "Plus Jakarta Sans",
+    "style": "normal",
+    "weight": "200 800",
+    "fileName": "plus-jakarta-sans-400.woff2",
+    "bytes": 27348
   }
 ]
