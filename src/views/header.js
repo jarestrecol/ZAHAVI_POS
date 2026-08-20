@@ -8,6 +8,7 @@
  */
 
 import { el, svg } from '../lib/dom.js';
+import { APP_VERSION } from '../core/version.js';
 
 /*
  * Iconos de la barra. Mismo lienzo de 24x24 y mismo grosor que los de la ficha
@@ -60,9 +61,17 @@ export function renderHeader(options) {
     // como un recorte pegado encima. El logo entero se reserva para la entrada y
     // la bienvenida, donde si funciona como pieza de marca.
     el('a', { class: 'topbar__brand', href: '#/', attrs: { 'aria-label': 'Zahavi, recetario' } }, [
-      el('span', { class: 'topbar__wordmark', text: 'ZAHAVI' }),
-      el('span', { class: 'topbar__dot', attrs: { 'aria-hidden': 'true' } }),
-      el('span', { class: 'topbar__sub', text: 'recetario' }),
+      el('span', { class: 'topbar__marca' }, [
+        el('span', { class: 'topbar__wordmark', text: 'ZAHAVI' }),
+        el('span', { class: 'topbar__dot', attrs: { 'aria-hidden': 'true' } }),
+        el('span', { class: 'topbar__sub', text: 'recetario' }),
+      ]),
+
+      // La version, debajo y en letra pequeña. Esta en la barra porque es lo
+      // que se ve desde cualquier pantalla del recetario, no solo al entrar:
+      // cuando una sede dice que algo no le aparece, la primera pregunta es si
+      // las dos miran lo mismo, y asi se contesta sin salir de donde se este.
+      el('span', { class: 'topbar__version', text: `v${APP_VERSION}` }),
     ]),
 
     // Empuja las acciones al extremo derecho, ahora que el buscador ya no

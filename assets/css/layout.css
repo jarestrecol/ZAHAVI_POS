@@ -53,12 +53,32 @@
 
 .topbar__brand {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  /* En columna para que la version quede DEBAJO del nombre. El `gap` es cero:
+     las dos lineas van juntas, como una firma. */
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
   flex-shrink: 0;
   padding: var(--space-1) var(--space-2) var(--space-1) 0;
   text-decoration: none;
   border-radius: var(--radius-sm);
+}
+
+/* El nombre y su punto siguen en fila; lo que cambia es lo que va debajo. */
+.topbar__marca {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* La letra mas pequeña de la barra: se lee cuando se busca, y el resto del
+   tiempo no compite con nada. */
+.topbar__version {
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  color: var(--on-rail-2);
+  line-height: 1.1;
 }
 
 .topbar__brand:hover .topbar__wordmark {

@@ -216,6 +216,10 @@
   }
 
   /* El descriptor sobra cuando el ancho aprieta: el nombre ya identifica. */
+  /* En celular la barra ya cede "recetario" por espacio, asi que la version
+     se va con el. Sigue estando en la pantalla de entrada y en Ajustes, que es
+     donde se va a buscar. */
+  .topbar__version,
   .topbar__sub,
   .topbar__dot {
     display: none;

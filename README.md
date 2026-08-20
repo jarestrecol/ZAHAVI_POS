@@ -35,6 +35,9 @@ sola fuente publicada y un historial completo de quién cambió qué.
 - **Funciona sin conexión** y se instala como aplicación en tableta y teléfono.
 - **Se publica solo**: lo guardado sale hacia las demás sedes sin que nadie tenga
   que acordarse, y si no hay red se reintenta al volver.
+- **Separa consultar de cambiar**: leer, buscar, escalar, imprimir y pesar son de
+  todo el obrador. Crear, modificar o eliminar una fórmula piden la clave de
+  edición, porque eso llega a las dos sedes.
 
 ---
 
@@ -125,6 +128,8 @@ A partir de ahí, cualquier cambio de estado o de dirección vuelve a llamar a
 ### Qué pasa al publicar
 
 ```
+Puerta  →  api/recipes.js         comprueba la clave SIN escribir nada,
+                                  antes de abrir el editor  (verificar: true)
 Editor  →  repository.save()      guarda en el equipo y marca "pendiente"
         →  sync.js                publica en segundo plano, o se hace a mano
         →  api/recipes.js         valida la clave (comparación de tiempo constante)
@@ -133,6 +138,12 @@ Editor  →  repository.save()      guarda en el equipo y marca "pendiente"
         →  GitHub Contents API    escribe data/recipes.json como un commit
         →  las demás sedes lo ven en su siguiente carga
 ```
+
+La clave se pide **al principio y no al final**. Antes se pedía al publicar, y
+con la publicación automática eso dejaba un hueco: eliminar una receta salía
+hacia las dos sedes sin volver a preguntar nada, así que bastaba encontrarse una
+tableta abierta. Pedirla delante cierra eso y de paso quita el gesto del final,
+porque cuando toca publicar la clave ya está puesta.
 
 El `sha` es obligatorio en cada envío: sin él, un envío ciego sobrescribiría el
 recetario de las dos sedes sin comprobar nada. Y publicar nunca es requisito para
@@ -200,7 +211,7 @@ docs/                      Documentación técnica
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
 npm run verificar    # nueve bloques de comprobación, sin navegador
-npm run qa           # 56 pruebas en navegador (escritorio, celular, tableta)
+npm run qa           # 58 pruebas en navegador (escritorio, celular, tableta)
 ```
 
 Los módulos ES necesitan servirse por HTTP: abrir `index.html` con doble clic no
@@ -258,8 +269,10 @@ Cuatro cosas que no son obvias y salen caras si se descubren tarde.
    ven las demás sedes.
 2. **El contenido es público para quien tenga el enlace.** La clave de acceso es
    una cortina, no una cerradura: `data/recipes.json` y `/api/recipes` entregan las
-   121 fórmulas sin ninguna clave. La única protección real es `EDIT_PASSWORD`,
-   que se comprueba en el servidor.
+   121 fórmulas sin ninguna clave. Lo que sí está protegido es **escribir**:
+   `EDIT_PASSWORD` se comprueba en el servidor y hace falta para crear, modificar,
+   eliminar y publicar. Es la única frontera real del sistema, y por eso la sabe
+   menos gente que la de entrar.
 3. **El techo es el tamaño del archivo, no el número de recetas.** La API de
    contenidos de GitHub deja de entregarlo a partir de 1 MB. Hoy son 225 KB y el
    umbral para actuar son 700 KB.

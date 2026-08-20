@@ -100,6 +100,14 @@ reglas. Ningún módulo de `core/` importa nada de `views/`. Las vistas leen de
     local y es una cortina, no una cerradura, y no puede validarse en el
     servidor: el recetario tiene que abrir sin cobertura. La única protección
     real es `EDIT_PASSWORD`, que sí se comprueba en el servidor.
+11. **Crear, modificar y eliminar piden la clave de edición ANTES**, no al
+    publicar. La puerta se monta en un solo punto por acción —`renderDialogs`
+    en `main.js`, donde se decide qué diálogo toca— y no en cada botón, para
+    que cubra también los atajos de teclado y entrar por la dirección directa.
+    Si añades una vía nueva de escritura, pasa por ahí. La comprueba el
+    servidor (`verificar: true`); comprobarla en el cliente sería teatro.
+    Sin recetario compartido no se pide: no hay quien la valide ni a dónde
+    publicar.
 
 Las quince reglas completas, con el defecto real que originó cada una, están en
 `docs/DECISIONES.md`, sección "Reglas al tocar el código". Ábrela solo si vas a
@@ -113,14 +121,14 @@ tocar CSS, foco, impresión o diseño de listas.
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
 npm run verificar    # 9 bloques, sin navegador, segundos
-npm run qa           # 56 pruebas en escritorio, celular y tableta
+npm run qa           # 58 pruebas en escritorio, celular y tableta
 ```
 
 `npm run verificar` en verde termina así:
 
 ```
-Sintaxis de los modulos… ok (36 archivos)
-Resolucion de importaciones… ok (33 modulos)
+Sintaxis de los modulos… ok (37 archivos)
+Resolucion de importaciones… ok (34 modulos)
 Coherencia del CSS… ok (310 clases)
 Capa de datos… ok (9 bloques)
 Publicacion y conflictos… ok (22 comprobaciones)
@@ -166,7 +174,7 @@ capas en cada envío.
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB |
 | Versión | 1.5.0 (Fase 1). El primer número es la fase de la hoja de ruta |
 | Node en el servidor | 24.x |
-| Bloques de `verificar` / pruebas de `qa` | 9 / 56 |
+| Bloques de `verificar` / pruebas de `qa` | 9 / 58 |
 
 Variables de entorno en Vercel: `GITHUB_TOKEN` (Contents: read and write),
 `GITHUB_REPO`, `GITHUB_BRANCH` y `EDIT_PASSWORD` obligatorias, más
