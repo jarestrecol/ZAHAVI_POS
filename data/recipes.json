@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-08-11",
+  "revision": "2026-08-20 17:38:14",
   "recipes": [
     {
       "id": "R001",
@@ -8309,6 +8309,97 @@
             {
               "ingrediente": "AGUA ( CALIENTE )",
               "cantidad": "200",
+              "unidad": "GR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R122",
+      "nombre": "JULIAN RESTREPO X 1 PAQ.",
+      "categoria": "PASTELERÍA",
+      "metodo": "bATIR HASTA MORIR",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            {
+              "ingrediente": "HUEVOS",
+              "cantidad": "1000",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "CLARAS DE HUEVO",
+              "cantidad": "1000",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "AZÚCAR",
+              "cantidad": "100",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "WHISKEY",
+              "cantidad": "5",
+              "unidad": "GR"
+            }
+          ]
+        },
+        {
+          "nombre": "GLASEADO",
+          "items": [
+            {
+              "ingrediente": "SPLENDA",
+              "cantidad": "10",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "SAL",
+              "cantidad": "10",
+              "unidad": "GR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R123",
+      "nombre": "JULIAN RESTREPO X 1 UND",
+      "categoria": "PASTELERÍA",
+      "metodo": "",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            {
+              "ingrediente": "SPLENDA",
+              "cantidad": "1000",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "WHISKEY",
+              "cantidad": "1000",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "MANTEQUILLA",
+              "cantidad": "50",
+              "unidad": "GR"
+            }
+          ]
+        },
+        {
+          "nombre": "DECORACIÓN",
+          "items": [
+            {
+              "ingrediente": "MEZCLA ALMOJÁBANA",
+              "cantidad": "10",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "SPLENDA",
+              "cantidad": "",
               "unidad": "GR"
             }
           ]
