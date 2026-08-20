@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-08-20 17:52:47",
+  "revision": "2026-08-20 17:52:59",
   "recipes": [
     {
       "id": "R001",
@@ -8309,54 +8309,6 @@
             {
               "ingrediente": "AGUA ( CALIENTE )",
               "cantidad": "200",
-              "unidad": "GR"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "R122",
-      "nombre": "JULIAN RESTREPO X 1 PAQ.",
-      "categoria": "PASTELERÍA",
-      "metodo": "bATIR HASTA MORIR",
-      "componentes": [
-        {
-          "nombre": "PRINCIPAL",
-          "items": [
-            {
-              "ingrediente": "HUEVOS",
-              "cantidad": "1000",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "CLARAS DE HUEVO",
-              "cantidad": "1000",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "AZÚCAR",
-              "cantidad": "100",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "WHISKEY",
-              "cantidad": "5",
-              "unidad": "GR"
-            }
-          ]
-        },
-        {
-          "nombre": "GLASEADO",
-          "items": [
-            {
-              "ingrediente": "SPLENDA",
-              "cantidad": "10",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "SAL",
-              "cantidad": "10",
               "unidad": "GR"
             }
           ]
