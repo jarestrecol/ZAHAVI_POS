@@ -150,7 +150,9 @@ test.describe('Sin recetario compartido', () => {
     await page.getByRole('button', { name: 'Ajustes' }).click();
 
     const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
-    await expect(fila.locator('.diag__value')).toHaveText('No disponible en este sitio');
+    // "Sitio" se cambio por "No configurado": en una panaderia un sitio es una
+    // sede, y quien leia esto en Panaderia entendia "no disponible en esta sede".
+    await expect(fila.locator('.diag__value')).toHaveText('No configurado');
 
     const automatica = page.locator('.diag__row', { hasText: 'Publicación automática' });
     await expect(automatica.locator('.diag__value')).toHaveText('No disponible');

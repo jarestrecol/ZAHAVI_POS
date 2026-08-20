@@ -32,7 +32,7 @@ import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js
 import { ensureAccess, isSignedIn, estadoClave, signOut, anotarGeneracion } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
-import { getEditKey, setEditKey } from './core/remote.js';
+import { setEditKey } from './core/remote.js';
 import { saveRecipe, deleteRecipe, publish, discardChanges } from './app/commands.js';
 import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
 import { renderLogin } from './views/login.js';
@@ -865,10 +865,11 @@ function buildSettings(state) {
     changes: repo.localChanges(),
     canPublish: repo.canPublishToAll(),
     needsReload: repo.needsReloadBeforePublish(),
-    editKey: getEditKey(),
     server: repo.serverDiagnosis(),
     sync: estadoSincronizacion(),
-    onPublish: publish,
+    // No se publica desde Ajustes: se abre el dialogo que ya sabe pedir la clave,
+    // enfocar el campo, aceptar Intro y enseñar el error donde se esta mirando.
+    onPedirClave: () => setState({ pedirClave: true }),
     onDiscard: discardChanges,
     onClose: () => setState({ settingsOpen: false }),
   });

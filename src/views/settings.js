@@ -65,7 +65,11 @@ export function openSettings(options) {
     onClose: options.onClose,
     body,
     footer: [
-      el('p', { class: 'win__hint', text: 'Sesión abierta en este equipo.' }),
+      // Aqui decia "Sesion abierta en este equipo", que solo constataba que se
+      // esta mirando la aplicacion. El mismo hueco trabaja en las otras dos
+      // ventanas: la de publicar avisa de lo que pasa si no se publica, y la de
+      // la clave dice que consultar no la necesita. Vacio es mas honesto que
+      // relleno, asi que se deja el hueco para cuando haya algo que decir.
       el('div', { class: 'win__actions' }, [
         el('button', {
           type: 'button',
@@ -81,9 +85,14 @@ export function openSettings(options) {
             },
           },
         }),
+        // Cerrar va en el tratamiento apagado, no en el de tinta. Era el boton
+        // con MAS peso visual de la ventana y no hace nada que no hagan ya la
+        // equis de la barra, Escape y el clic fuera. Segun el propio sistema de
+        // diseño, el relleno de tinta es "el avance dentro de un flujo", y
+        // descartar no lo es.
         el('button', {
           type: 'button',
-          class: 'btn btn--primary',
+          class: 'btn btn--quiet',
           text: 'Cerrar',
           on: { click: options.onClose },
         }),
@@ -97,34 +106,37 @@ export function openSettings(options) {
  * ======================================================================== */
 
 function renderStatusBlock(options) {
-  const message = el('p', { class: 'form-note', attrs: { role: 'status' } });
 
   return el('section', { class: 'settings__row' }, [
     el('h3', { class: 'section-label', text: 'Estado del recetario' }),
 
+    // Un solo recuento en vez de dos lineas que repetian la misma cifra.
+    //
+    // Y ya no se llama "version" a la marca de la ultima publicacion: la barra
+    // de titulo de esta misma ventana dice `v1.5.0` a cuatrocientos pixeles de
+    // aqui, y eran dos cosas distintas con el mismo nombre.
     el('p', { class: 'settings__count' }, [
       el('strong', { text: String(options.recipeCount) }),
-      options.recipeCount === 1 ? ' receta.' : ' recetas.',
-      options.revision ? ` Versión publicada: ${options.revision}.` : '',
+      options.recipeCount === 1 ? ' receta' : ' recetas',
+      options.withMethod > 0
+        ? `, ${options.withMethod} con el método escrito.`
+        : '. Ninguna tiene el método escrito todavía.',
     ]),
 
-    el('p', {
-      class: 'settings__help',
-      text: `${options.withMethod} de ${options.recipeCount} recetas tienen el método escrito.`,
-    }),
+    options.revision
+      ? el('p', { class: 'settings__help', text: `Última publicación: ${options.revision}.` })
+      : null,
 
     renderChanges(options.changes),
 
     // El bloque de publicar solo aparece si este sitio tiene la funcion de
     // servidor activa. Sin ella no hay a donde publicar.
-    options.canPublish ? renderPublish(options, message) : null,
+    options.canPublish ? renderPublish(options) : null,
 
-    options.canPublish
-      ? null
-      : el('p', {
-          class: 'settings__help',
-          text: 'Este sitio no tiene publicación compartida activa: los cambios se quedan en este equipo.',
-        }),
+    // Aqui iba un aviso de "este sitio no tiene publicacion compartida". Se
+    // retiro porque el bloque de Conexion, doscientos pixeles mas abajo, ya lo
+    // dice DOS veces: en "Recetario compartido" y en "Publicacion automatica".
+    // Tres formas de decir lo mismo en la misma pantalla no informan mas.
 
     options.changes.dirty
       ? el('div', { class: 'settings__actions' }, [
@@ -165,7 +177,10 @@ function renderDiagnosisBlock(options) {
       ...linea('Recetario compartido', estadoDelServidor(server.state)),
       ...linea('Última lectura', horaCorta(server.readAt)),
       ...linea('Publicación automática', estadoDeLaPublicacion(options, sync)),
-      ...linea('Sin conexión', modoSinConexion()),
+      // "Sin conexion: Listo" era la peor linea de la ventana: la etiqueta
+      // nombra una averia y el valor una preparacion, asi que el par entero se
+      // leia como "no tiene usted conexion". Lo que describe es una capacidad.
+      ...linea('Uso sin señal', modoSinConexion()),
     ]),
 
     // El texto exacto del servidor, cuando lo hay. Es lo que convierte
@@ -204,7 +219,9 @@ function estadoDelServidor(estado) {
     case 'ok':
       return 'Conectado';
     case 'sin_api':
-      return 'No disponible en este sitio';
+      // "Sitio" aqui es el despliegue, pero en la panaderia un sitio es una
+      // sede: quien lee esto en Panaderia entiende "no disponible en esta sede".
+      return 'No configurado';
     case 'error':
       return 'Responde con error';
     case 'sin_red':
@@ -237,7 +254,7 @@ function modoSinConexion() {
 }
 
 function horaCorta(fecha) {
-  if (!(fecha instanceof Date)) return '—';
+  if (!(fecha instanceof Date)) return 'Todavía no';
   // `'es'` a secas, igual que la fecha de las hojas impresas (`views/print.js`):
   // el recetario esta en español de principio a fin y no depende de la region
   // que tenga configurada cada equipo.
@@ -255,16 +272,33 @@ function horaCorta(fecha) {
  * valida. Comprobarla en el navegador seria inutil, porque cualquiera puede ver
  * y cambiar lo que corre en su propia pagina.
  */
-function renderPublish(options, message) {
-  const key = el('input', {
-    type: 'password',
-    id: 'edit-key',
-    class: 'field',
-    value: options.editKey || '',
-    placeholder: 'Clave de edición',
-    autocomplete: 'off',
-  });
-
+/**
+ * La salida manual cuando la publicacion automatica no basto.
+ *
+ * AQUI HABIA UN FORMULARIO CON SU PROPIO CAMPO DE CLAVE, y era la unica via para
+ * publicar. Por eso en toda la vida del recetario no se publico ni una vez:
+ * nadie descubria que habia que entrar en Ajustes a escribir una segunda clave.
+ *
+ * Ya no hace falta. Crear, modificar y eliminar piden la clave antes de tocar la
+ * receta, y despues se publica solo. Para llegar hasta aqui hay que haberla
+ * escrito hace un momento, asi que pedirla otra vez no protege nada: solo era
+ * un tercer sitio donde equivocarse, con la misma clave.
+ *
+ * Y el campo tenia un problema propio: se rellenaba con `options.editKey`, o sea
+ * que dejaba la clave de edicion del dia escrita en el DOM de un equipo del
+ * mostrador. Justo lo contrario de lo que se decidio al montar la puerta: que la
+ * clave guardada NO es un permiso.
+ *
+ * Lo que si sigue haciendo falta es el BOTON. Es la unica forma de sacar un
+ * cambio guardado ayer cuando hoy nadie va a volver a editar: al arrancar nadie
+ * intenta publicar, y sin editar de nuevo eso se queda en el equipo. Ademas el
+ * aviso de la cabecera dice "Publicar" y trae aqui; sin boton, lo unico que se
+ * encontraria sobre el trabajo pendiente seria "Descartar".
+ *
+ * @param {object} options
+ * @returns {HTMLElement|null}
+ */
+function renderPublish(options) {
   // Otra sede publico mientras tanto: hay que recargar para no pisar su trabajo.
   if (options.needsReload) {
     return el('div', { class: 'settings__publish' }, [
@@ -281,48 +315,20 @@ function renderPublish(options, message) {
     ]);
   }
 
-  const button = el('button', {
-    type: 'button',
-    class: 'btn btn--primary',
-    text: 'Publicar para todas las sedes',
-    disabled: !options.changes.dirty,
-    on: {
-      click: async () => {
-        if (!key.value.trim()) {
-          message.textContent = 'Escribe la clave de edición para publicar.';
-          message.classList.add('is-error');
-          return;
-        }
-
-        button.disabled = true;
-        button.textContent = 'Publicando…';
-        message.classList.remove('is-error');
-        message.textContent = '';
-
-        const result = await options.onPublish(key.value.trim());
-
-        button.textContent = 'Publicar para todas las sedes';
-        button.disabled = !options.changes.dirty;
-
-        if (!result.ok) {
-          message.textContent = result.message;
-          message.classList.add('is-error');
-          announce(result.message, 'assertive');
-          return;
-        }
-
-        message.textContent = `Publicado. ${result.value.count} recetas disponibles en todas las sedes.`;
-      },
-    },
-  });
+  // Sin cambios pendientes no hay nada que publicar, y un boton apagado sin
+  // explicacion es peor que ningun boton.
+  if (!options.changes.dirty) return null;
 
   return el('div', { class: 'settings__publish' }, [
-    el('label', { class: 'label', for: 'edit-key', text: 'clave de edición' }),
-    el('div', { class: 'settings__publish-row' }, [key, button]),
-    message,
+    el('button', {
+      type: 'button',
+      class: 'btn btn--accent',
+      text: 'Publicar ahora',
+      on: { click: options.onPedirClave },
+    }),
     el('p', {
       class: 'settings__help',
-      text: 'Al publicar, los cambios quedan disponibles al instante en todas las sedes y se guardan en el historial.',
+      text: 'Normalmente no hace falta: cada cambio guardado sale solo hacia las demás sedes. Esto es para cuando quedó algo sin enviar.',
     }),
   ]);
 }
@@ -400,7 +406,7 @@ function renderPasswordBlock() {
   };
 
   return el('section', { class: 'settings__row' }, [
-    el('h3', { class: 'section-label', text: 'Clave de acceso' }),
+    el('h3', { class: 'section-label', text: 'Clave de acceso · una cortina, no una cerradura' }),
 
     // DONDE VIVE ESTA CLAVE, dicho en la pantalla donde se cambia y no solo en
     // el manual. Cambiarla aqui no la cambia en la tableta del obrador, y eso
@@ -411,10 +417,20 @@ function renderPasswordBlock() {
       ' Cambiarla aquí no la cambia en los demás equipos.',
     ]),
 
-    el('div', { class: 'settings__grid settings__grid--3' }, [
+    el('div', { class: 'settings__grid' }, [
       el('div', null, [el('label', { class: 'label', for: 'pwd-current', text: 'clave actual' }), current]),
-      el('div', null, [el('label', { class: 'label', for: 'pwd-new', text: 'clave nueva' }), next]),
-      el('div', null, [el('label', { class: 'label', for: 'pwd-confirm', text: 'repetir' }), confirmation]),
+      // La regla del campo va PEGADA al campo. Estaba en la ultima frase de un
+      // parrafo debajo del boton, asi que se leia despues de que el error ya la
+      // hubiera dicho.
+      el('div', null, [
+        el('label', { class: 'label', for: 'pwd-new', text: 'clave nueva' }),
+        next,
+        el('p', {
+          class: 'settings__pista',
+          text: `Mínimo ${MIN_PASSWORD_LENGTH} caracteres, distinta de la actual.`,
+        }),
+      ]),
+      el('div', null, [el('label', { class: 'label', for: 'pwd-confirm', text: 'repetir la nueva' }), confirmation]),
     ]),
 
     el('div', { class: 'settings__actions' }, [
@@ -424,12 +440,13 @@ function renderPasswordBlock() {
 
     el('p', {
       class: 'settings__help',
-      text: `No caduca por tiempo. Cuando alguien deja el equipo o la clave se sabe de más, la panadería la retira desde el servidor y todos los aparatos piden una nueva a la vez, en la siguiente carga. Mínimo ${MIN_PASSWORD_LENGTH} caracteres y distinta de la anterior.`,
+      text: 'No caduca. La panadería puede retirarla desde el servidor: entonces todos los equipos piden una nueva en la siguiente carga.',
     }),
 
-    el('p', {
-      class: 'settings__help',
-      text: 'La clave protege frente a miradas casuales sobre el mostrador. Quien tenga el enlace puede ver el contenido igualmente: lo que de verdad protege el recetario es la clave de edición.',
-    }),
+    // Aqui iba una nota sobre el modelo de amenaza, y era el ultimo texto de la
+    // ventana: explicaba que esta clave es una cortina y remataba señalando a la
+    // clave de edicion, que desde hoy ya no vive en esta pantalla. Su sitio es
+    // `docs/SEGURIDAD.md`; la idea que valia la pena conservar cabe en el titulo
+    // de la seccion.
   ]);
 }

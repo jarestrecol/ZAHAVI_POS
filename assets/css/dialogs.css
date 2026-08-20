@@ -272,9 +272,6 @@
 
 /* A 40rem de ancho de ventana, un parrafo de 13px da unos 100 caracteres por
    linea, muy por encima de la medida comoda de lectura. */
-.settings__help {
-  max-width: 58ch;
-}
 
 .form-error {
   margin: 0 var(--space-5) var(--space-4);
@@ -298,10 +295,41 @@
   border-bottom: none;
 }
 
+/*
+ * UN FORMULARIO NO EMPIEZA PEGADO AL PARRAFO QUE LO EXPLICA.
+ *
+ * Este era el "esta muy desajustado" que se reporto. Medidos los huecos de la
+ * seccion, el unico que valia CERO era justo el que separa la prosa del
+ * formulario:
+ *
+ *   parrafo  -> etiqueta      0 px
+ *   etiqueta -> campo         8 px
+ *   campo    -> boton        12 px
+ *   boton    -> ayuda        12 px
+ *
+ * Con eso, la versalita "CLAVE ACTUAL" quedaba pegada a la ultima linea del
+ * parrafo y se leia como parte de la frase, no como la etiqueta de su campo. En
+ * celular, donde la frase ocupa dos lineas, peor.
+ *
+ * Las tres columnas se declaran aqui y no en un modificador aparte: el
+ * modificador era el unico uso real, y la version de dos columnas de este
+ * bloque solo existia para que la pisaran 860 lineas mas abajo, bajo un
+ * comentario de una pantalla de usuarios que ya no existe.
+ */
 .settings__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+/* La regla de un campo, pegada a su campo: mas pequeña que la ayuda de la
+   seccion, porque habla de una sola casilla y no de la pantalla. */
+.settings__pista {
+  margin-top: var(--space-2);
+  font-size: var(--text-2xs);
+  line-height: 1.4;
+  color: var(--ink-4);
 }
 
 .settings__actions {
@@ -317,6 +345,17 @@
   color: var(--ink-2);
 }
 
+/*
+ * SIN TOPE DE MEDIDA.
+ *
+ * Llevaba `max-width: 58ch` con un comentario que afirmaba que la columna daba
+ * "unos 100 caracteres por linea". Medido en el navegador son 62, que ya esta
+ * dentro de lo comodo: el tope no compraba legibilidad y costaba alineacion.
+ *
+ * Lo que si hacia era cortar cada ayuda 40 px antes que los campos, las tablas
+ * y los avisos, con lo que el borde derecho de la ventana quedaba dentado
+ * seccion por seccion.
+ */
 .settings__help {
   margin-top: var(--space-3);
   font-size: var(--text-sm);
@@ -1157,12 +1196,6 @@
   font-size: var(--text-base);
   font-style: italic;
   color: var(--ink-4);
-}
-
-/* ---- Usuarios ---- */
-
-.settings__grid--3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 

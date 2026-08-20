@@ -514,7 +514,6 @@
 
   .editor__panes,
   .settings__grid,
-  .settings__grid--3,
   .plan {
     grid-template-columns: 1fr;
   }
