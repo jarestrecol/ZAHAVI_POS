@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-08-20 19:43:21",
+  "revision": "2026-08-20 19:43:43",
   "recipes": [
     {
       "id": "R001",
@@ -8309,44 +8309,6 @@
             {
               "ingrediente": "AGUA ( CALIENTE )",
               "cantidad": "200",
-              "unidad": "GR"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "R122",
-      "nombre": "JULIAN RESTREPO X 1 UND",
-      "categoria": "PASTELERÍA",
-      "metodo": "",
-      "componentes": [
-        {
-          "nombre": "PRINCIPAL",
-          "items": [
-            {
-              "ingrediente": "SPLENDA",
-              "cantidad": "1000",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "FÉCULA",
-              "cantidad": "3",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "FÉCULA",
-              "cantidad": "4",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "CAFÉ SOLUBLE",
-              "cantidad": "4",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "CAFÉ SOLUBLE",
-              "cantidad": "6",
               "unidad": "GR"
             }
           ]
