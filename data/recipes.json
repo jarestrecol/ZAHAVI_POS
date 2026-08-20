@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-08-20 17:38:30",
+  "revision": "2026-08-20 17:52:47",
   "recipes": [
     {
       "id": "R001",
@@ -8357,49 +8357,6 @@
             {
               "ingrediente": "SAL",
               "cantidad": "10",
-              "unidad": "GR"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "R123",
-      "nombre": "JULIAN RESTREPO X 1 UND",
-      "categoria": "PASTELERÍA",
-      "metodo": "",
-      "componentes": [
-        {
-          "nombre": "PRINCIPAL",
-          "items": [
-            {
-              "ingrediente": "SPLENDA",
-              "cantidad": "1000",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "WHISKEY",
-              "cantidad": "1000",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "MANTEQUILLA",
-              "cantidad": "50",
-              "unidad": "GR"
-            }
-          ]
-        },
-        {
-          "nombre": "DECORACIÓN",
-          "items": [
-            {
-              "ingrediente": "MEZCLA ALMOJÁBANA",
-              "cantidad": "10",
-              "unidad": "GR"
-            },
-            {
-              "ingrediente": "SPLENDA",
-              "cantidad": "5",
               "unidad": "GR"
             }
           ]
