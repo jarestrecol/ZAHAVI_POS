@@ -2,6 +2,23 @@
 
 /* ---- Entrada ---- */
 
+/*
+ * LA PANTALLA DE ENTRADA LLEVA EL OBRADOR DE FONDO.
+ *
+ * Las capas van de arriba abajo en el orden en que se escriben:
+ *
+ *   1. el velo claro, que es lo que garantiza que el formulario se lea
+ *   2. la fotografia, recortada para llenar sin deformarse
+ *   3. `--surface`, que es lo que se ve si la foto no esta o no carga
+ *
+ * Esa tercera capa no es decorativa: es lo que hace que esto no dependa de la
+ * imagen. Sin ella, un archivo que falta deja la pantalla en blanco; con ella,
+ * se ve exactamente el fondo de antes y no se rompe nada.
+ *
+ * `background-attachment` se queda en su valor normal a proposito: fijarla
+ * cuesta cara en moviles y aqui no aporta nada, porque esta pantalla no se
+ * desplaza.
+ */
 .login {
   display: flex;
   align-items: center;
@@ -9,9 +26,26 @@
   min-height: 100vh;
   min-height: 100dvh;
   padding: var(--space-5);
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, var(--glow), transparent 65%),
-    var(--surface);
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(
+      180deg,
+      var(--velo-entrada-alto) 0%,
+      var(--velo-entrada-medio) 45%,
+      var(--velo-entrada-bajo) 100%
+    ),
+    url('../fondo-entrada.jpg');
+  background-position: center, center;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
+}
+
+/*
+ * Sobre una fotografia, la tarjeta necesita despegarse mas que sobre un fondo
+ * liso: con la sombra corta de antes se quedaba pegada al pan.
+ */
+.login .login__card {
+  box-shadow: var(--shadow-lg);
 }
 
 .login__card {
