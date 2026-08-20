@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-08-20 19:42:58",
+  "revision": "2026-08-20 19:43:15",
   "recipes": [
     {
       "id": "R001",
@@ -8341,7 +8341,7 @@
             },
             {
               "ingrediente": "CAFÉ SOLUBLE",
-              "cantidad": "5",
+              "cantidad": "",
               "unidad": "GR"
             },
             {
