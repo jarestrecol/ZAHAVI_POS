@@ -179,7 +179,7 @@ git. Cada publicación es un commit real: el historial de git *es* el registro d
 auditoría, y cualquier versión anterior se recupera desde GitHub.
 
 Esta elección es deliberada para el volumen actual. La sección
-[Limitaciones](../README.md#limitaciones-conocidas) documenta cuándo dejará de servir.
+[Limitaciones](HOJA-DE-RUTA.md#limitaciones-conocidas) documenta cuándo dejará de servir.
 
 ### Validación en dos niveles
 
