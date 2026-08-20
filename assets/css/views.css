@@ -34,7 +34,7 @@
       var(--velo-entrada-medio) 45%,
       var(--velo-entrada-bajo) 100%
     ),
-    url('../fondo-entrada.jpg');
+    url('../fondo-entrada.webp');
   background-position: center, center;
   background-size: cover, cover;
   background-repeat: no-repeat, no-repeat;

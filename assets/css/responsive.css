@@ -605,11 +605,23 @@
     flex: 1 1 40%;
   }
 
+  /*
+   * LA TARJETA CONSERVA SU FONDO TAMBIEN EN CELULAR.
+   *
+   * Aqui iba sin fondo, sin borde y sin sombra, y era lo correcto mientras la
+   * pantalla de entrada tenia un fondo liso: en un telefono, el marco solo
+   * apretaba el formulario contra los bordes sin aportar nada.
+   *
+   * Con la fotografia del obrador detras deja de serlo. Una tarjeta sin fondo
+   * sobre una foto no es una decision de diseño: es texto encima de una imagen,
+   * y el contraste pasa a depender de por donde caiga un croissant. Se vio en la
+   * primera captura a 375 px, con el aviso legal leyendose sobre el hojaldre.
+   *
+   * Se conserva el relleno mas compacto, que si era del telefono; lo que vuelve
+   * es lo que garantiza que se lea.
+   */
   .login__card {
     padding: var(--space-5) var(--space-4);
-    border: none;
-    box-shadow: none;
-    background: transparent;
   }
 
   /* --- Avisos ----------------------------------------------------------- */
