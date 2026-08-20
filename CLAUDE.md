@@ -100,14 +100,18 @@ reglas. Ningún módulo de `core/` importa nada de `views/`. Las vistas leen de
     local y es una cortina, no una cerradura, y no puede validarse en el
     servidor: el recetario tiene que abrir sin cobertura. La única protección
     real es `EDIT_PASSWORD`, que sí se comprueba en el servidor.
-11. **Crear, modificar y eliminar piden la clave de edición ANTES**, no al
-    publicar. La puerta se monta en un solo punto por acción —`renderDialogs`
-    en `main.js`, donde se decide qué diálogo toca— y no en cada botón, para
-    que cubra también los atajos de teclado y entrar por la dirección directa.
-    Si añades una vía nueva de escritura, pasa por ahí. La comprueba el
-    servidor (`verificar: true`); comprobarla en el cliente sería teatro.
-    Sin recetario compartido no se pide: no hay quien la valide ni a dónde
-    publicar.
+11. **Crear, modificar y eliminar piden la clave de edición ANTES y CADA VEZ**,
+    no al publicar y no una vez por sesión. El permiso vive en
+    `state.autorizacion`, vale para una acción concreta y se retira al terminar
+    o cancelar. **No lo ates a `getEditKey()`**: esa clave está en la sesión
+    solo para que la publicación salga sola, y usarla como permiso convierte la
+    primera comprobación del día en una llave que abre la jornada entera.
+    La puerta se monta en un solo punto por acción —`renderDialogs` en
+    `main.js`, donde se decide qué diálogo toca— y no en cada botón, para que
+    cubra también los atajos de teclado y entrar por la dirección directa. Si
+    añades una vía nueva de escritura, pasa por ahí. La comprueba el servidor
+    (`verificar: true`); comprobarla en el cliente sería teatro. Sin recetario
+    compartido no se pide: no hay quien la valide ni a dónde publicar.
 
 Las quince reglas completas, con el defecto real que originó cada una, están en
 `docs/DECISIONES.md`, sección "Reglas al tocar el código". Ábrela solo si vas a

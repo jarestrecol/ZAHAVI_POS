@@ -243,20 +243,42 @@ test('un 200 que no es una publicación no se anuncia como publicado', async ({ 
   await expect(page.locator('.context-badge')).toContainText('sin publicar');
 });
 
-test('con la clave puesta, el segundo guardado tambien publica solo', async ({ page }) => {
+test('la clave se pide CADA VEZ, no una vez por sesion', async ({ page }) => {
   const envios = await servidorQuePublica(page);
   await entrar(page);
 
   await crearReceta(page, 'QA-TEST-PRIMERA');
   await expect.poll(() => envios.length, { timeout: 7000 }).toBe(1);
 
-  // La segunda vez la puerta ya no aparece: la clave sigue en la sesion.
+  // LA SEGUNDA VEZ VUELVE A PEDIRLA. El permiso que concede la puerta vale para
+  // una accion y se retira en cuanto esa accion termina. Guardar la clave para
+  // publicar no es lo mismo que quedar autorizado el resto del dia: si lo fuera,
+  // quien se encontrara la tableta del mostrador abierta podria cambiar formulas
+  // de las dos sedes sin que nadie volviera a preguntarle nada.
   await page.getByRole('button', { name: 'Nueva receta' }).click();
-  await expect(puerta(page)).toHaveCount(0);
+  await expect(puerta(page)).toBeVisible();
+
+  await pasarLaPuerta(page);
   await rellenarYGuardar(page, 'QA-TEST-SEGUNDA');
 
   await expect.poll(() => envios.length, { timeout: 7000 }).toBe(2);
   expect(envios[1].recipes.some((r) => r.nombre === 'QA-TEST-SEGUNDA')).toBe(true);
+});
+
+test('tambien la pide al editar una receta que ya existe', async ({ page }) => {
+  await servidorQuePublica(page);
+  await entrar(page, `#/receta/${RECETA}`);
+
+  await page.getByRole('button', { name: 'Editar la receta' }).click();
+  await expect(puerta(page)).toBeVisible();
+
+  await pasarLaPuerta(page);
+  await expect(page.getByRole('textbox', { name: 'nombre de la receta' })).toBeVisible();
+
+  // Y al cerrar sin guardar, el permiso muere con la ventana.
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await page.getByRole('button', { name: 'Editar la receta' }).click();
+  await expect(puerta(page)).toBeVisible();
 });
 
 test('si se pierde la clave de la sesion, la puerta vuelve a pedirla', async ({ page }) => {

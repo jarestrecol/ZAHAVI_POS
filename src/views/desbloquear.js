@@ -25,13 +25,29 @@
  *  seria teatro, porque basta con abrir las herramientas del navegador para
  *  saltarse cualquier comprobacion que viva en el cliente.
  *
+ *  CADA VEZ, NO UNA VEZ AL DIA
+ *  ---------------------------
+ *  El permiso que concede esta pantalla vale para UNA accion y se retira en
+ *  cuanto esa accion termina o se cancela. Volver a editar vuelve a pedir la
+ *  clave.
+ *
+ *  La clave si queda guardada en la sesion, pero solo para que la publicacion
+ *  salga sola despues de guardar. Usarla ademas como permiso de entrada
+ *  convertia la primera comprobacion del dia en una llave que abria el resto de
+ *  la jornada: quien se encontrara la tableta del mostrador abierta podia crear,
+ *  cambiar o borrar formulas de las dos sedes sin que nadie volviera a
+ *  preguntarle nada.
+ *
  *  SIN CONEXION
  *  ------------
- *  La clave queda en la sesion del navegador tras la primera comprobacion, asi
- *  que si ya se puso, se sigue trabajando aunque se caiga la señal: este
- *  dialogo no llega a aparecer. Lo que no se puede es EMPEZAR a editar sin red
- *  y sin haberla puesto antes, porque no hay a quien preguntar. Se dice tal
- *  cual, en vez de dejar escribir media receta para rechazarla al final.
+ *  No se puede editar. La comprobacion la hace el servidor, y sin red no hay a
+ *  quien preguntar. Se dice al intentarlo, en vez de dejar escribir media receta
+ *  para rechazarla al final.
+ *
+ *  Es el precio de comprobar siempre, y esta asumido: consultar, buscar, escalar
+ *  la tanda, imprimir y el Modo Pesar siguen funcionando sin señal, que es para
+ *  lo que se usa el recetario en el obrador. Lo que espera a que vuelva la red
+ *  es cambiar formulas.
  */
 
 import { el } from '../lib/dom.js';
@@ -111,7 +127,7 @@ export function openDesbloquear(options) {
 
       el('p', {
         class: 'settings__help',
-        text: 'Cambiar una fórmula llega a la panadería y a la casa de producción, así que hace falta la clave de edición. No es la que usas para entrar: es la que da la panadería para publicar. Se pide una vez y vale para el resto del día en este equipo.',
+        text: 'Cambiar una fórmula llega a la panadería y a la casa de producción, así que hace falta la clave de edición. No es la que usas para entrar: es la que da la panadería para publicar, y se pide cada vez que se va a tocar una receta.',
       }),
 
       el('label', {

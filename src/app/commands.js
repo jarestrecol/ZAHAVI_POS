@@ -113,6 +113,8 @@ export function saveRecipe(recipe) {
     'success',
   );
   announce('Receta guardada.');
+  // El permiso muere con la accion: volver a editar vuelve a pedir la clave.
+  setState({ autorizacion: null });
   navigate({ name: 'detail', id: recipe.id });
   publicarEnSegundoPlano();
   pedirClaveSiEsLoUnicoQueFalta();
@@ -143,7 +145,7 @@ export function deleteRecipe(id) {
   }
 
   refreshState();
-  setState({ confirmDelete: null });
+  setState({ confirmDelete: null, autorizacion: null });
   notify(
     sePuedePublicarSolo() ? 'Receta eliminada. Publicando…' : 'Receta eliminada en este equipo.',
     'success',

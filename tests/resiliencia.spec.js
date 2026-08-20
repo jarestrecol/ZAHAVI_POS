@@ -238,11 +238,38 @@ test.describe('Dos sedes editando', () => {
    * @param {import('@playwright/test').Page} page
    * @param {{revision: string, sha: string}} version
    */
+  /**
+   * Pasa la puerta que pide la clave de edicion antes de tocar una receta.
+   *
+   * @param {import('@playwright/test').Page} page
+   */
+  async function pasarLaPuerta(page) {
+    const campo = page.locator('#desbloquear-clave');
+    await campo.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    if (!(await campo.count())) return;
+    await campo.fill('clave-de-prueba');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(campo).toHaveCount(0);
+  }
+
   async function servirRecetario(page, version) {
     await page.route('**/api/recipes', async (route) => {
       if (route.request().method() !== 'GET') {
-        // Un PUT aqui significaria que este equipo publico: la prueba lo
-        // cuenta para comprobar que NO ocurre.
+        const cuerpo = JSON.parse(route.request().postData() || '{}');
+
+        // La puerta comprueba la clave antes de dejar tocar una receta. Esto no
+        // es publicar: no escribe nada.
+        if (cuerpo.verificar === true) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ok: true, verificada: true }),
+          });
+          return;
+        }
+
+        // Un PUT de publicacion aqui significaria que este equipo publico: la
+        // prueba lo cuenta para comprobar que NO ocurre.
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -265,14 +292,11 @@ test.describe('Dos sedes editando', () => {
     await servirRecetario(page, { revision: '2026-01-01', sha: 'sha-uno' });
     await entrar(page);
 
-    // La clave de edición, guardada como la deja pasar la puerta. Va ANTES de
-    // editar por dos motivos: sin ella la puerta pediría la clave y no se
-    // llegaría al editor, y sin ella tampoco habría publicación automática, así
-    // que la prueba pasaría sola sin comprobar nada.
-    await page.evaluate(() => window.sessionStorage.setItem('zahavi_edit_key', 'clave-de-prueba'));
-
     // Este equipo edita y su cambio queda pendiente, apoyado en la revisión 1.
+    // Se pasa la puerta: sin ella no se llega al editor, y sin la clave guardada
+    // tampoco habría publicación automática que comprobar.
     await page.getByRole('button', { name: 'Nueva receta' }).click();
+    await pasarLaPuerta(page);
     await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-DOS-SEDES');
     await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-HARINA');
     await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('1000');
@@ -285,7 +309,14 @@ test.describe('Dos sedes editando', () => {
 
     let publicaciones = 0;
     page.on('request', (peticion) => {
-      if (peticion.url().includes('/api/recipes') && peticion.method() === 'PUT') publicaciones += 1;
+      if (!peticion.url().includes('/api/recipes') || peticion.method() !== 'PUT') return;
+
+      // Las comprobaciones de clave viajan por la misma via y no escriben nada:
+      // aqui solo cuentan las publicaciones de verdad.
+      const cuerpo = JSON.parse(peticion.postData() || '{}');
+      if (cuerpo.verificar === true) return;
+
+      publicaciones += 1;
     });
 
     await page.reload();
@@ -296,6 +327,7 @@ test.describe('Dos sedes editando', () => {
     // Y guardar otra vez NO dispara la publicación: enviar el recetario de
     // este equipo, que no tiene lo de la otra sede, la borraría en silencio.
     await page.getByRole('button', { name: 'Nueva receta' }).click();
+    await pasarLaPuerta(page);
     await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-DOS-SEDES-B');
     await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-AZUCAR');
     await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('500');

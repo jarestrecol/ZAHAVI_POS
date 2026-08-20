@@ -113,9 +113,17 @@ modificar o eliminar una receta, el recetario la pide. No es la clave con la que
 se entra: es la que da la panadería para publicar, y la sabe menos gente a
 propósito.
 
-Se escribe una vez y vale para el resto del día en ese aparato. Consultar,
-buscar, escalar la tanda, imprimir y el Modo Pesar **no** la piden: eso es de
-todo el obrador.
+**Se pide cada vez**, no una vez al día: al crear, al editar y al eliminar. Es a
+propósito. Si bastara con escribirla una vez, quien se encontrara la tableta
+abierta podría cambiar fórmulas de las dos sedes el resto de la jornada sin que
+nadie volviera a preguntarle nada.
+
+Consultar, buscar, escalar la tanda, imprimir y el Modo Pesar **no** la piden:
+eso es de todo el obrador.
+
+**Sin señal no se puede crear ni cambiar una receta**, porque la clave la
+comprueba el servidor. Todo lo demás sigue funcionando: el recetario abre, se
+busca, se escala y se pesa igual. Los cambios esperan a que vuelva la red.
 
 > Por qué: cambiar una fórmula no se queda en el aparato, sale hacia la
 > panadería y la casa de producción. Antes bastaba con encontrarse una tableta

@@ -99,8 +99,16 @@ respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
   contador de intentos fallidos que la publicación, así que tampoco sirve de
   atajo para probar claves más rápido.
 
-  Consultar, buscar, escalar tandas, imprimir y el Modo Pesar siguen sin pedir
-  nada: son de todo el obrador.
+  **Se pide cada vez, no una vez por sesión.** El permiso que concede la puerta
+  vale para una acción y se retira en cuanto esa acción termina. La clave sí
+  queda en la sesión, pero solo para que la publicación salga sola después de
+  guardar: usarla además como permiso de entrada convertiría la primera
+  comprobación del día en una llave que abre el resto de la jornada.
+
+  El precio es que **sin conexión no se puede crear ni cambiar una receta**,
+  porque no hay a quién preguntar. Está asumido: consultar, buscar, escalar
+  tandas, imprimir y el Modo Pesar siguen sin pedir nada y sin necesitar red,
+  que es para lo que se usa el recetario en el obrador.
 
 - **Credenciales con SHA-256**, nunca en claro.
 - **Cierre de sesión revoca la clave de edición** en caché, para que quien entre

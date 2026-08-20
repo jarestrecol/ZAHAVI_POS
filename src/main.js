@@ -617,13 +617,17 @@ function renderDialogs(shell) {
   else if (state.confirmDelete) {
     // Eliminar sale hacia las dos sedes en cuanto se publica, asi que pide la
     // clave de edicion antes incluso de enseñar la confirmacion.
-    openDialog = faltaLaClave() ? buildDesbloquear('delete', state.confirmDelete) : buildConfirmDelete(state);
+    openDialog = faltaLaClave('delete', state.confirmDelete)
+      ? buildDesbloquear('delete', state.confirmDelete)
+      : buildConfirmDelete(state);
   } else if (state.pedirClave) openDialog = buildPublicar();
   else if (state.planOpen) openDialog = buildPlan(state);
   else if (state.ingredientsOpen) openDialog = buildIngredients(state);
   else if (state.settingsOpen) openDialog = buildSettings(state);
   else if (route.name === 'new' || route.name === 'edit') {
-    openDialog = faltaLaClave() ? buildDesbloquear(route.name, route.id) : buildEditor(route);
+    openDialog = faltaLaClave(route.name, route.id)
+      ? buildDesbloquear(route.name, route.id)
+      : buildEditor(route);
   }
 
   openDialogKey = openDialog ? key : null;
@@ -645,7 +649,7 @@ function dialogKey(state, route) {
   // El prefijo cambia cuando falta la clave, para que al ponerla se
   // reconstruya el dialogo y aparezca lo que se estaba pidiendo.
   if (state.confirmDelete) {
-    return (faltaLaClave() ? 'clave-delete:' : 'delete:') + state.confirmDelete;
+    return (faltaLaClave('delete', state.confirmDelete) ? 'clave-delete:' : 'delete:') + state.confirmDelete;
   }
 
   // Clave fija: el dialogo lleva por dentro el campo de la clave a medio
@@ -680,8 +684,10 @@ function dialogKey(state, route) {
   // El prefijo cambia cuando falta la clave, igual que en el borrado: sin eso,
   // poner la clave no reconstruia el dialogo y la puerta se quedaba puesta con
   // el editor detras, esperando a nadie.
-  if (route.name === 'new') return faltaLaClave() ? 'clave-new' : 'new';
-  if (route.name === 'edit') return (faltaLaClave() ? 'clave-edit:' : 'edit:') + route.id;
+  if (route.name === 'new') return faltaLaClave('new', null) ? 'clave-new' : 'new';
+  if (route.name === 'edit') {
+    return (faltaLaClave('edit', route.id) ? 'clave-edit:' : 'edit:') + route.id;
+  }
 
   return null;
 }
@@ -776,9 +782,20 @@ function buildConfirmDelete(state) {
  *
  * @returns {boolean}
  */
-function faltaLaClave() {
+function faltaLaClave(accion, id) {
   if (!repo.canPublishToAll()) return false;
-  return !getEditKey();
+
+  // NO se mira si la clave esta guardada en la sesion. Esa clave existe para
+  // que la publicacion salga sola despues de guardar, y usarla tambien como
+  // permiso de entrada convertia la primera comprobacion del dia en una llave
+  // que abria el resto de la jornada: quien se encontrara la tableta del
+  // mostrador abierta podia crear, cambiar o borrar formulas de las dos sedes
+  // sin que nadie volviera a preguntarle nada.
+  //
+  // Lo que se mira es la autorizacion, que vale para UNA accion concreta y se
+  // retira en cuanto esa accion termina.
+  const permiso = getState().autorizacion;
+  return !(permiso && permiso.accion === accion && permiso.id === (id || null));
 }
 
 /**
@@ -800,16 +817,21 @@ function buildDesbloquear(accion, id) {
     onVerificar: async (password) => {
       const result = await repo.verificarClaveEdicion(password);
       if (result.ok) {
+        // La clave se guarda para que la publicacion salga sola despues de
+        // guardar; la autorizacion es lo que abre esta accion, y solo esta.
         setEditKey(password);
-        render();
+        setState({ autorizacion: { accion, id: id || null } });
       }
       return result;
     },
     onClose: () => {
       // Cancelar deshace lo que se pedia, para no dejar el recetario en un
       // estado a medias donde el dialogo vuelve a aparecer solo.
-      if (accion === 'delete') setState({ confirmDelete: null });
-      else navigate({ name: id ? 'detail' : 'index', id: id || null }, { replace: true });
+      if (accion === 'delete') setState({ confirmDelete: null, autorizacion: null });
+      else {
+        setState({ autorizacion: null });
+        navigate({ name: id ? 'detail' : 'index', id: id || null }, { replace: true });
+      }
     },
   });
 }
@@ -862,7 +884,12 @@ function buildEditor(route) {
     draft: source,
     isNew,
     ingredientes: getState().ingredientes,
-    onCancel: () => navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id }),
+    onCancel: () => {
+      // El permiso muere con la ventana: volver a abrir el editor vuelve a
+      // pedir la clave.
+      setState({ autorizacion: null });
+      navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id });
+    },
     onSave: saveRecipe,
   });
 }

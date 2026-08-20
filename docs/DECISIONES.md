@@ -110,10 +110,22 @@ entorno, o abriendo el archivo en local, no hay servidor que pueda comprobar la
 clave ni sitio a donde publicar: exigirla dejaría el recetario inservible a
 cambio de ninguna protección, porque lo que se escriba se queda en el aparato.
 
-**Sin conexión sí se puede seguir**, si la clave ya se puso antes: vive en la
-sesión del navegador. Lo que no se puede es empezar a editar sin red y sin
-haberla puesto nunca, porque no hay a quien preguntar. Se dice al intentarlo,
-en vez de dejar escribir media receta para rechazarla al final.
+**Se pide cada vez, y esa fue una decisión revisada.** La primera versión la
+pedía una vez por sesión del navegador, razonando que en una cocina pedirla en
+cada gesto haría que alguien la escribiera en un papel pegado a la tableta. El
+argumento en contra pesó más: una llave que abre el resto de la jornada es
+justo lo que la puerta venía a evitar, porque basta con encontrarse la tableta
+del mostrador abierta. Ahora el permiso vale para una acción y se retira en
+cuanto termina.
+
+La clave sigue guardándose en la sesión, pero **solo para publicar**: eso es la
+consecuencia de una edición ya autorizada, no una autorización nueva.
+
+**Sin conexión no se puede crear ni cambiar una receta**, porque la comprobación
+la hace el servidor. Es el precio de comprobar siempre, y está asumido:
+consultar, buscar, escalar la tanda, imprimir y el Modo Pesar siguen
+funcionando sin señal, que es para lo que se usa el recetario en el obrador. Lo
+que espera a que vuelva la red es cambiar fórmulas.
 
 ### Por qué la red de seguridad del arranque es un script suelto y no un módulo
 
