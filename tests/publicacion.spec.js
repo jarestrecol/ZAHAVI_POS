@@ -295,3 +295,43 @@ test('si se pierde la clave de la sesion, la puerta vuelve a pedirla', async ({ 
   await page.getByRole('button', { name: 'Nueva receta' }).click();
   await expect(puerta(page)).toBeVisible();
 });
+
+test('cancelar la confirmacion de borrado retira el permiso', async ({ page }) => {
+  // Este es el hueco que dejo la primera version de la puerta: el permiso
+  // sobrevivia a la cancelacion, asi que un segundo intento de eliminar la MISMA
+  // receta entraba directo a la confirmacion sin volver a pedir la clave.
+  await servidorQuePublica(page);
+  await entrar(page, `#/receta/${RECETA}`);
+
+  // Primera vez: se pasa la puerta y aparece la confirmacion.
+  await page.getByRole('button', { name: 'Eliminar la receta' }).click();
+  await pasarLaPuerta(page);
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toBeVisible();
+
+  // Se cancela SIN borrar.
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toHaveCount(0);
+
+  // Segundo intento sobre la misma receta: la puerta tiene que volver a salir.
+  await page.getByRole('button', { name: 'Eliminar la receta' }).click();
+  await expect(puerta(page)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toHaveCount(0);
+});
+
+test('salir con Escape tampoco deja el permiso puesto', async ({ page }) => {
+  await servidorQuePublica(page);
+  await entrar(page, `#/receta/${RECETA}`);
+
+  await page.getByRole('button', { name: 'Eliminar la receta' }).click();
+  await pasarLaPuerta(page);
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toBeVisible();
+
+  // El dialogo se acaba de reconstruir al pasar la puerta: se espera a que el
+  // foco entre antes de mandar la tecla, o Escape se va al documento.
+  await page.getByRole('button', { name: 'Sí, es esta receta' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Sí, es esta receta' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Eliminar la receta' }).click();
+  await expect(puerta(page)).toBeVisible();
+});

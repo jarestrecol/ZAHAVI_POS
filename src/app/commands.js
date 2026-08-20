@@ -140,7 +140,9 @@ export function deleteRecipe(id) {
 
   if (!result.ok) {
     notify(result.message, 'error');
-    setState({ confirmDelete: null });
+    // El permiso se retira tambien cuando el borrado FALLA: si no, un reintento
+    // sobre la misma receta se saltaria la puerta.
+    setState({ confirmDelete: null, autorizacion: null });
     return result;
   }
 

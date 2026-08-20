@@ -3,49 +3,72 @@
 /* ---- Entrada ---- */
 
 /*
- * LA PANTALLA DE ENTRADA LLEVA EL OBRADOR DE FONDO.
+ * LA PANTALLA DE ENTRADA SE PARTE EN DOS.
  *
- * Las capas van de arriba abajo en el orden en que se escriben:
+ * A la izquierda el obrador, a plena intensidad. A la derecha el formulario,
+ * sobre blanco limpio. Nada se superpone, asi que la fotografia no tiene que
+ * pagar el peaje de un velo para que el texto se lea: cada mitad hace una sola
+ * cosa y la hace entera.
  *
- *   1. el velo claro, que es lo que garantiza que el formulario se lea
- *   2. la fotografia, recortada para llenar sin deformarse
- *   3. `--surface`, que es lo que se ve si la foto no esta o no carga
- *
- * Esa tercera capa no es decorativa: es lo que hace que esto no dependa de la
- * imagen. Sin ella, un archivo que falta deja la pantalla en blanco; con ella,
- * se ve exactamente el fondo de antes y no se rompe nada.
- *
- * `background-attachment` se queda en su valor normal a proposito: fijarla
- * cuesta cara en moviles y aqui no aporta nada, porque esta pantalla no se
- * desplaza.
+ * La imagen se pinta con un pseudo-elemento y no con un `div` nuevo. Es una
+ * decision consciente: es decoracion pura, no aporta contenido, y ponerla en el
+ * marcado obligaria a que `views/login.js` supiera de ella. Asi la pantalla de
+ * entrada sigue siendo un formulario y nada mas.
  */
 .login {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: var(--space-5);
-  background-color: var(--surface);
-  background-image:
-    linear-gradient(
-      180deg,
-      var(--velo-entrada-alto) 0%,
-      var(--velo-entrada-medio) 45%,
-      var(--velo-entrada-bajo) 100%
-    ),
-    url('../fondo-entrada.webp');
-  background-position: center, center;
-  background-size: cover, cover;
-  background-repeat: no-repeat, no-repeat;
+  padding: 0;
+  background: var(--surface-card);
 }
 
 /*
- * Sobre una fotografia, la tarjeta necesita despegarse mas que sobre un fondo
- * liso: con la sombra corta de antes se quedaba pegada al pan.
+ * La mitad de la fotografia.
+ *
+ * `--surface` debajo no es decorativo: es lo que se ve si el archivo falta o no
+ * carga. Sin el quedaria media pantalla en blanco sin explicacion.
+ */
+.login::before {
+  content: '';
+  flex: 1 1 50%;
+  background-color: var(--surface);
+  background-image: url('../fondo-entrada.webp');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/*
+ * La mitad del formulario.
+ *
+ * Este contenedor existe por dos motivos. El primero es de siempre: dentro se
+ * cambia un momento por otro -escribir la clave, o renovarla- sin reconstruir la
+ * pantalla entera. El segundo es nuevo: es la mitad derecha de la particion.
+ *
+ * Llevaba `display: contents` justamente porque antes NO aportaba geometria. Al
+ * partir la pantalla se convirtio en un problema silencioso: esa declaracion
+ * borra la caja, el formulario pasaba a ser hijo directo de `.login` y se
+ * estiraba a toda la altura en vez de centrarse en su mitad.
+ */
+.login__host {
+  display: flex;
+  flex: 1 1 50%;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--surface-card);
+}
+
+/*
+ * Sobre blanco liso la tarjeta ya no necesita marco ni sombra: no hay nada de
+ * lo que despegarse. El formulario respira en su mitad y se acabo.
  */
 .login .login__card {
-  box-shadow: var(--shadow-lg);
+  border: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 .login__card {
@@ -58,9 +81,16 @@
   box-shadow: var(--shadow);
 }
 
+/*
+ * Alineado a la izquierda, no centrado.
+ *
+ * Centrado tenia sentido cuando la tarjeta flotaba sola en mitad de la
+ * pantalla. Ahora que ocupa su propia mitad, el eje izquierdo da a la marca, a
+ * la etiqueta del campo y al aviso una linea comun por donde entra la vista.
+ */
 .login__brand {
   margin-bottom: var(--space-6);
-  text-align: center;
+  text-align: left;
 }
 
 /* El logo es la marca real: bloque naranja con el nombre y el descriptor. */
@@ -95,12 +125,6 @@
   color: var(--danger);
 }
 
-/* Contenedor de los dos momentos de la entrada: escribir la clave y, si toca,
-   renovarla. Solo existe para poder cambiar uno por otro sin reconstruir la
-   pantalla entera, asi que no aporta geometria propia. */
-.login__host {
-  display: contents;
-}
 
 /* Aviso de que toca renovar la clave de la semana. Va antes de los campos,
    porque explica por que la pantalla pide algo distinto de lo habitual. */
@@ -119,7 +143,7 @@
   margin-top: var(--space-4);
   font-size: var(--text-sm);
   color: var(--ink-3);
-  text-align: center;
+  text-align: left;
 }
 
 .login__hint code {
@@ -138,7 +162,7 @@
   font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--ink-4);
-  text-align: center;
+  text-align: left;
   border-top: 1px solid var(--line);
 }
 
@@ -150,7 +174,7 @@
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
   color: var(--ink-4);
-  text-align: center;
+  text-align: left;
 }
 
 /* ---- Avisos ---- */

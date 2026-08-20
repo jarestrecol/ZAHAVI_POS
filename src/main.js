@@ -763,7 +763,12 @@ function buildConfirmDelete(state) {
   }
   return openConfirmDelete({
     recipe,
-    onCancel: () => setState({ confirmDelete: null }),
+    // Igual que en la puerta: cancelar AQUI tambien retira el permiso. Sin
+    // esto, el permiso sobrevivia a la cancelacion y un segundo intento de
+    // eliminar la MISMA receta se saltaba la puerta sin volver a pedir la
+    // clave. Vale para las tres salidas del dialogo -boton, Escape y la equis-,
+    // porque las tres acaban aqui.
+    onCancel: () => setState({ confirmDelete: null, autorizacion: null }),
     onConfirm: () => deleteRecipe(recipe.id),
   });
 }
