@@ -146,6 +146,23 @@ paso('Alta y baja masiva', () => {
   return `${total} comprobaciones`;
 });
 
+// La version se declara en `src/core/version.js` porque el navegador tiene que
+// poder leerla sin red, y se repite en package.json porque npm la exige ahi. Dos
+// sitios son dos oportunidades de que se separen, y una version equivocada en la
+// pantalla es peor que ninguna: se usa para saber si dos sedes miran lo mismo.
+paso('Version del proyecto', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const fuente = readFileSync(join(root, 'src/core/version.js'), 'utf8');
+  const declarada = fuente.match(/APP_VERSION\s*=\s*'([^']+)'/);
+
+  if (!declarada) throw new Error('src/core/version.js no declara APP_VERSION');
+  if (declarada[1] !== pkg.version) {
+    throw new Error(`package.json dice ${pkg.version} y src/core/version.js dice ${declarada[1]}`);
+  }
+
+  return `v${pkg.version}`;
+});
+
 paso('Integridad de las recetas', () => {
   const data = JSON.parse(readFileSync(join(root, 'data/recipes.json'), 'utf8'));
   if (!Array.isArray(data.recipes)) throw new Error('el archivo no contiene recetas');

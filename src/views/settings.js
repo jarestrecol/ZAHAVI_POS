@@ -29,6 +29,7 @@ import {
   MIN_PASSWORD_LENGTH,
 } from '../core/access.js';
 import { setState } from '../core/store.js';
+import { APP_VERSION } from '../core/version.js';
 import { createWindow } from './window.js';
 
 /**
@@ -56,7 +57,10 @@ export function openSettings(options) {
 
   return createWindow({
     title: 'Ajustes',
-    meta: 'zahavi · recetario',
+    // La version, en la barra de titulo de Ajustes: es la primera pregunta
+    // cuando alguien llama diciendo que su pantalla no se parece a la de la
+    // otra sede, y asi se lee sin abrir nada.
+    meta: `zahavi · recetario v${APP_VERSION}`,
     size: 'narrow',
     onClose: options.onClose,
     body,

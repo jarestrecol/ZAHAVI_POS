@@ -108,6 +108,17 @@
   border-top: 1px solid var(--line);
 }
 
+/* La version: la letra mas pequena de la pantalla, porque se lee cuando se
+   busca y no debe competir con el formulario. */
+.login__version {
+  margin-top: var(--space-2);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  color: var(--ink-4);
+  text-align: center;
+}
+
 /* ---- Avisos ---- */
 
 .context-badge {

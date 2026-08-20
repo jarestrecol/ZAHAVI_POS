@@ -23,6 +23,7 @@ import {
   MIN_PASSWORD_LENGTH,
 } from '../core/access.js';
 import { setState, getState } from '../core/store.js';
+import { APP_VERSION, APP_FASE } from '../core/version.js';
 
 /**
  * @returns {HTMLElement}
@@ -104,6 +105,7 @@ export function renderLogin() {
       // y volvia a mostrarla. Ahora la clave inicial se comunica por fuera y el
       // sistema OBLIGA a cambiarla en el primer acceso de cada equipo.
       aviso(),
+      pie(),
     ]);
 
     enfocar(clave);
@@ -177,6 +179,7 @@ export function renderLogin() {
         text: `Mínimo ${MIN_PASSWORD_LENGTH} caracteres, y distinta de la anterior.`,
       }),
       aviso(),
+      pie(),
     ]);
 
     enfocar(nueva);
@@ -210,6 +213,21 @@ export function renderLogin() {
     return el('p', {
       class: 'login__disclaimer',
       text: 'Esta clave solo evita miradas casuales sobre el mostrador. No protege el contenido frente a quien tenga el enlace.',
+    });
+  }
+
+  /**
+   * Version del recetario, en letra pequena bajo el formulario.
+   *
+   * Esta en la pantalla de entrada porque es la unica que ve todo el mundo,
+   * tambien quien nunca abre Ajustes. Cuando una sede dice que algo "no le
+   * aparece", lo primero que hay que saber es si las dos estan mirando la misma
+   * version, y preguntarlo por telefono deja de ser una adivinanza.
+   */
+  function pie() {
+    return el('p', {
+      class: 'login__version',
+      text: `${APP_FASE} · v${APP_VERSION}`,
     });
   }
 

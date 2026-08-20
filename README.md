@@ -4,8 +4,8 @@ Las fórmulas de la panadería, la repostería y el café en un solo enlace: la 
 información en el obrador y en la casa de producción, consultable desde el móvil
 junto a la báscula y funcionando aunque no haya señal.
 
-**Estado**: Fase 1 en producción · 121 recetas · 187 componentes · 1.282 líneas de
-ingrediente · 159 ingredientes en catálogo.
+**Versión 1.5.0 · Fase 1 en producción** · 121 recetas · 187 componentes · 1.282
+líneas de ingrediente · 159 ingredientes en catálogo.
 
 > **¿Vas a usarlo y no a modificarlo?** Lo tuyo es **[MANUAL.md](MANUAL.md)**: dos
 > caras impresas, sin nada técnico.
@@ -35,6 +35,41 @@ sola fuente publicada y un historial completo de quién cambió qué.
 - **Funciona sin conexión** y se instala como aplicación en tableta y teléfono.
 - **Se publica solo**: lo guardado sale hacia las demás sedes sin que nadie tenga
   que acordarse, y si no hay red se reintenta al volver.
+
+---
+
+## Versión y fases
+
+La versión actual es **1.5.0**, y se lee dentro de la propia aplicación: abajo en
+la pantalla de entrada y en la barra de título de Ajustes. Así, cuando una sede
+dice que algo no le aparece, lo primero que hay que saber (si las dos están
+mirando lo mismo) se comprueba sin llamar a nadie.
+
+**El primer número es la fase de la hoja de ruta**, no un capricho de numeración:
+quien vea `v1.5.0` sabe qué módulos tiene delante. El tercero sube con cada
+corrección publicada.
+
+| Fase | Alcance | Estado |
+|---|---|---|
+| **1.0** | Consulta, edición y publicación de fórmulas | En producción |
+| **1.5** | Escalado de tandas, plan del día y catálogo de ingredientes | En producción |
+| 2.x | Costeo por receta y margen | Requiere precios por ingrediente |
+| 3.x | Inventario y órdenes de producción | Requiere base de datos real |
+| 4.x | Control integral del restaurante | Por definir |
+
+**Todo lo que hay hoy es la Fase 1: el recetario.** El sistema está construido
+para crecer por módulos sobre la misma base, no para reescribirse en cada fase.
+Las reglas viven en `core/`, las pantallas solo pintan, y un módulo nuevo (el
+costeo, el inventario) se añade como un archivo más en cada capa sin tocar lo que
+ya funciona. Ese es el motivo real de la separación en tres capas.
+
+Con una advertencia dicha a tiempo: la Fase 2 es el punto donde hay que revisar
+la decisión de guardar en un archivo, porque los precios cambian a diario y ese
+patrón de escritura sí justifica una base de datos. El detalle está en
+[docs/HOJA-DE-RUTA.md](docs/HOJA-DE-RUTA.md).
+
+La versión se declara una sola vez, en `src/core/version.js`, y la verificación
+comprueba en cada ejecución que `package.json` dice lo mismo.
 
 ---
 
@@ -164,7 +199,7 @@ docs/                      Documentación técnica
 ```bash
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
-npm run verificar    # ocho bloques de comprobación, sin navegador
+npm run verificar    # nueve bloques de comprobación, sin navegador
 npm run qa           # 56 pruebas en navegador (escritorio, celular, tableta)
 ```
 
@@ -198,7 +233,8 @@ Dos capas, y las dos corren en cada envío desde
 - `npm run verificar` comprueba en segundos y sin navegador la sintaxis de los
   módulos, la resolución de importaciones, la coherencia del CSS, la capa de
   datos, la publicación y sus conflictos, el validador del servidor, un alta y
-  baja masiva de recetas, y la integridad de las 121 fórmulas.
+  baja masiva de recetas, que la versión declarada sea una sola, y la integridad
+  de las 121 fórmulas.
 - `npm run qa` abre un navegador de verdad en tres tamaños y fija lo que la capa
   anterior no puede ver: el foco que no entra en una ventana, la hoja que se
   imprime antes de existir, la barra flotante atrapada, la lista que se desborda

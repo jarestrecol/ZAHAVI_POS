@@ -91,10 +91,15 @@ reglas. Ningún módulo de `core/` importa nada de `views/`. Las vistas leen de
    se quede sin consultar, y que nunca entre basura al archivo compartido.
 8. **Guardar y publicar no son lo mismo.** Guardar escribe en el equipo, también
    sin señal. Publicar envía el recetario **entero** a las demás sedes.
-9. **Clave de acceso y clave de edición son cosas distintas.** La de acceso es
-   local y es una cortina, no una cerradura, y no puede validarse en el servidor:
-   el recetario tiene que abrir sin cobertura. La única protección real es
-   `EDIT_PASSWORD`, que sí se comprueba en el servidor.
+9. **La versión se declara una sola vez**, en `src/core/version.js`. `package.json`
+   tiene que decir lo mismo y la verificación lo comprueba. Se muestra en la
+   pantalla de entrada y en la barra de Ajustes. Al publicar un cambio de módulos
+   sube también `CACHE_VERSION` en `sw.js`, o los equipos seguirán con la carcasa
+   vieja en caché.
+10. **Clave de acceso y clave de edición son cosas distintas.** La de acceso es
+    local y es una cortina, no una cerradura, y no puede validarse en el
+    servidor: el recetario tiene que abrir sin cobertura. La única protección
+    real es `EDIT_PASSWORD`, que sí se comprueba en el servidor.
 
 Las quince reglas completas, con el defecto real que originó cada una, están en
 `docs/DECISIONES.md`, sección "Reglas al tocar el código". Ábrela solo si vas a
@@ -107,20 +112,21 @@ tocar CSS, foco, impresión o diseño de listas.
 ```bash
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
-npm run verificar    # 8 bloques, sin navegador, segundos
+npm run verificar    # 9 bloques, sin navegador, segundos
 npm run qa           # 56 pruebas en escritorio, celular y tableta
 ```
 
 `npm run verificar` en verde termina así:
 
 ```
-Sintaxis de los modulos… ok (35 archivos)
-Resolucion de importaciones… ok (32 modulos)
-Coherencia del CSS… ok (309 clases)
+Sintaxis de los modulos… ok (36 archivos)
+Resolucion de importaciones… ok (33 modulos)
+Coherencia del CSS… ok (310 clases)
 Capa de datos… ok (9 bloques)
 Publicacion y conflictos… ok (22 comprobaciones)
 Validacion del servidor… ok (28 comprobaciones)
 Alta y baja masiva… ok (163 comprobaciones)
+Version del proyecto… ok (v1.5.0)
 Integridad de las recetas… ok (121 recetas, 187 componentes, 1282 items, sha f0307204)
 ```
 
@@ -158,8 +164,9 @@ capas en cada envío.
 | Catálogo de ingredientes | 159 |
 | `data/recipes.json` | 225 KB, `version: 2` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB |
+| Versión | 1.5.0 (Fase 1). El primer número es la fase de la hoja de ruta |
 | Node en el servidor | 24.x |
-| Bloques de `verificar` / pruebas de `qa` | 8 / 56 |
+| Bloques de `verificar` / pruebas de `qa` | 9 / 56 |
 
 Variables de entorno en Vercel: `GITHUB_TOKEN` (Contents: read and write),
 `GITHUB_REPO`, `GITHUB_BRANCH` y `EDIT_PASSWORD` obligatorias, más

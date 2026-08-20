@@ -1,6 +1,6 @@
 {
   "name": "zahavi-recetario",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Recetario de produccion para panaderia, reposteria y cafe. Sin dependencias en tiempo de ejecucion, sin compilacion.",
   "type": "module",
