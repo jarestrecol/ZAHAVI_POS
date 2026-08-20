@@ -161,7 +161,21 @@
     flex: 1;
   }
 
+  /*
+   * EN PANTALLA LA CANTIDAD MANDA, Y EN PAPEL TAMBIEN TIENE QUE MANDAR.
+   *
+   * La decision que define el producto es que la cifra pesa mas que el nombre:
+   * 22 px en mono tabular contra 17 px en sans. Al papel no llegaba ninguna de
+   * las dos mitades: la cantidad iba al mismo tamaño que el nombre y ni
+   * siquiera heredaba la mono, asi que se perdian a la vez la jerarquia y la
+   * columna alineada por digitos.
+   *
+   * Importa porque la hoja se pega en la pared del obrador y se sigue al pie de
+   * la letra: es el sitio donde menos margen hay para leer mal una cifra.
+   */
   .sheet__item-qty {
+    font-family: var(--font-num);
+    font-size: 11.5pt;
     font-weight: 700;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;

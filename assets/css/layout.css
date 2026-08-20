@@ -645,9 +645,15 @@
   transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
+/*
+ * Aqui habia un `translateY(-2px)` con sombra. Dos motivos para retirarlo:
+ * `docs/DISENO.md` establece que un control responde cambiando de superficie y
+ * no moviendose de sitio, y sobre todo esto es un `<dl>`, no un boton. Levantar
+ * al pasar por encima promete que se puede pulsar algo que no lleva a ninguna
+ * parte.
+ */
 .welcome__stat:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-xs);
+  background: var(--surface-hover);
 }
 
 .welcome__stat dt {

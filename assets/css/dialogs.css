@@ -646,8 +646,9 @@
    justo lo contrario de lo que busca la rejilla: la sombra no participa del
    modelo de caja, asi que la columna sigue a plomo. Es la misma tecnica que ya
    usan el validador, los filtros de categoria y la receta abierta del listado. */
+/* "Estas dos cantidades no se pueden sumar": la marca es el aviso entero. */
 .plan__linea--doble {
-  box-shadow: inset 3px 0 0 0 var(--amber);
+  box-shadow: inset 3px 0 0 0 var(--amber-mark);
 }
 
 /* La linea entera es un boton: se despliega para ver de que recetas sale la
@@ -954,8 +955,9 @@
    contrario de lo que busca la rejilla: la sombra no participa del modelo de
    caja, asi que la columna sigue a plomo. Es la misma tecnica que usan los
    filtros de categoria y la receta abierta del listado. */
+/* "Este ingrediente aparece con dos unidades distintas". */
 .ings__item--unidades {
-  box-shadow: inset 3px 0 0 0 var(--amber);
+  box-shadow: inset 3px 0 0 0 var(--amber-mark);
 }
 
 /* La fila entera es un boton con las tres columnas por dentro.

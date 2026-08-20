@@ -101,6 +101,20 @@
      profunda; sobre el rail oscuro el naranja de marca ya contrasta de sobra. */
   --amber: var(--brand);
   --amber-text: #9c5e15;  /* 5,2:1 sobre blanco */
+
+  /*
+   * Ambar para MARCAS que portan informacion, no decoracion.
+   *
+   * `--amber` da 2,45:1 sobre blanco. Como fondo de una etiqueta con texto
+   * encima da igual, porque quien informa es el texto. Pero se usaba tambien
+   * como marca suelta -el borde que dice "esto se mide por volumen", el que
+   * dice "estas dos unidades no se pueden sumar"- y ahi la marca ES el dato,
+   * asi que la norma pide 3:1 contra su fondo y no llegaba.
+   *
+   * Conserva el matiz de la casa: 3,92:1 sobre blanco, 3,44:1 sobre
+   * `--surface-sunk`.
+   */
+  --amber-mark: #c26a0a;
   --amber-deep: var(--brand-deep);
   --amber-soft: #fdefdc;
   --amber-on-rail: #f9a94a;
@@ -195,8 +209,25 @@
      Son el material principal de la interfaz: lo que delimita cada zona y cada
      celda. `--line` cierra un bloque por fuera; `--line-cell` separa por dentro
      y va un punto mas claro, para que una tabla no parezca una reja. */
-  --line: #ddd9d1;
-  --line-cell: #eae7e0;
+  /*
+   * Estas dos lineas hacen un trabajo que antes hacian las franjas alternas
+   * beige, y la decision de cambiarlas fue buena: la franja teñia media ficha.
+   * Pero los valores no daban la talla para el encargo.
+   *
+   * `--line-cell` separa una fila de ingredientes de la siguiente Y la columna
+   * del nombre de la de la cifra. Es decir: el recorrido del ojo entre
+   * "Mantequilla" y "50 g" -unos 860 px en portatil, 596 en la tableta de
+   * pared- descansaba entero sobre una raya de 1 px a 1,23:1. Sobre una
+   * pantalla con brillo y luz cenital, eso no se ve.
+   *
+   *     --line-cell   1,23:1  ->  1,50:1
+   *     --line        1,41:1  ->  1,80:1
+   *
+   * Siguen siendo lineas discretas, no rejas: el objetivo es que guien sin
+   * gritar. Si alguna vez se suben mas, conviene mirarlo en la tableta real.
+   */
+  --line: #c4c1ba;
+  --line-cell: #d6d3cb;
   --line-strong: #7c7770;
 
   /*

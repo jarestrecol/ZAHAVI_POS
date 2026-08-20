@@ -221,10 +221,16 @@
   grid-template-columns: var(--sidebar-w) 1fr;
 }
 
+/*
+ * El esqueleto anuncia lo que va a aparecer, asi que tiene que parecerse a lo
+ * que va a aparecer. Iba en blanco cuando el listado real es la estructura
+ * oscura: se veia un panel claro que saltaba a oscuro al terminar de arrancar,
+ * justo el parpadeo que un esqueleto existe para evitar.
+ */
 .booting__side {
   padding: var(--space-4);
-  background: var(--surface-card);
-  border-right: 1px solid var(--line);
+  background: var(--rail);
+  border-right: 1px solid var(--rail-line);
 }
 
 .booting__line {

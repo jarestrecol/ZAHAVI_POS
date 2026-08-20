@@ -123,7 +123,7 @@ export function openPublicar(options) {
         text: 'Escribe la clave de edición una vez y este equipo publicará solo el resto del día. Es la clave que da la panadería para publicar, distinta de la que usas para entrar.',
       }),
 
-      el('label', { class: 'label', for: 'publicar-clave', text: 'clave de edición' }),
+      el('label', { class: 'label label--spaced', for: 'publicar-clave', text: 'clave de edición' }),
       key,
     ]),
 

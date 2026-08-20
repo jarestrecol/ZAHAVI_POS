@@ -190,3 +190,37 @@ test('"Ahora no" deja el cambio guardado en el equipo, sin publicar', async ({ p
   expect(envios).toHaveLength(0);
   await expect(page.locator('.context-badge')).toContainText('sin publicar');
 });
+
+test('un 200 que no es una publicación no se anuncia como publicado', async ({ page }) => {
+  // Un intermediario -proxy de la red del local, cortafuegos de la plataforma,
+  // pagina de sesion caducada- puede contestar 200 con cualquier cosa. Antes
+  // eso se tomaba por buena: la pantalla decia "Publicado para todas las sedes"
+  // y el aviso de cambios pendientes desaparecia, con el trabajo todavia solo
+  // en este equipo y sin que nadie fuera a reintentarlo.
+  await page.route('**/api/recipes', async (route) => {
+    const publicado = await route.fetch({ url: 'http://127.0.0.1:8123/data/recipes.json' });
+    const datos = await publicado.json();
+
+    // Al PUT le contesta lo mismo que al GET: 200, JSON valido, y ni rastro de
+    // una publicacion.
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...datos, sha: 'sha-uno' }),
+    });
+  });
+
+  await entrar(page);
+  await crearReceta(page, 'QA-TEST-RESPUESTA-RARA');
+  await expect(dialogo(page)).toBeVisible();
+
+  await publicarCon(page, CLAVE_EDICION);
+
+  // Se dice que no se publico, el dialogo sigue abierto para reintentar, y el
+  // aviso de cambios pendientes NO desaparece.
+  await expect(dialogo(page).getByText(/no es una publicación/i)).toBeVisible();
+  await expect(dialogo(page)).toBeVisible();
+
+  await dialogo(page).getByRole('button', { name: 'Ahora no' }).click();
+  await expect(page.locator('.context-badge')).toContainText('sin publicar');
+});

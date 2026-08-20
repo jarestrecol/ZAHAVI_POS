@@ -282,8 +282,29 @@ export async function publishShared(payload) {
       return { ok: false, code: 'servidor', message: data.error || 'No se pudo publicar.' };
     }
 
+    // UN 200 NO BASTA PARA DAR ALGO POR PUBLICADO.
+    //
+    // Hay que comprobar ademas que quien contesta es la funcion de publicacion
+    // y que de verdad hizo el commit. Cualquier intermediario -un proxy de la
+    // red del local, el cortafuegos de la plataforma, una pagina de sesion
+    // caducada- puede devolver 200 con otra cosa, y entonces se anunciaba
+    // "Publicado para todas las sedes" sin que se hubiera publicado nada.
+    //
+    // Es el fallo silencioso mas caro que puede tener este modulo: da por
+    // salvado un trabajo que sigue solo en este equipo, borra el aviso de
+    // cambios pendientes, y nadie vuelve a intentarlo. Se vio al revisar una
+    // captura donde la respuesta no era la de la funcion y la pantalla decia
+    // "Publicado para todas las sedes: 0 recetas".
+    if (data.ok !== true || typeof data.revision !== 'string') {
+      return {
+        ok: false,
+        code: 'formato',
+        message: 'El servidor respondió algo que no es una publicación. Vuelve a intentarlo.',
+      };
+    }
+
     if (typeof data.sha === 'string') currentSha = data.sha;
-    return { ok: true, value: { revision: data.revision || '', count: data.count || 0 } };
+    return { ok: true, value: { revision: data.revision, count: data.count || 0 } };
   } catch {
     return { ok: false, code: 'red', message: 'Sin conexión con el servidor. Inténtalo de nuevo.' };
   }
