@@ -398,6 +398,48 @@ comprobar(
 comprobar('anota en que recetas entra', harinaCat && harinaCat.enRecetas.length === harinaCat.recetas);
 comprobar('con codigo y nombre de cada una', harinaCat.enRecetas.every((r) => r.id && r.nombre));
 
+// EN QUE RECETAS SE MIDE DE CADA FORMA. Es el paso que falta para poder
+// unificar unidades antes del costeo: saber que un ingrediente se mide de dos
+// formas no sirve de nada si no se sabe DONDE. Son 67 lineas en 47 recetas, y
+// sin esto habia que abrirlas a mano.
+comprobar(
+  'cada receta anota con que unidad usa el ingrediente',
+  catalogo.every((i) => i.enRecetas.every((r) => Array.isArray(r.unidades) && r.unidades.length > 0)),
+);
+
+const cremaCat = catalogo.find((i) => i.nombre.toUpperCase() === 'CREMA DE LECHE');
+const gruposCrema = ings.recetasPorUnidad(cremaCat);
+comprobar('agrupa las recetas por unidad', gruposCrema.length === 2, gruposCrema.map((g) => g.unidad).join('/'));
+comprobar(
+  'la unidad MINORITARIA va primero, que es la que hay que revisar',
+  gruposCrema[0].recetas.length <= gruposCrema[1].recetas.length,
+  `${gruposCrema[0].unidad}:${gruposCrema[0].recetas.length} antes que ${gruposCrema[1].unidad}:${gruposCrema[1].recetas.length}`,
+);
+comprobar(
+  'ninguna receta se pierde al agrupar',
+  gruposCrema.reduce((n, g) => n + g.recetas.length, 0) >= cremaCat.recetas,
+);
+
+// El caso mas grave: UNA MISMA RECETA con dos unidades del mismo ingrediente.
+// Ocurre una vez -R048 lleva agua en GR y en ML- y tiene que verse en los dos
+// grupos, no en uno: la incoherencia esta dentro de una sola formula.
+const aguaCat = catalogo.find((i) => i.nombre.toUpperCase() === 'AGUA');
+const gruposAgua = ings.recetasPorUnidad(aguaCat);
+const dondeSaleR048 = gruposAgua.filter((g) => g.recetas.some((r) => r.id === 'R048'));
+comprobar(
+  'una receta con dos unidades del mismo ingrediente sale en los dos grupos',
+  dondeSaleR048.length === 2,
+  dondeSaleR048.map((g) => g.unidad).join(' y '),
+);
+
+// Un ingrediente de una sola unidad no se agrupa: seria ruido.
+const azucarCat = catalogo.find((i) => i.totales.length === 1 && i.recetas > 3);
+comprobar(
+  'con una sola unidad hay un solo grupo',
+  ings.recetasPorUnidad(azucarCat).length === 1,
+  azucarCat.nombre,
+);
+
 // Orden y filtrado.
 comprobar(
   'el orden alfabetico es correcto',

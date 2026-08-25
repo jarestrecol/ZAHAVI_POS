@@ -28,6 +28,7 @@ import {
   filtrarIngredientes,
   ordenarPorNombre,
   ordenarPorUso,
+  recetasPorUnidad,
   resumenCatalogo,
 } from '../core/ingredients.js';
 import { createWindow } from './window.js';
@@ -219,10 +220,53 @@ export function openIngredients(options) {
    * es solo visual: los lectores de pantalla lo anuncian entero.
    */
   function renderRecetas(ingrediente) {
+    // Con una sola unidad no hay nada que separar: la lista de siempre.
+    if (ingrediente.totales.length <= 1) {
+      return listaDeRecetas(ingrediente.enRecetas);
+    }
+
+    // CON VARIAS UNIDADES SE AGRUPA, y ese es el objetivo entero de esta
+    // pantalla de cara al costeo: el aviso decia que un ingrediente se mide de
+    // dos formas, pero no DONDE, asi que la unica manera de encontrar las que se
+    // salen era abrir recetas a mano. `recetasPorUnidad` pone la minoritaria
+    // arriba, que es casi siempre la que hay que mirar.
+    return el(
+      'div',
+      { class: 'ings__grupos' },
+      recetasPorUnidad(ingrediente).map((grupo) =>
+        el('div', { class: 'ings__grupo' }, [
+          el('p', { class: 'ings__grupo-cab' }, [
+            el('span', { class: 'ings__grupo-unidad', text: grupo.unidad }),
+            el('span', {
+              class: 'ings__grupo-cuenta',
+              text: `${grupo.recetas.length} ${grupo.recetas.length === 1 ? 'receta' : 'recetas'}`,
+            }),
+          ]),
+          listaDeRecetas(grupo.recetas),
+        ]),
+      ),
+    );
+  }
+
+  /**
+   * La lista de recetas propiamente dicha.
+   *
+   * Cada entrada ocupa una fila de altura fija y una sola linea de texto. Antes
+   * eran enlaces de alto libre repartidos en columnas: los nombres largos
+   * pasaban a dos lineas, esa fila de la rejilla crecia, y el texto de las
+   * entradas cortas quedaba centrado a media altura respecto a sus vecinas.
+   *
+   * El nombre completo sigue siendo el contenido del boton, asi que el recorte
+   * es solo visual: los lectores de pantalla lo anuncian entero.
+   *
+   * @param {Array<{id: string, nombre: string, categoria: string}>} recetas
+   * @returns {HTMLElement}
+   */
+  function listaDeRecetas(recetas) {
     return el(
       'ul',
       { class: 'ings__recetas-lista' },
-      ingrediente.enRecetas.map((receta) =>
+      recetas.map((receta) =>
         el('li', { class: 'ings__receta' }, [
           el('button', {
             type: 'button',

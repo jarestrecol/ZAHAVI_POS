@@ -128,7 +128,7 @@ tests/                             Pruebas de navegador (Playwright)
 | `core/search.js` | Filtrado, orden y recuentos (funciones puras) |
 | `core/scale.js` | Escalado de tanda (transformación de lectura) |
 | `core/plan.js` | Consolidación del plan de producción |
-| `core/ingredients.js` | Catálogo de ingredientes y totales por unidad |
+| `core/ingredients.js` | Catálogo, totales por unidad y reparto de recetas por unidad |
 | `lib/dom.js` | Construcción de DOM sin innerHTML |
 | `lib/format.js` | Formato de texto y cifras |
 | `lib/a11y.js` | Foco atrapado, región viva, inerte |
@@ -495,23 +495,23 @@ tabla.
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
 npm run verificar    # 12 bloques, sin navegador, segundos
-npm run qa           # 66 pruebas en escritorio, celular y tableta
+npm run qa           # 70 pruebas en escritorio, celular y tableta
 ```
 
 `npm run verificar` en verde termina así:
 
 ```
 Fronteras de arquitectura... ok (3 de carpeta y 2 de responsabilidad)
-Codificacion de los archivos... ok (71 archivos en UTF-8)
+Codificacion de los archivos... ok (72 archivos en UTF-8)
 Sintaxis de los modulos... ok (40 archivos)
 Resolucion de importaciones... ok (37 modulos)
-Importaciones que faltan... ok (146 nombres del proyecto, todos importados donde se usan)
-Coherencia del CSS... ok (312 clases)
+Importaciones que faltan... ok (147 nombres del proyecto, todos importados donde se usan)
+Coherencia del CSS... ok (317 clases)
 Capa de datos... ok (29 comprobaciones)
 Publicacion y conflictos... ok (22 comprobaciones)
 Validacion del servidor... ok (37 comprobaciones)
-Alta y baja masiva... ok (188 comprobaciones)
-Version del proyecto... ok (v1.5.1)
+Alta y baja masiva... ok (194 comprobaciones)
+Version del proyecto... ok (v1.5.2)
 Integridad de las recetas... ok (121 recetas, 187 componentes, 1282 items, 225 KB, sha f0307204)
 ```
 
@@ -546,6 +546,7 @@ revisión pasada pasaron por delante de siete bloques en verde.
 | `tests/impresion.spec.js` | Que se imprima lo que se está mirando |
 | `tests/celular.spec.js` | Acciones al alcance del pulgar y nada inalcanzable a 320 px |
 | `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral |
+| `tests/unidades.spec.js` | Que las recetas de un ingrediente se separen por la unidad con que lo miden, con la minoritaria arriba |
 | `tests/resiliencia.spec.js` | La 404 con su estado y su estilo, el arranque roto que deja salida, la receta borrada que lo dice, el sitio sin servidor que lo anuncia y el recetario abriendo sin red |
 
 La suite levanta el servidor sola, con las cabeceras de producción: probar contra
@@ -1004,11 +1005,11 @@ cifra: **no abras `data/recipes.json`**.
 | `data/recipes.json` | 225 KB (230.598 bytes), `version: 2` |
 | `sha` de integridad | `f0307204` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
-| Versión | 1.5.1 (Fase 1). El primer número es la fase de la hoja de ruta |
-| `CACHE_VERSION` de `sw.js` | `zahavi-v37` |
+| Versión | 1.5.2 (Fase 1). El primer número es la fase de la hoja de ruta |
+| `CACHE_VERSION` de `sw.js` | `zahavi-v38` |
 | Node en el servidor | 24.x |
 | Módulos en `src/` | 37 |
-| Bloques de `verificar` / pruebas de `qa` | 12 / 66 |
+| Bloques de `verificar` / pruebas de `qa` | 12 / 70 |
 
 ---
 
@@ -1023,6 +1024,7 @@ cifra: **no abras `data/recipes.json`**.
 | El almacenamiento del navegador ronda los 5 MB | Suficiente para texto, no para imágenes | Si se añaden fotografías de producto |
 | Una sola clave para todo el equipo | No se sabe quién entró | Si hiciera falta trazabilidad por persona |
 | Los ingredientes se referencian por nombre, no por código | Un cambio de nombre no propaga | Antes del costeo (Fase 2) |
+| 15 ingredientes se miden de más de una forma | Sin unidad única no se les puede poner precio | **La pantalla de Ingredientes ya dice en qué recetas se mide de cada forma.** Queda decidir cada caso |
 | Borrar los datos de navegación borra los cambios sin publicar | Lo publicado se recupera al recargar. La publicación automática reduce la ventana pero no la cierra | Formar al equipo: publicar al empezar la jornada |
 | La clave de edición vive solo en la sesión | La primera publicación de cada sesión es manual | Deliberado: guardarla en disco dejaría la llave del repositorio en el mostrador |
 | Ninguna de las 121 recetas tiene método escrito | El campo existe y está vacío en origen | Trabajo de contenido, no técnico |
@@ -1103,8 +1105,26 @@ Trabajos que no se pueden decidir desde el código:
 4. **Reunir los precios.** 159 ingredientes, de los cuales 64 se usan en una sola
    receta: ese coste operativo conviene medirlo antes de comprometerse.
 5. **Unificar las unidades de 15 ingredientes** que hoy se miden de dos o tres
-   formas distintas (la leche llega a tener tres). Sin eso no se les puede asignar
-   un precio único.
+   formas distintas (la leche llega a tener tres). Son **67 líneas repartidas en
+   47 de las 121 recetas**. Sin eso no se les puede asignar un precio único.
+
+   **La herramienta ya está**: en Ingredientes, al desplegar uno de esos 15, las
+   recetas salen agrupadas por unidad, con la minoritaria arriba y cada fila
+   enlazando a su receta.
+
+   Lo que la máquina **no** puede hacer es decidir. Hay dos casos distintos
+   mezclados bajo el mismo aviso, y separarlos exige conocer la fórmula:
+
+   | Caso | Ejemplo | Qué hacer |
+   |---|---|---|
+   | **Equivalencia real** | `AGUA` en GR (37 líneas) y ML (16). 1 g = 1 ml | Ninguna receta está mal: solo hay que **elegir una** para el precio |
+   | **Unidad mal escrita** | `MANTEQUILLA 1050 UND`, `HARINA 3000 UND` | La receta **sí** está mal y hay que corregirla |
+
+   Se intentó clasificarlos por magnitud y **no funciona**: marca `AGUA 2025 ML`
+   como sospechosa (es legítima, una tanda de 10 panes) y deja pasar
+   `MANTEQUILLA 1050 UND`. Por eso la pantalla solo muestra y no marca nada como
+   error: sugerir una corrección equivocada sobre una fórmula es peor que no
+   sugerir ninguna.
 
 Y el trabajo técnico de la [sección 5](#5-cómo-añadir-un-módulo-nuevo).
 

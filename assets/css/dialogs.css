@@ -1125,6 +1125,62 @@
   color: var(--amber-text);
 }
 
+/* ---- Recetas repartidas por unidad ----
+
+   Solo aparece en los ingredientes que se miden de mas de una forma, que son 15
+   de los 159. Antes la pantalla avisaba de que un ingrediente se medía en dos
+   unidades pero no decía en cuáles recetas, así que para unificarlas -paso
+   obligatorio antes de poner precios- había que abrir recetas a mano.
+
+   El grupo de la unidad MINORITARIA va primero, porque suele ser el que hay que
+   revisar: dos recetas en mililitros frente a treinta y nueve en gramos. */
+
+.ings__grupos {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.ings__grupo {
+  /* La línea es el material del sistema: separa el grupo sin teñir el fondo,
+     que aquí ya lo usa la lista de recetas de dentro. */
+  border: 1px solid var(--line-cell);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.ings__grupo-cab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--line-cell);
+}
+
+.ings__grupo-unidad {
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+.ings__grupo-cuenta {
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+}
+
+/* Dentro de un grupo la lista ya está enmarcada por el grupo: se le quita el
+   fondo hundido y el margen para que no haya dos cajas anidadas. */
+.ings__grupo .ings__recetas-lista {
+  margin: 0;
+  background: none;
+  border-radius: 0;
+}
+
 /* ---- Recetas donde entra ---- */
 
 /* Rejilla de altura uniforme: cada receta ocupa exactamente una fila de

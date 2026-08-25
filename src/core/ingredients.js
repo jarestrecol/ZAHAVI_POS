@@ -40,7 +40,8 @@ import { normalize } from '../lib/format.js';
  * @property {number} lineas           en cuantas lineas aparece
  * @property {number} recetas          en cuantas recetas distintas aparece
  * @property {Array<{unidad: string, total: number}>} totales  gasto por unidad
- * @property {Array<{id: string, nombre: string, categoria: string}>} enRecetas  donde se usa, en orden alfabetico
+ * @property {Array<{id: string, nombre: string, categoria: string, unidades: Array<string>}>} enRecetas
+ *   donde se usa, en orden alfabetico, con las unidades que emplea cada receta
  */
 
 /**
@@ -78,12 +79,31 @@ export function catalogoIngredientes(recipes) {
 
         const entrada = mapa.get(clave);
         entrada.lineas += 1;
+
+        const unidad = String(item.unidad || '').trim().toUpperCase() || '—';
+
         // Se guarda tambien la categoria: la lista desplegada la usa para poner
         // el punto de color, la misma señal de lectura rapida que el listado
         // principal. Sin ella habria que volver a buscar cada receta por id.
-        entrada._recetas.set(recipe.id, { nombre: recipe.nombre, categoria: recipe.categoria });
+        //
+        // Y SE GUARDA LA UNIDAD DE CADA RECETA. Saber que un ingrediente se mide
+        // de dos formas no sirve de nada si no se sabe DONDE: hay que unificar
+        // las unidades antes de poner precios, y sin esto tocaba abrir las 121
+        // recetas a mano para encontrar las que se salen.
+        //
+        // Es un conjunto porque una misma receta puede usar dos unidades del
+        // mismo ingrediente en componentes distintos. Ocurre una vez -R048 lleva
+        // agua en GR y en ML- y es justo el caso mas grave, porque la
+        // incoherencia esta dentro de una sola formula.
+        if (!entrada._recetas.has(recipe.id)) {
+          entrada._recetas.set(recipe.id, {
+            nombre: recipe.nombre,
+            categoria: recipe.categoria,
+            unidades: new Set(),
+          });
+        }
+        entrada._recetas.get(recipe.id).unidades.add(unidad);
 
-        const unidad = String(item.unidad || '').trim().toUpperCase() || '—';
         const cantidad = numero(item.cantidad);
         if (Number.isFinite(cantidad)) {
           entrada._unidades.set(unidad, (entrada._unidades.get(unidad) || 0) + cantidad);
@@ -102,11 +122,62 @@ export function catalogoIngredientes(recipes) {
     // Alfabetico: la lista se recorre buscando una receta concreta, y el orden
     // de aparicion en el archivo no ayuda a nadie a encontrarla.
     enRecetas: [...entrada._recetas.entries()]
-      .map(([id, receta]) => ({ id, nombre: receta.nombre, categoria: receta.categoria }))
+      .map(([id, receta]) => ({
+        id,
+        nombre: receta.nombre,
+        categoria: receta.categoria,
+        unidades: [...receta.unidades].sort(),
+      }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
   }));
 
   return ordenarPorUso(catalogo);
+}
+
+/**
+ * Reparte las recetas de un ingrediente segun la unidad con que lo miden.
+ *
+ * PARA QUE SIRVE
+ * --------------
+ * Es el paso que faltaba para poder unificar unidades antes del costeo. La
+ * pantalla ya avisaba de que un ingrediente "se mide de dos formas distintas",
+ * pero no decia DONDE, asi que la unica forma de encontrar las que se salen era
+ * abrir recetas a mano. Son 67 lineas repartidas en 47 de las 121.
+ *
+ * EL ORDEN NO ES ALFABETICO Y ESO IMPORTA
+ * ---------------------------------------
+ * Los grupos salen de la unidad menos usada a la mas usada. La minoritaria es
+ * casi siempre la que hay que mirar -dos recetas en ML frente a treinta y nueve
+ * en GR-, asi que va arriba, donde se lee sin desplazar.
+ *
+ * OJO: MINORITARIA NO SIGNIFICA EQUIVOCADA. Hay dos casos distintos y solo
+ * quien conoce la formula puede separarlos: el agua en GR y en ML es lo mismo
+ * (1 g = 1 ml) y ninguna receta esta mal, mientras que `MANTEQUILLA 1050 UND`
+ * no existe y si hay que corregirla. Por eso esto solo MUESTRA: no marca nada
+ * como error ni ofrece arreglarlo en bloque.
+ *
+ * @param {Ingrediente} ingrediente
+ * @returns {Array<{unidad: string, recetas: Array<{id: string, nombre: string, categoria: string}>}>}
+ */
+export function recetasPorUnidad(ingrediente) {
+  const grupos = new Map();
+
+  for (const receta of ingrediente.enRecetas || []) {
+    // Una receta que use dos unidades del mismo ingrediente aparece en los dos
+    // grupos, a proposito: es el caso mas grave y tiene que verse dos veces.
+    for (const unidad of receta.unidades || []) {
+      if (!grupos.has(unidad)) grupos.set(unidad, []);
+      grupos.get(unidad).push({
+        id: receta.id,
+        nombre: receta.nombre,
+        categoria: receta.categoria,
+      });
+    }
+  }
+
+  return [...grupos.entries()]
+    .map(([unidad, recetas]) => ({ unidad, recetas }))
+    .sort((a, b) => a.recetas.length - b.recetas.length || a.unidad.localeCompare(b.unidad));
 }
 
 /**
