@@ -16,6 +16,25 @@ const ENDPOINT = './api/recipes';
 /** Clave de edicion guardada para la sesion del navegador. */
 const KEY_STORAGE = 'zahavi_edit_key';
 
+/** Momento en que se guardo la clave, para poder caducarla. */
+const KEY_TIME_STORAGE = 'zahavi_edit_key_desde';
+
+/**
+ * Inactividad tras la cual la clave guardada deja de valer.
+ *
+ * `sessionStorage` promete menos de lo que su nombre sugiere: en una tableta
+ * instalada como aplicacion la sesion no termina al acabar el turno, sino
+ * cuando alguien cierra la ventana, y en el obrador eso puede tardar dias. La
+ * clave es la unica proteccion real del recetario compartido, asi que quedarse
+ * ahi mientras el aparato siga encendido la convierte en una llave olvidada
+ * sobre el mostrador.
+ *
+ * Media hora cubre de sobra el uso normal -entre guardar una receta y su
+ * publicacion automatica pasan segundos- y cierra la ventana larga: la tableta
+ * que nadie toca desde hace rato ya no puede publicar para las dos sedes.
+ */
+const KEY_IDLE_MS = 30 * 60 * 1000;
+
 /** Milisegundos antes de dar por perdida una peticion. */
 const TIMEOUT_MS = 12000;
 
@@ -115,10 +134,6 @@ export function serverStatus() {
 }
 
 /**
- * Clave de edicion guardada en este navegador, si la hay.
- * @returns {string}
- */
-/**
  * Generacion de acceso vigente segun el servidor.
  * @returns {number}
  */
@@ -126,22 +141,53 @@ export function generacionAcceso() {
   return accesoGen;
 }
 
+/**
+ * Clave de edicion guardada en este navegador, si la hay y sigue vigente.
+ *
+ * La caducidad se comprueba al leer, y no con un temporizador en marcha: un
+ * reloj no sobrevive a que la tableta se suspenda, y lo que hay que medir es
+ * cuanto lleva la clave sin usarse, no cuanto lleva la pestana abierta.
+ *
+ * Una marca ilegible o ausente se trata como vencida. Es la unica proteccion
+ * real del sistema: ante la duda, que se vuelva a pedir.
+ *
+ * @returns {string}
+ */
 export function getEditKey() {
   try {
-    return window.sessionStorage.getItem(KEY_STORAGE) || '';
+    const clave = window.sessionStorage.getItem(KEY_STORAGE) || '';
+    if (!clave) return '';
+
+    const desde = Number.parseInt(window.sessionStorage.getItem(KEY_TIME_STORAGE) || '', 10);
+    if (!Number.isFinite(desde) || Date.now() - desde > KEY_IDLE_MS) {
+      setEditKey('');
+      return '';
+    }
+
+    return clave;
   } catch {
     return '';
   }
 }
 
 /**
- * Guarda la clave de edicion para no volver a pedirla en esta sesion.
+ * Guarda la clave de edicion para no volver a pedirla enseguida.
+ *
+ * La marca de tiempo se renueva en cada guardado, que es lo que ocurre cada vez
+ * que el servidor acepta la clave: asi la media hora se cuenta desde el ultimo
+ * uso de verdad y no desde que se escribio por primera vez en el dia.
+ *
  * @param {string} value
  */
 export function setEditKey(value) {
   try {
-    if (value) window.sessionStorage.setItem(KEY_STORAGE, value);
-    else window.sessionStorage.removeItem(KEY_STORAGE);
+    if (value) {
+      window.sessionStorage.setItem(KEY_STORAGE, value);
+      window.sessionStorage.setItem(KEY_TIME_STORAGE, String(Date.now()));
+    } else {
+      window.sessionStorage.removeItem(KEY_STORAGE);
+      window.sessionStorage.removeItem(KEY_TIME_STORAGE);
+    }
   } catch {
     /* sin almacenamiento de sesion: se pedira cada vez */
   }

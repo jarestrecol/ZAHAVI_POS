@@ -59,6 +59,46 @@ const ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
  */
 const MAX_TRACKED_ORIGINS = 5000;
 
+/**
+ * Lecturas por origen. Freno al barrido del recetario entero.
+ *
+ * La lectura es publica a proposito y eso no cambia aqui. Lo que se frena es
+ * otra cosa: cada lectura que no venga de la copia en memoria es una peticion
+ * real a GitHub con el token del servidor, y ese token tiene una cuota por
+ * hora. Sin freno, cualquiera puede agotarla desde fuera en un bucle, y
+ * entonces las dos sedes se quedan sin recetario compartido. El dano no es que
+ * alguien lea las formulas: es que el obrador deje de poder leerlas.
+ */
+const lecturas = new Map();
+
+/**
+ * Lecturas permitidas por origen dentro de la ventana.
+ *
+ * Holgado a proposito: varias tabletas de una misma sede salen por la misma
+ * direccion, asi que el limite tiene que dejar sitio a un turno entero
+ * recargando. Sesenta por minuto no estorba a nadie que trabaje y convierte un
+ * barrido de diez mil peticiones en casi tres horas.
+ */
+const MAX_LECTURAS = 60;
+
+/** Ventana del contador de lecturas. */
+const VENTANA_LECTURAS_MS = 60 * 1000;
+
+/**
+ * Copia del recetario en memoria, para no ir a GitHub en cada lectura.
+ *
+ * Diez segundos. Es corto a proposito: la promesa de que una publicacion nueva
+ * se ve en la siguiente carga se mantiene porque al publicar se tira esta copia
+ * (ver `commit`), y el unico caso que queda -alguien edita el archivo a mano en
+ * GitHub- se corrige solo en esos diez segundos.
+ *
+ * @type {{at: number, value: {data: object, sha: string}}|null}
+ */
+let copia = null;
+
+/** Tiempo que vale la copia en memoria. */
+const COPIA_TTL_MS = 10 * 1000;
+
 export default async function handler(request, response) {
   const config = readConfig();
   if (!config.ok) {
@@ -66,7 +106,7 @@ export default async function handler(request, response) {
   }
 
   if (request.method === 'GET') {
-    return handleGet(response, config.value);
+    return handleGet(request, response, config.value);
   }
   // Solo PUT: a diferencia de POST, siempre obliga a un preflight de CORS,
   // asi que un formulario de otro origen no puede alcanzar esta ruta sin que
@@ -116,8 +156,18 @@ function leerGeneracion() {
   return Number.isFinite(bruto) && bruto > 0 ? bruto : 0;
 }
 
-async function handleGet(response, config) {
-  const file = await fetchFile(config);
+async function handleGet(request, response, config) {
+  if (excedeLecturas(clientKey(request))) {
+    // 429 con `Retry-After`: al cliente de verdad esto no le pasa nunca, y a
+    // quien barre se le dice cuanto esperar en lugar de dejarle reintentar en
+    // vacio. El mensaje va redactado para la persona, como el resto.
+    response.setHeader('Retry-After', String(VENTANA_LECTURAS_MS / 1000));
+    return send(response, 429, {
+      error: 'Demasiadas consultas seguidas. Espera un minuto y vuelve a intentarlo.',
+    });
+  }
+
+  const file = await leerRecetario(config);
   if (!file.ok) {
     return send(response, file.status || 502, { error: file.error });
   }
@@ -241,9 +291,33 @@ function esJson(header) {
   return header.split(';')[0].trim().toLowerCase() === 'application/json';
 }
 
+/**
+ * Con que se identifica a quien llama, para el freno de intentos y de lecturas.
+ *
+ * NO se toma el PRIMER elemento de `x-forwarded-for`. Esa cabecera la puede
+ * escribir cualquiera, y los proxies ANADEN al final en vez de reemplazar: el
+ * primer elemento es, literalmente, texto que manda quien llama. Con el, una
+ * peticion por IP inventada estrenaba contador cada vez, y las dos defensas del
+ * servidor -el freno a la fuerza bruta contra `EDIT_PASSWORD` y el tope de
+ * lecturas que protege la cuota del token- dejaban de existir.
+ *
+ * Se prefiere `x-real-ip`, que pone la plataforma y el cliente no puede
+ * sustituir. Si no esta, se toma el ULTIMO elemento de la cadena, que es el que
+ * escribio el proxy mas cercano y no quien llama.
+ *
+ * @param {object} request
+ * @returns {string}
+ */
 function clientKey(request) {
+  const real = request.headers['x-real-ip'];
+  if (typeof real === 'string' && real.trim()) return real.trim();
+
   const header = request.headers['x-forwarded-for'];
-  if (typeof header === 'string' && header) return header.split(',')[0].trim();
+  if (typeof header === 'string' && header) {
+    const partes = header.split(',');
+    return partes[partes.length - 1].trim();
+  }
+
   return 'desconocido';
 }
 
@@ -274,6 +348,54 @@ function readAttempts(origin) {
   return record.count;
 }
 
+/**
+ * Anota una lectura y dice si ese origen ya paso del limite.
+ *
+ * La ventana es fija y no deslizante: al vencer se empieza a contar de cero.
+ * Es menos fino, pero cabe en unas pocas lineas sin estado externo, y para lo
+ * que hace falta -que nadie vacie la cuota de GitHub en un bucle- sobra.
+ *
+ * Mismo tope de origenes vigilados que los intentos fallidos, y por el mismo
+ * motivo: un registro sin tope es memoria que crece sola.
+ *
+ * @param {string} origin
+ * @returns {boolean} true si hay que rechazar la peticion
+ */
+function excedeLecturas(origin) {
+  const ahora = Date.now();
+  const registro = lecturas.get(origin);
+
+  if (!registro || ahora - registro.desde > VENTANA_LECTURAS_MS) {
+    if (!lecturas.has(origin) && lecturas.size >= MAX_TRACKED_ORIGINS) {
+      const masAntiguo = lecturas.keys().next().value;
+      if (masAntiguo !== undefined) lecturas.delete(masAntiguo);
+    }
+    lecturas.set(origin, { count: 1, desde: ahora });
+    return false;
+  }
+
+  registro.count += 1;
+  return registro.count > MAX_LECTURAS;
+}
+
+/**
+ * Lee el recetario, reutilizando la copia en memoria si sigue fresca.
+ *
+ * Solo se guarda la lectura buena: cachear un fallo lo convertiria en diez
+ * segundos de fallo para todo el mundo, incluida la sede que no tiene culpa.
+ *
+ * @returns {Promise<{ok: true, value: {data: object, sha: string}} | {ok: false, status?: number, error: string}>}
+ */
+async function leerRecetario(config) {
+  if (copia && Date.now() - copia.at < COPIA_TTL_MS) {
+    return { ok: true, value: copia.value };
+  }
+
+  const file = await fetchFile(config);
+  if (file.ok) copia = { at: Date.now(), value: file.value };
+  return file;
+}
+
 async function commit(response, config, value, sha, rawAuthor) {
   const content = {
     version: 2,
@@ -282,8 +404,29 @@ async function commit(response, config, value, sha, rawAuthor) {
     ingredientes: value.ingredientes,
   };
 
-  const encoded = Buffer.from(JSON.stringify(content, null, 2) + '\n', 'utf8').toString('base64');
-  const author = typeof rawAuthor === 'string' && rawAuthor.trim() ? rawAuthor.trim().slice(0, 60) : 'recetario';
+  // EL TOPE SE MIDE SOBRE LO QUE SE VA A ESCRIBIR, no sobre el cuerpo recibido.
+  // Lo que llega viene compacto y lo que se sube lleva sangrado de dos espacios
+  // y un salto por linea, asi que el archivo escrito es bastante mayor que el
+  // que se midio en `readBody`. Sin esta segunda medida se podia publicar un
+  // recetario que despues la API de contenidos ya no entregaria, que es
+  // exactamente el fallo que el tope existe para evitar.
+  const serializado = JSON.stringify(content, null, 2) + '\n';
+  if (Buffer.byteLength(serializado, 'utf8') > MAX_BYTES) {
+    return send(response, 400, {
+      error: 'El recetario resultante es demasiado grande para publicarse.',
+    });
+  }
+
+  const encoded = Buffer.from(serializado, 'utf8').toString('base64');
+
+  // Los saltos de linea se aplastan ANTES de recortar: el autor va dentro del
+  // asunto del commit, y un salto ahi convierte todo lo que sigue en cuerpo del
+  // mensaje. La atribucion ya no es verificable -la declara el navegador-, pero
+  // eso no es razon para dejar escribir el historial a medida.
+  const author =
+    typeof rawAuthor === 'string' && rawAuthor.trim()
+      ? rawAuthor.replace(/[\r\n]+/g, ' ').trim().slice(0, 60)
+      : 'recetario';
 
   let committed;
   try {
@@ -310,6 +453,12 @@ async function commit(response, config, value, sha, rawAuthor) {
     console.error('publicacion rechazada por GitHub', committed.status, await safeText(committed));
     return send(response, 502, { error: 'No se pudo publicar en el repositorio.' });
   }
+
+  // El recetario acaba de cambiar: la copia en memoria ya no vale. Sin esto,
+  // la sede que publica podria recargar y seguir viendo lo de antes durante
+  // diez segundos, que es justo lo que la regla "una publicacion nueva se ve en
+  // la siguiente carga" promete que no pasa.
+  copia = null;
 
   const result = await committed.json();
   return send(response, 200, {
@@ -368,7 +517,11 @@ async function readBody(request) {
   if (request.body && typeof request.body === 'object') {
     let size;
     try {
-      size = JSON.stringify(request.body).length;
+      // `length` cuenta unidades UTF-16, no bytes, y el tope existe para no
+      // pasar del techo de GitHub, que se mide en bytes. Cada acento, cada ñ y
+      // cada signo de apertura ocupan un byte mas de lo que esa cuenta dice, y
+      // aqui el texto va en espanol: la medida tiene que ser la de verdad.
+      size = Buffer.byteLength(JSON.stringify(request.body), 'utf8');
     } catch {
       return { ok: false, error: 'El cuerpo del envío no se pudo interpretar.' };
     }

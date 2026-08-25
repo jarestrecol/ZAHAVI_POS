@@ -112,6 +112,29 @@ reglas. Ningún módulo de `core/` importa nada de `views/`. Las vistas leen de
     añades una vía nueva de escritura, pasa por ahí. La comprueba el servidor
     (`verificar: true`); comprobarla en el cliente sería teatro. Sin recetario
     compartido no se pide: no hay quien la valide ni a dónde publicar.
+12. **La clave de edición caduca a la media hora sin usarse**
+    (`KEY_IDLE_MS` en `core/remote.js`). `sessionStorage` promete menos de lo
+    que su nombre sugiere: en una tableta instalada como aplicación la sesión no
+    termina al acabar el turno, sino cuando alguien cierra la ventana, y en el
+    obrador eso tarda días. La caducidad se comprueba **al leer**, no con un
+    temporizador: un reloj no sobrevive a que el aparato se suspenda, y lo que
+    hay que medir es el tiempo sin uso, no el tiempo con la pestaña abierta. Una
+    marca de tiempo ausente o ilegible cuenta como vencida: ante la duda, se
+    vuelve a pedir.
+13. **Leer el recetario es público a propósito; agotarle la cuota a GitHub, no.**
+    Cada lectura que no salga de la copia en memoria de `api/recipes.js` es una
+    petición real a GitHub con el token del servidor, y ese token tiene cuota por
+    hora. Por eso hay un freno de `MAX_LECTURAS` por origen y una copia de
+    `COPIA_TTL_MS`. **El daño que evitan no es que alguien lea las fórmulas: es
+    que las dos sedes se queden sin poder leerlas.** Al publicar se tira la copia
+    (`copia = null` en `commit`), que es lo que sostiene la promesa de que una
+    publicación nueva se ve en la siguiente carga. `handlePut` **nunca** usa la
+    copia: el control de concurrencia necesita el `sha` de verdad, y comparar
+    contra uno de hace diez segundos dejaría pisar el trabajo de la otra sede.
+14. **Lo que se mide en bytes se mide con `Buffer.byteLength`, no con `.length`.**
+    `String.length` cuenta unidades UTF-16, y aquí el texto va en español: cada
+    tilde y cada ñ ocupan un byte más de lo que esa cuenta dice. El tope del
+    envío existe para no pasar del techo de GitHub, que se mide en bytes.
 
 Las quince reglas completas, con el defecto real que originó cada una, están en
 `docs/DECISIONES.md`, sección "Reglas al tocar el código". Ábrela solo si vas a
@@ -124,22 +147,23 @@ tocar CSS, foco, impresión o diseño de listas.
 ```bash
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
-npm run verificar    # 9 bloques, sin navegador, segundos
-npm run qa           # 58 pruebas en escritorio, celular y tableta
+npm run verificar    # 10 bloques, sin navegador, segundos
+npm run qa           # 66 pruebas en escritorio, celular y tableta
 ```
 
 `npm run verificar` en verde termina así:
 
 ```
+Fronteras de arquitectura… ok (3 de carpeta y 2 de responsabilidad)
 Sintaxis de los modulos… ok (37 archivos)
 Resolucion de importaciones… ok (34 modulos)
-Coherencia del CSS… ok (310 clases)
-Capa de datos… ok (9 bloques)
+Coherencia del CSS… ok (312 clases)
+Capa de datos… ok (29 comprobaciones)
 Publicacion y conflictos… ok (22 comprobaciones)
-Validacion del servidor… ok (28 comprobaciones)
-Alta y baja masiva… ok (163 comprobaciones)
+Validacion del servidor… ok (37 comprobaciones)
+Alta y baja masiva… ok (179 comprobaciones)
 Version del proyecto… ok (v1.5.0)
-Integridad de las recetas… ok (121 recetas, 187 componentes, 1282 items, sha f0307204)
+Integridad de las recetas… ok (121 recetas, 187 componentes, 1282 items, 225 KB, sha f0307204)
 ```
 
 **Si el `sha` cambia sin que nadie haya editado una receta a propósito, para y
@@ -178,7 +202,7 @@ capas en cada envío.
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB |
 | Versión | 1.5.0 (Fase 1). El primer número es la fase de la hoja de ruta |
 | Node en el servidor | 24.x |
-| Bloques de `verificar` / pruebas de `qa` | 9 / 58 |
+| Bloques de `verificar` / pruebas de `qa` | 10 / 66 |
 
 Variables de entorno en Vercel: `GITHUB_TOKEN` (Contents: read and write),
 `GITHUB_REPO`, `GITHUB_BRANCH` y `EDIT_PASSWORD` obligatorias, más
@@ -194,6 +218,49 @@ Dos avisos que salen caros si se descubren tarde:
 - Si la identidad de git que firma el commit no tiene acceso al proyecto en
   Vercel, el despliegue automático no se dispara. En este repositorio está fijada
   en local con la identidad de los commits anteriores.
+
+### Estado de seguridad (auditado el 25 de agosto de 2026)
+
+Auditoría completa de las dos superficies. **No queda ninguna vulnerabilidad
+conocida explotable de forma remota.** El detalle está en `docs/SEGURIDAD.md`;
+esto es lo que hay que saber antes de tocar nada.
+
+Comprobado y sin hallazgos: sin secretos en el árbol ni en el historial de git;
+ninguna variable de entorno viaja al cliente (`process.env` solo aparece en
+`api/recipes.js`); ningún camino de escritura evita `checkAuth`; sin `innerHTML`,
+`eval` ni `document.write` en todo `src/`; sin contaminación de prototipo
+(los objetos se construyen campo a campo); sin SSRF (repo y rama vienen del
+entorno, nunca de la petición); `npm audit` limpio con una sola dependencia de
+desarrollo.
+
+**La inyección SQL no aplica y no puede aplicar:** no hay base de datos ni una
+sola sentencia SQL en el proyecto. El almacenamiento es `localStorage` y un
+archivo JSON en git.
+
+Tres cosas que **no** son un fallo por corregir, sino los límites del medio.
+No intentes cerrarlas con código, porque no se puede:
+
+1. **Las fórmulas son legibles para quien tenga el enlace.** Decisión consciente
+   y documentada. `curl .../data/recipes.json` devuelve las 121 completas.
+   Cerrarlo exige protección de despliegue de Vercel (plan de pago) o autenticar
+   la lectura, que rompe el arranque sin conexión tal como está hoy.
+2. **Los datos cargados se ven desde la consola del navegador.** Es cierto de
+   toda aplicación web que muestre datos: para pintarlos hay que tenerlos.
+3. **La clave de edición pasa por el navegador de quien la escribe.** Para
+   validarla hay que enviarla. La regla 12 acota cuánto se queda; a cero no baja.
+
+Lo que sí protege de verdad, y hay que conservar: `EDIT_PASSWORD` comprobada en
+el servidor con `timingSafeEqual` sobre SHA-256 (nunca compares esa clave con
+`===`), el retraso creciente ante intentos fallidos, `ACCESS_GENERATION` para
+revocar el acceso de todas las sedes a la vez, y las cabeceras de `vercel.json`,
+con una CSP `default-src 'none'` sin `unsafe-inline` que es la razón de que la
+regla 1 no se negocie.
+
+Detalle contraintuitivo, por si algún día se compra un dominio propio: hoy el
+sitio **no aparece** en los registros públicos de transparencia de certificados
+porque Vercel lo sirve bajo el comodín `*.vercel.app`. Un dominio propio genera
+un certificado a su nombre, y ese nombre **sí** queda publicado. Comprarlo está
+bien por otras razones; no lo compres esperando ocultación.
 
 ---
 

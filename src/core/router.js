@@ -14,8 +14,11 @@
  * Parametros: ?q=texto&cat=CATEGORIA
  */
 
-/** Filtro de categoria que no filtra nada. */
-export const ALL_CATEGORIES = 'TODAS';
+// El filtro "TODAS" se declara en el esquema, que es donde viven las
+// categorias. Se reexporta aqui porque viaja en el hash (`?cat=`) y quien lea
+// este archivo lo espera a mano.
+export { ALL_CATEGORIES } from './schema.js';
+import { ALL_CATEGORIES } from './schema.js';
 
 /**
  * @typedef {{name: 'index'|'detail'|'edit'|'new', id: string|null, query: string, category: string}} Route
@@ -42,7 +45,21 @@ export function parseHash(hash) {
     return { name: 'new', id: null, query, category };
   }
   if (segments[0] === 'receta' && segments[1]) {
-    const id = decodeURIComponent(segments[1]);
+    // `decodeURIComponent` LANZA ante un porcentaje incompleto (`%E0%A4%A`), y
+    // esto se ejecuta al evaluar el modulo, antes de que exista nada. Una
+    // excepcion aqui rompe la cadena de importacion entera: el recetario no
+    // arranca, la pantalla se queda en la red de seguridad, y recargar tampoco
+    // salva porque el hash sigue en la barra de direcciones. Bastaba con mandar
+    // ese enlace por mensaje al obrador.
+    //
+    // Un hash que no se puede leer no es una receta: al indice, como cualquier
+    // otra direccion irreconocible.
+    let id;
+    try {
+      id = decodeURIComponent(segments[1]);
+    } catch {
+      return { name: 'index', id: null, query, category };
+    }
     if (segments[2] === 'editar') return { name: 'edit', id, query, category };
     return { name: 'detail', id, query, category };
   }

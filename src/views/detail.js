@@ -13,7 +13,6 @@
 import { el, svg } from '../lib/dom.js';
 import { titleCase, splitName, splitYield, formatQty } from '../lib/format.js';
 import { navigate } from '../core/router.js';
-import { setState } from '../core/store.js';
 import { countItems } from '../core/search.js';
 import {
   FACTORES,
@@ -117,7 +116,14 @@ function actionButton(options) {
 }
 
 /**
- * @param {{recipe: object, canEdit: boolean, factor: number}} params
+ * Las tres acciones que cambian el estado llegan como callbacks y no se
+ * escriben aqui: una vista pinta y avisa, y es `main.js` quien decide que pasa
+ * despues. Sin esa frontera cada pantalla acaba con su propia idea de que hay
+ * que limpiar al pulsar, y las diferencias solo se notan al encadenar dos.
+ *
+ * @param {{recipe: object, canEdit: boolean, factor: number,
+ *          onPesar: () => void, onEliminar: () => void,
+ *          onFactor: (factor: number) => void}} params
  * @returns {HTMLElement}
  */
 export function renderDetail(params) {
@@ -181,7 +187,7 @@ export function renderDetail(params) {
             icon: ICON_PESAR,
             variant: 'btn--accent btn--action',
             ariaLabel: 'Abrir modo producción para pesar',
-            onClick: () => setState({ production: recipe.id }),
+            onClick: params.onPesar,
           }),
 
           actionButton({
@@ -212,7 +218,7 @@ export function renderDetail(params) {
                 icon: ICON_ELIMINAR,
                 variant: 'btn--quiet btn--danger btn--action',
                 ariaLabel: 'Eliminar la receta',
-                onClick: () => setState({ confirmDelete: recipe.id }),
+                onClick: params.onEliminar,
               })
             : null,
         ]),
@@ -225,7 +231,7 @@ export function renderDetail(params) {
         factItem('Ingredientes', String(total)),
       ]),
 
-      renderScaler(original, factor),
+      renderScaler(original, factor, params.onFactor),
       renderIngredients(recipe),
       renderMethod(recipe, params.canEdit, original.id),
     ],
@@ -263,9 +269,10 @@ function rendimientoTexto(recipe, factor) {
  *
  * @param {object} recipe receta original, sin escalar
  * @param {number} factor factor vigente
+ * @param {(factor: number) => void} onFactor aviso de que se pidio otra tanda
  * @returns {HTMLElement}
  */
-function renderScaler(recipe, factor) {
+function renderScaler(recipe, factor, onFactor) {
   const base = rendimientoBase(recipe.nombre);
   const activo = factor !== FACTOR_ORIGINAL;
 
@@ -281,7 +288,7 @@ function renderScaler(recipe, factor) {
             ? 'Cantidades originales de la receta'
             : `Multiplicar la tanda por ${String(valor).replace('.', ',')}`,
       },
-      on: { click: () => setState({ factor: valor }) },
+      on: { click: () => onFactor(valor) },
     }),
   );
 
@@ -315,10 +322,10 @@ function renderScaler(recipe, factor) {
             change: (event) => {
               const pedido = parseFloat(String(event.target.value).replace(',', '.'));
               if (!Number.isFinite(pedido) || pedido <= 0) {
-                setState({ factor: FACTOR_ORIGINAL });
+                onFactor(FACTOR_ORIGINAL);
                 return;
               }
-              setState({ factor: normalizarFactor(pedido / base) });
+              onFactor(normalizarFactor(pedido / base));
             },
           },
         }),

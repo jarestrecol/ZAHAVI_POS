@@ -79,6 +79,12 @@ console.log('\n3. Limites de tamano');
   const largo = { ...buena, metodo: 'x'.repeat(30000) };
   const r = validatePayload([largo], []);
   comprobar('recorta el texto desmedido', r.ok && r.value.recipes[0].metodo.length === 20000);
+
+  // El catalogo tenia tope de peso pero no de cantidad, y un ingrediente ocupa
+  // tan poco que cabian decenas de miles dentro del mismo margen.
+  const muchosIngredientes = Array.from({ length: 20001 }, (_, i) => 'INGREDIENTE ' + i);
+  comprobar('rechaza mas de 20000 ingredientes', validatePayload([buena], muchosIngredientes).ok === false);
+  comprobar('y acepta un catalogo normal', validatePayload([buena], real.ingredientes).ok === true);
 }
 
 console.log('\n4. Normaliza sin perder informacion util');
@@ -134,6 +140,68 @@ console.log('\n5. Las dos validaciones coinciden sobre los datos reales');
       JSON.stringify(cliente.value.ingredientes) === JSON.stringify(servidor.value.ingredientes);
     comprobar('ambas devuelven los mismos ingredientes', mismosIngredientes);
   }
+}
+
+console.log('\n6. Freno de lecturas y copia en memoria');
+{
+  // La lectura es publica a proposito, pero cada una que no salga de la copia
+  // es una peticion real a GitHub con el token del servidor. Sin freno,
+  // cualquiera agota esa cuota desde fuera y deja a las dos sedes sin recetario
+  // compartido: el dano no es que lean, es que el obrador no pueda leer.
+  process.env.GITHUB_TOKEN = 'token-de-prueba';
+  process.env.GITHUB_REPO = 'ejemplo/repositorio';
+  process.env.EDIT_PASSWORD = 'clave-de-prueba';
+
+  let peticionesAGitHub = 0;
+  globalThis.fetch = async () => {
+    peticionesAGitHub += 1;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        sha: 'sha-de-prueba',
+        content: Buffer.from(
+          JSON.stringify({ version: 2, recipes: real.recipes, ingredientes: real.ingredientes }),
+        ).toString('base64'),
+      }),
+    };
+  };
+
+  const { default: handler } = await import(pathToFileURL(join(root, 'api/recipes.js')).href);
+
+  /** Pide el recetario como lo haria una sede, desde una direccion concreta. */
+  const pedir = async (ip) => {
+    let status = 0;
+    const response = {
+      status(codigo) {
+        status = codigo;
+        return this;
+      },
+      setHeader() {
+        return this;
+      },
+      end() {},
+    };
+    await handler({ method: 'GET', headers: { 'x-forwarded-for': ip } }, response);
+    return status;
+  };
+
+  comprobar('la primera lectura responde', (await pedir('10.0.0.1')) === 200);
+  comprobar('y va a GitHub una sola vez', peticionesAGitHub === 1, String(peticionesAGitHub));
+
+  comprobar('la segunda lectura responde igual', (await pedir('10.0.0.1')) === 200);
+  comprobar('pero sale de la copia, sin volver a GitHub', peticionesAGitHub === 1, String(peticionesAGitHub));
+
+  // Un barrido desde un mismo origen: las primeras pasan, el resto se corta.
+  let rechazadas = 0;
+  for (let i = 0; i < 70; i += 1) {
+    if ((await pedir('10.0.0.2')) === 429) rechazadas += 1;
+  }
+  comprobar('un barrido acaba rechazado', rechazadas > 0, `${rechazadas} de 70 rechazadas`);
+  comprobar('y el barrido tampoco gasta cuota de GitHub', peticionesAGitHub === 1, String(peticionesAGitHub));
+
+  // El freno es por origen: la otra sede no paga lo que hizo un desconocido.
+  comprobar('otra sede no hereda el limite del vecino', (await pedir('10.0.0.3')) === 200);
 }
 
 console.log(fallos === 0 ? '\nTODAS LAS COMPROBACIONES PASAN\n' : `\n${fallos} COMPROBACION(ES) FALLAN\n`);

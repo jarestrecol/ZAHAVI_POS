@@ -37,6 +37,7 @@ import { setState, notify } from '../core/store.js';
 import { navigate, ALL_CATEGORIES } from '../core/router.js';
 import { announce } from '../lib/a11y.js';
 import { setEditKey, getEditKey } from '../core/remote.js';
+import { signIn, signOut } from '../core/access.js';
 import { publicarEnSegundoPlano, sePuedePublicarSolo } from './sync.js';
 
 /**
@@ -223,4 +224,77 @@ export function discardChanges() {
   navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES });
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+//  ABRIR Y CERRAR LA SESION DE ESTE EQUIPO
+// ---------------------------------------------------------------------------
+
+/*
+ * Entrar y salir estaban escritos dentro de las vistas, y cada copia limpiaba
+ * un conjunto distinto de claves: `views/settings.js` borraba `settingsOpen`,
+ * `main.js` no, y ninguna de las dos retiraba `autorizacion`. Es decir, un
+ * permiso de escritura podia sobrevivir a un cierre de sesion.
+ *
+ * Ahora la lista vive UNA sola vez, aqui, y los dos sitios llaman a lo mismo.
+ */
+
+/**
+ * Todo lo que deja de tener sentido cuando ya no hay nadie dentro.
+ *
+ * `recipes` e `ingredientes` NO se tocan a proposito: son el recetario, no la
+ * sesion, y borrarlos dejaria al siguiente turno sin nada que consultar
+ * mientras vuelve a cargar. Los cambios sin publicar tampoco se pierden.
+ */
+const SESION_CERRADA = Object.freeze({
+  authed: false,
+  // Permiso de escritura: lo primero que hay que retirar.
+  autorizacion: null,
+  pedirClave: false,
+  // Ventanas y pantallas de trabajo: ninguna sobrevive al cambio de persona.
+  settingsOpen: false,
+  confirmDelete: null,
+  production: null,
+  planOpen: false,
+  ingredientsOpen: false,
+  planPrint: null,
+  factor: 1,
+  loginError: '',
+});
+
+/**
+ * Abre la sesion en este equipo.
+ *
+ * El resultado de la escritura SE MIRA: si el almacenamiento no admite la marca
+ * de sesion, la persona entra y la siguiente recarga la saca sin explicacion.
+ *
+ * @returns {{ok: true, value: undefined} | {ok: false, code: string, message: string}}
+ */
+export function entrarSesion() {
+  const result = signIn();
+
+  if (!result.ok) {
+    notify(result.message, 'error');
+    return result;
+  }
+
+  setState({ authed: true, loginError: '' });
+  return result;
+}
+
+/**
+ * Cierra la sesion de este equipo.
+ *
+ * LA CLAVE DE EDICION SE REVOCA AQUI, y es lo primero que se hace. Sin eso,
+ * quien entrara despues heredaba la clave que dejo guardada la persona anterior
+ * y podia publicar sin conocerla: fue un defecto real, encontrado en una
+ * auditoria de seguridad. Es la unica proteccion real del sistema.
+ *
+ * @returns {{ok: true, value: undefined}}
+ */
+export function cerrarSesion() {
+  setEditKey(null);
+  signOut();
+  setState(SESION_CERRADA);
+  return { ok: true, value: undefined };
 }

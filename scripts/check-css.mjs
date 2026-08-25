@@ -6,7 +6,7 @@
  * clases que el JavaScript aplica pero que no existen en el CSS.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -110,15 +110,37 @@ else console.log(`  ${classes.size} clases aplicadas, todas con estilo`);
 //    da el service worker, y obligaba a acordarse de anadir cada modulo nuevo
 //    en dos sitios.
 console.log('\nManifiesto del service worker:');
-const modules = walk(join(root, 'src'))
-  .map((file) => file.slice(root.length + 1).replace(/\\/g, '/'))
-  .sort();
 const sw = readFileSync(join(root, 'sw.js'), 'utf8');
 
-const missingInSw = modules.filter((file) => !sw.includes(file));
-missingInSw.forEach((file) => fail(`sw.js no lo cachea: ${file}`));
-if (!missingInSw.length) {
-  console.log(`  ${modules.length} modulos, todos cacheados`);
+// La carcasa se compara en los DOS sentidos, y cada uno atrapa un fallo
+// distinto. Que falte un archivo rompe la aplicacion sin conexion. Que sobre
+// una ruta borrada hace fallar el `addAll` ENTERO durante la instalacion, con
+// lo que el equipo se queda sin ninguna carcasa guardada: un archivo retirado
+// deja de arrancar sin red aunque el resto siga intacto.
+const enShell = new Set(
+  [...(sw.match(/const SHELL = \[([\s\S]*?)\];/)?.[1] ?? '').matchAll(/'\.\/([^']*)'/g)]
+    .map((m) => m[1])
+    .filter(Boolean),
+);
+
+// Todo lo que el navegador necesita para arrancar: modulos, hojas y tipografias.
+const carcasa = [
+  ...walk(join(root, 'src')).map((file) => file.slice(root.length + 1).replace(/\\/g, '/')),
+  ...files.map((name) => `assets/css/${name}`),
+  ...readdirSync(join(root, 'assets/fonts'))
+    .filter((name) => name.endsWith('.woff2'))
+    .map((name) => `assets/fonts/${name}`),
+].sort();
+
+const faltan = carcasa.filter((file) => !enShell.has(file));
+faltan.forEach((file) => fail(`sw.js no lo cachea: ${file}`));
+
+// Una ruta cacheada que ya no existe: `addAll` rechaza en bloque.
+const fantasma = [...enShell].filter((file) => !existsSync(join(root, file)));
+fantasma.forEach((file) => fail(`sw.js cachea algo que no existe: ${file}`));
+
+if (!faltan.length && !fantasma.length) {
+  console.log(`  ${carcasa.length} archivos de carcasa, todos cacheados y todos existen`);
 }
 
 // 6. El recetario compartido NO puede pasar por la cache del service worker.

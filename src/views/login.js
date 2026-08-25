@@ -17,18 +17,24 @@ import { announce } from '../lib/a11y.js';
 import {
   verifyPassword,
   changePassword,
-  signIn,
   estadoClave,
   DEFAULT_PASSWORD,
   MIN_PASSWORD_LENGTH,
 } from '../core/access.js';
-import { setState, getState } from '../core/store.js';
 import { APP_VERSION, APP_FASE } from '../core/version.js';
 
 /**
+ * Pantalla de entrada.
+ *
+ * No escribe estado: recibe el ultimo error a pintar y avisa por callback. El
+ * error viaja por parametro y no se lee del almacen porque esta pantalla se
+ * repinta entera, y una vista que lee y escribe la misma clave acaba siendo el
+ * unico sitio donde se sabe que hay dentro.
+ *
+ * @param {{error: string, onError: (texto: string) => void, onEntrar: () => void}} params
  * @returns {HTMLElement}
  */
-export function renderLogin() {
+export function renderLogin(params) {
   const host = el('div', { class: 'login__host' });
 
   /** Pinta uno de los dos momentos dentro del mismo marco. */
@@ -55,7 +61,7 @@ export function renderLogin() {
       class: 'login__error',
       id: 'login-error',
       attrs: { role: 'alert' },
-      text: getState().loginError,
+      text: params.error,
     });
 
     const submit = async (event) => {
@@ -64,7 +70,7 @@ export function renderLogin() {
       if (!(await verifyPassword(clave.value))) {
         const texto = 'Clave incorrecta.';
         error.textContent = texto;
-        setState({ loginError: texto });
+        params.onError(texto);
         announce(texto, 'assertive');
         clave.value = '';
         clave.focus();
@@ -85,7 +91,7 @@ export function renderLogin() {
       // cambiarla y nadie se queda fuera.
       const esDeFabrica = clave.value === DEFAULT_PASSWORD;
       if (esDeFabrica || estadoClave().caducada) {
-        setState({ loginError: '' });
+        params.onError('');
         mostrar(formularioRenovacion(clave.value, esDeFabrica ? 'inicial' : 'retirada'));
         return;
       }
@@ -187,8 +193,7 @@ export function renderLogin() {
   }
 
   function entrar() {
-    signIn();
-    setState({ authed: true, loginError: '' });
+    params.onEntrar();
   }
 
   /* ---------------------------------------------------------------------

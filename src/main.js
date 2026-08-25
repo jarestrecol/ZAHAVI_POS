@@ -29,11 +29,18 @@ import { setInert, recordarFoco } from './lib/a11y.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
-import { ensureAccess, isSignedIn, estadoClave, signOut, anotarGeneracion } from './core/access.js';
+import { ensureAccess, isSignedIn, estadoClave, anotarGeneracion } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
 import { setEditKey } from './core/remote.js';
-import { saveRecipe, deleteRecipe, publish, discardChanges } from './app/commands.js';
+import {
+  saveRecipe,
+  deleteRecipe,
+  publish,
+  discardChanges,
+  entrarSesion,
+  cerrarSesion,
+} from './app/commands.js';
 import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
 import { renderLogin } from './views/login.js';
 import { renderHeader, renderBadges } from './views/header.js';
@@ -129,8 +136,7 @@ async function boot() {
   // obrador sin señal nunca queda fuera por esto.
   anotarGeneracion(repo.generacionAcceso());
   if (isSignedIn() && estadoClave().caducada) {
-    signOut();
-    setState({ authed: false });
+    cerrarSesion();
   }
 
   // `hydrate` avisa cuando algo no salio como esperaba: sin conexion, sin
@@ -428,7 +434,13 @@ function paint() {
   // --- Pantalla de entrada -----------------------------------------------
   if (!state.authed) {
     renderDialogs(null);
-    app.appendChild(renderLogin());
+    app.appendChild(
+      renderLogin({
+        error: state.loginError,
+        onError: (texto) => setState({ loginError: texto }),
+        onEntrar: entrarSesion,
+      }),
+    );
     clear(printRoot);
     return;
   }
@@ -515,7 +527,16 @@ function paint() {
  * @returns {HTMLElement}
  */
 function renderPanel(state, route, recipe) {
-  if (recipe) return renderDetail({ recipe, canEdit: true, factor: state.factor });
+  if (recipe) {
+    return renderDetail({
+      recipe,
+      canEdit: true,
+      factor: state.factor,
+      onPesar: () => setState({ production: recipe.id }),
+      onEliminar: () => setState({ confirmDelete: recipe.id }),
+      onFactor: (factor) => setState({ factor }),
+    });
+  }
 
   if (route.name === 'detail') {
     return renderNotFound({
@@ -871,6 +892,7 @@ function buildSettings(state) {
     // enfocar el campo, aceptar Intro y enseñar el error donde se esta mirando.
     onPedirClave: () => setState({ pedirClave: true }),
     onDiscard: discardChanges,
+    onSalir: cerrarSesion,
     onClose: () => setState({ settingsOpen: false }),
   });
 }

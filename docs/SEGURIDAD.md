@@ -58,6 +58,27 @@ respuesta, y sin ella no se puede modificar lo que ven las demás sedes.
   nombre de receta o de ingrediente.
 - **Sin `innerHTML` en todo el proyecto**: `lib/dom.js` es la única vía de
   construcción de nodos y solo escribe texto.
+- **La clave de edición caduca a la media hora sin usarse.** Se queda en la
+  sesión del navegador para que la publicación automática salga sola después de
+  guardar, pero `sessionStorage` promete menos de lo que su nombre sugiere: en
+  una tableta instalada como aplicación la sesión no termina al acabar el turno,
+  sino cuando alguien cierra la ventana, y en el obrador eso puede tardar días.
+  Sin caducidad quedaba una llave olvidada sobre el mostrador, y es la única
+  protección real del sistema. La media hora se cuenta desde el último uso que
+  el servidor aceptó, así que no estorba el turno y sí cierra la ventana larga.
+- **Freno de lecturas y copia en memoria en `/api/recipes`.** Leer sigue siendo
+  público a propósito, pero cada lectura que no salga de la copia es una
+  petición real a GitHub con el token del servidor, y ese token tiene cuota por
+  hora. Sin freno, cualquiera la agotaba desde fuera en un bucle y **dejaba a
+  las dos sedes sin recetario compartido**: el daño no era que leyeran las
+  fórmulas, era que el obrador no pudiera leerlas. Ahora hay un tope de lecturas
+  por origen, holgado para que varias tabletas de una misma sede no se estorben,
+  y una copia de diez segundos que absorbe las ráfagas. Al publicar se tira la
+  copia, así que una publicación nueva se sigue viendo en la siguiente carga.
+- **El tope del envío se mide en bytes reales**, con `Buffer.byteLength` y no
+  con `String.length`, que cuenta unidades UTF-16. Aquí el texto va en español:
+  cada tilde y cada ñ ocupan un byte más de lo que esa cuenta decía, y el tope
+  existe para no pasar del techo de GitHub, que se mide en bytes.
 - **Una sola clave para todo el equipo, retirable desde el servidor.** Hubo
   usuarios con nombre y clave por persona, y se retiraron: se guardaban EN CADA
   APARATO y no en el servidor, así que dar de alta a alguien en la panadería no

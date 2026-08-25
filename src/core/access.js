@@ -59,7 +59,6 @@
  */
 
 import { readJson, writeJson, readText, writeText, removeKey, ok, err } from './storage.js';
-import { setEditKey } from './remote.js';
 
 /** Donde vive la clave de este equipo. */
 const ACCESS_KEY = 'zahavi_acceso_v1';
@@ -349,21 +348,33 @@ export function isSignedIn() {
   return (readText(SESSION_KEY) || '') !== '';
 }
 
-/** Abre la sesion en este equipo. */
+/**
+ * Abre la sesion en este equipo.
+ *
+ * DEVUELVE EL RESULTADO Y HAY QUE MIRARLO. Si la escritura falla -cuota
+ * agotada, modo privado-, la sesion no queda guardada: la persona entra, y la
+ * siguiente recarga la saca a la pantalla de entrada sin ninguna explicacion.
+ * Es el mismo fallo contra el que `ensureAccess` ya avisa una capa mas abajo,
+ * reapareciendo aqui arriba porque este resultado se tiraba.
+ *
+ * @returns {{ok: true, value: undefined} | {ok: false, code: string, message: string}}
+ */
 export function signIn() {
-  writeText(SESSION_KEY, new Date().toISOString());
+  return writeText(SESSION_KEY, new Date().toISOString());
 }
 
 /**
- * Cierra la sesion de este equipo y borra tambien la clave de edicion en cache.
+ * Cierra la sesion de este equipo.
  *
- * Sin esto, quien entrara despues heredaba la clave de edicion que dejo
- * guardada la persona anterior: bastaba con abrir Ajustes para publicar sin
- * conocerla. La clave de edicion es la unica proteccion real del sistema (ver
- * la cabecera de este archivo), asi que cerrar sesion tiene que revocarla igual
- * que revoca el acceso a la interfaz.
+ * NO LLAMES A ESTO DIRECTAMENTE: usa `cerrarSesion` de `app/commands.js`.
+ * Cerrar sesion tiene que revocar ademas la clave de edicion guardada -sin eso,
+ * quien entrara despues heredaba la capacidad de publicar de la persona
+ * anterior, que fue un defecto real- y esa revocacion vive en el caso de uso,
+ * porque este modulo es la puerta LOCAL y no debe conocer el transporte: el
+ * acceso tiene que funcionar sin red por definicion.
+ *
+ * `scripts/verificar.mjs` comprueba que nadie mas la importe.
  */
 export function signOut() {
   removeKey(SESSION_KEY);
-  setEditKey(null);
 }

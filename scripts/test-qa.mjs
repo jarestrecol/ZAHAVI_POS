@@ -864,13 +864,49 @@ await acceso.ensureAccess();
 comprobar('un equipo nuevo arranca con la de fabrica', await acceso.verifyPassword(acceso.DEFAULT_PASSWORD));
 
 console.log('\n11. Cerrar sesion revoca tambien la clave de edicion');
-acceso.signIn();
+// Se prueba `cerrarSesion` y NO `signOut`, y la diferencia importa: `signOut`
+// solo cierra la sesion local. Las dos mitades -cerrar y revocar- viven juntas
+// en el caso de uso, y `scripts/verificar.mjs` comprueba que nadie llame a la
+// de abajo por su cuenta. Lo que esta prueba fija es la GARANTIA: quien entre
+// despues no hereda la capacidad de publicar de quien estuvo antes.
 const remote = await import(pathToFileURL(repoRoot + '/src/core/remote.js').href);
+const comandos = await import(pathToFileURL(repoRoot + '/src/app/commands.js').href);
+
+comandos.entrarSesion();
+comprobar('la sesion se abre', acceso.isSignedIn() === true);
 remote.setEditKey('clave-de-edicion-de-prueba');
 comprobar('la clave queda en la sesion', remote.getEditKey() === 'clave-de-edicion-de-prueba');
-acceso.signOut();
+comandos.cerrarSesion();
 comprobar('la sesion se cierra', acceso.isSignedIn() === false);
 comprobar('y la clave de edicion se borra', remote.getEditKey() === '', remote.getEditKey());
+
+console.log('\n11b. La clave de edicion caduca por inactividad');
+
+// La clave se queda en la sesion para que la publicacion automatica salga sola
+// despues de guardar. En una tableta instalada como aplicacion esa sesion no
+// termina al acabar el turno, sino cuando alguien cierra la ventana, asi que
+// sin caducidad quedaba una llave olvidada sobre el mostrador: cualquiera que
+// se encontrara el aparato encendido podia publicar para las dos sedes.
+remote.setEditKey('clave-de-edicion-de-prueba');
+comprobar('recien puesta, la clave vale', remote.getEditKey() === 'clave-de-edicion-de-prueba');
+
+// Media hora y un minuto sin usarla.
+almacenSesion.set('zahavi_edit_key_desde', String(Date.now() - (31 * 60 * 1000)));
+comprobar('pasada la media hora deja de valer', remote.getEditKey() === '', remote.getEditKey());
+comprobar('y se borra de la sesion, no solo se oculta', almacenSesion.has('zahavi_edit_key') === false);
+
+// Una marca ilegible se trata como vencida: es la unica proteccion real del
+// sistema, asi que ante la duda se vuelve a pedir.
+remote.setEditKey('clave-con-marca-rota');
+almacenSesion.set('zahavi_edit_key_desde', 'no-es-un-numero');
+comprobar('una marca ilegible tambien caduca', remote.getEditKey() === '', remote.getEditKey());
+
+// Y dentro de la ventana sigue valiendo: la caducidad no puede estorbar el turno.
+remote.setEditKey('clave-vigente');
+almacenSesion.set('zahavi_edit_key_desde', String(Date.now() - 5 * 60 * 1000));
+comprobar('cinco minutos despues sigue valiendo', remote.getEditKey() === 'clave-vigente');
+
+remote.setEditKey('');
 
 /* ===========================================================================
  *  CIERRE: EL ARCHIVO REAL NO SE TOCO

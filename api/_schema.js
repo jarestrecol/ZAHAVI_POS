@@ -48,6 +48,17 @@ const MAX_RECIPES = 5000;
 /** Tope de items por componente y de componentes por receta. */
 const MAX_ITEMS = 500;
 
+/**
+ * Tope del catalogo de ingredientes.
+ *
+ * `recipes` ya tenia su tope propio y el catalogo no, asi que quedaba acotado
+ * solo por el peso total del envio. Un ingrediente ocupa pocos bytes, de modo
+ * que dentro del mismo margen caben decenas de miles de entradas vacias de
+ * sentido. Hoy son 159: veinte mil es imposible de alcanzar trabajando y corta
+ * lo que no es trabajo.
+ */
+const MAX_INGREDIENTES = 20000;
+
 /** Longitud maxima de un campo de texto libre. */
 const MAX_TEXT = 20000;
 
@@ -88,6 +99,9 @@ export function validatePayload(recipes, ingredientes) {
   // eso borraria los 159 ingredientes sin que nadie se entere.
   if (!Array.isArray(ingredientes)) {
     return { ok: false, error: 'El envío no contiene una lista de ingredientes válida.' };
+  }
+  if (ingredientes.length > MAX_INGREDIENTES) {
+    return { ok: false, error: `El envío supera el límite de ${MAX_INGREDIENTES} ingredientes.` };
   }
 
   const clean = [];

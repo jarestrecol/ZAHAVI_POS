@@ -24,10 +24,8 @@
 import { el } from '../lib/dom.js';
 import {
   changePassword,
-  signOut,
   MIN_PASSWORD_LENGTH,
 } from '../core/access.js';
-import { setState } from '../core/store.js';
 import { APP_VERSION } from '../core/version.js';
 import { createWindow } from './window.js';
 
@@ -44,6 +42,7 @@ import { createWindow } from './window.js';
  * @param {{motivo: string, texto: string, pendiente: boolean}} options.sync publicacion automatica
  * @param {(password: string) => Promise<object>} options.onPublish
  * @param {() => void} options.onDiscard
+ * @param {() => void} options.onSalir cierra la sesion de este equipo
  * @param {() => void} options.onClose
  * @returns {{node: HTMLElement, close: () => void}}
  */
@@ -83,13 +82,11 @@ export function openSettings(options) {
           class: 'btn btn--quiet',
           text: 'Cerrar sesión',
           on: {
-            click: () => {
-              signOut();
-              // La sesion es de este dispositivo: cerrarla no toca ni las
-              // recetas ni los cambios sin publicar, solo saca a la persona
-              // hasta que alguien vuelva a entrar con la clave.
-              setState({ authed: false, settingsOpen: false });
-            },
+            // La sesion es de este dispositivo: cerrarla no toca ni las
+            // recetas ni los cambios sin publicar, solo saca a la persona hasta
+            // que alguien vuelva a entrar con la clave. Que limpiar exactamente
+            // lo decide `app/commands.js`, en un solo sitio.
+            click: options.onSalir,
           },
         }),
         // Cerrar va en el tratamiento apagado, no en el de tinta. Era el boton
