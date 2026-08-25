@@ -6,7 +6,8 @@
  * que se iba de lado, dos botones montados uno encima del otro y un control
  * que no habia forma de pulsar. En escritorio no se veia ninguno.
  *
- * Cubre los puntos 84, 84a, 86, 89a, 89h, 89h2 y 89k de QA.md.
+ * Fija lo que solo se rompe en un telefono: acciones al alcance del pulgar,
+ * nada solapado a 320 px y los cinco factores de la tanda alcanzables.
  */
 
 import { test, expect } from '@playwright/test';

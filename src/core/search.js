@@ -6,7 +6,7 @@
  */
 
 import { normalize, byName } from '../lib/format.js';
-import { ALL_CATEGORIES } from './router.js';
+import { CATEGORIES, ALL_CATEGORIES } from './schema.js';
 
 /**
  * Filtra por categoria y por texto. La busqueda ignora acentos y mayusculas.
@@ -53,7 +53,7 @@ export function sortRecipes(recipes) {
  * @returns {Array<string>}
  */
 export function availableCategories(recipes) {
-  const canonical = ['PASTELERÍA', 'PANADERÍA', 'GALLETAS'];
+  const canonical = CATEGORIES;
   const present = new Set(recipes.map((recipe) => recipe.categoria).filter(Boolean));
   const ordered = canonical.filter((category) => present.has(category));
   const extra = [...present].filter((category) => !canonical.includes(category)).sort();

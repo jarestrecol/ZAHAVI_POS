@@ -206,14 +206,6 @@ button {
   color: var(--ink-4);
 }
 
-.eyebrow {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--amber-text);
-}
-
 /* ---- Botones ---- */
 
 .btn {

@@ -4,7 +4,8 @@
  * Entrar, encontrar la receta, leerla y escalar la tanda. Si algo de esto se
  * rompe, el recetario no sirve para lo unico que se le pide.
  *
- * Cubre los puntos 1 a 16, 20, 21, 24, 24a, 34a a 34j y 45 de QA.md.
+ * Fija el camino de todos los dias: entrar, buscar, abrir una receta y escalar
+ * la tanda.
  */
 
 import { test, expect } from '@playwright/test';

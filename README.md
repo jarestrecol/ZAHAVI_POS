@@ -7,8 +7,8 @@ junto a la báscula y funcionando aunque no haya señal.
 **Versión 1.5.0 · Fase 1 en producción** · 121 recetas · 187 componentes · 1.282
 líneas de ingrediente · 159 ingredientes en catálogo.
 
-> **¿Vas a usarlo y no a modificarlo?** Lo tuyo es **[MANUAL.md](MANUAL.md)**: dos
-> caras impresas, sin nada técnico.
+> **¿Vas a usarlo y no a modificarlo?** Lo tuyo es la sección *Manual de uso* de
+> **[CLAUDE.md](CLAUDE.md)**: cómo se usa en el obrador, sin nada técnico.
 
 ---
 
@@ -69,7 +69,7 @@ ya funciona. Ese es el motivo real de la separación en tres capas.
 Con una advertencia dicha a tiempo: la Fase 2 es el punto donde hay que revisar
 la decisión de guardar en un archivo, porque los precios cambian a diario y ese
 patrón de escritura sí justifica una base de datos. El detalle está en
-[docs/HOJA-DE-RUTA.md](docs/HOJA-DE-RUTA.md).
+[CLAUDE.md](CLAUDE.md), sección 13.
 
 La versión se declara una sola vez, en `src/core/version.js`, y la verificación
 comprueba en cada ejecución que `package.json` dice lo mismo.
@@ -88,7 +88,7 @@ desarrollo.
 No es minimalismo por gusto. Es lo que garantiza que el sistema siga funcionando
 dentro de cinco años sin que nadie tenga que reparar una cadena de dependencias
 que ya no compila. Una panadería no tiene equipo de mantenimiento. El razonamiento
-completo está en [docs/DECISIONES.md](docs/DECISIONES.md).
+completo está en [CLAUDE.md](CLAUDE.md), sección 1.
 
 ### Las tres capas
 
@@ -172,8 +172,7 @@ GitHub. Cliente y servidor validan con criterios distintos a propósito: **el
 cliente repara** para que el obrador nunca se quede sin consultar, **el servidor
 rechaza** para que nunca entre basura al archivo compartido.
 
-Modelo completo y patrones aplicados en
-[docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+Modelo completo y patrones aplicados en [CLAUDE.md](CLAUDE.md), secciones 3 y 7.
 
 ---
 
@@ -200,7 +199,7 @@ src/
 
 scripts/                   Verificación, pruebas de datos y servidor local
 tests/                     Pruebas de navegador (npm run qa)
-docs/                      Documentación técnica
+CLAUDE.md                  Toda la documentación del proyecto, en un solo archivo
 ```
 
 ---
@@ -210,8 +209,8 @@ docs/                      Documentación técnica
 ```bash
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
-npm run verificar    # nueve bloques de comprobación, sin navegador
-npm run qa           # 58 pruebas en navegador (escritorio, celular, tableta)
+npm run verificar    # diez bloques de comprobación, sin navegador
+npm run qa           # 66 pruebas en navegador (escritorio, celular, tableta)
 ```
 
 Los módulos ES necesitan servirse por HTTP: abrir `index.html` con doble clic no
@@ -234,18 +233,18 @@ sin publicación compartida.
 
 **Si algo no publica**, el propio recetario lo dice en Ajustes → Conexión, con el
 mensaje exacto del servidor. No hace falta abrir la consola. El paso a paso y el
-diagnóstico de cada error están en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+diagnóstico de cada error están en [CLAUDE.md](CLAUDE.md), sección 9.
 
 ## Verificación
 
 Dos capas, y las dos corren en cada envío desde
 `.github/workflows/verificacion.yml`:
 
-- `npm run verificar` comprueba en segundos y sin navegador la sintaxis de los
-  módulos, la resolución de importaciones, la coherencia del CSS, la capa de
-  datos, la publicación y sus conflictos, el validador del servidor, un alta y
-  baja masiva de recetas, que la versión declarada sea una sola, y la integridad
-  de las 121 fórmulas.
+- `npm run verificar` comprueba en segundos y sin navegador las cinco fronteras de
+  arquitectura, la sintaxis de los módulos, la resolución de importaciones, la
+  coherencia del CSS, la capa de datos, la publicación y sus conflictos, el
+  validador del servidor, un alta y baja masiva de recetas, que la versión
+  declarada sea una sola, y la integridad y el tamaño de las 121 fórmulas.
 - `npm run qa` abre un navegador de verdad en tres tamaños y fija lo que la capa
   anterior no puede ver: el foco que no entra en una ventana, la hoja que se
   imprime antes de existir, la barra flotante atrapada, la lista que se desborda
@@ -255,8 +254,8 @@ La comprobación de integridad incluye el **sha256 del archivo de recetas**. Si
 cambia sin que nadie haya editado una receta a propósito, hay que parar y
 averiguar por qué: una sola cifra de un solo ingrediente basta para moverlo.
 
-[QA.md](QA.md) recoge además la verificación manual, la que solo puede hacerse
-mirando la pantalla, con el historial de defectos reales que ha encontrado.
+[CLAUDE.md](CLAUDE.md) recoge además la verificación manual y el historial de
+defectos reales que estas pruebas han encontrado.
 
 ---
 
@@ -284,17 +283,16 @@ Cuatro cosas que no son obvias y salen caras si se descubren tarde.
 
 ## Documentación
 
-| Documento | Para quién |
-|---|---|
-| **[MANUAL.md](MANUAL.md)** | El equipo de la panadería: cómo se usa, qué significa cada aviso y qué hacer si algo falla |
-| **[CLAUDE.md](CLAUDE.md)** | Quien trabaje con asistencia de IA: la entrada única, con las reglas y el contrato de validación |
-| [QA.md](QA.md) | Lista de verificación manual y historial de defectos |
-| [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Capas, flujos, patrones y modelo de datos |
-| [docs/DECISIONES.md](docs/DECISIONES.md) | Las decisiones no obvias con su motivo, y las reglas al tocar el código |
-| [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md) | Instalar, desplegar, verificar y diagnosticar |
-| [docs/SEGURIDAD.md](docs/SEGURIDAD.md) | Las dos fronteras, qué protege cada una y qué no protege nada |
-| [docs/DISENO.md](docs/DISENO.md) | Accesibilidad, rendimiento y sistema de diseño |
-| [docs/HOJA-DE-RUTA.md](docs/HOJA-DE-RUTA.md) | Límites conocidos, incidencias de datos y qué viene en la Fase 2 |
+**Todo el proyecto está documentado en un solo archivo: [CLAUDE.md](CLAUDE.md).**
+
+Ahí están las capas y las fronteras, las reglas al tocar el código con el defecto
+que originó cada una, el procedimiento para añadir un módulo nuevo, el modelo de
+datos, la seguridad, el despliegue y su diagnóstico, la recuperación ante fallos,
+el sistema de diseño, los límites conocidos, el historial de defectos y el manual
+de uso para el equipo de la panadería.
+
+Está en un solo archivo a propósito: repartida en siete documentos, las mismas
+cifras aparecían en tres sitios con tres valores distintos y ninguno era el real.
 
 ---
 

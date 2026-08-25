@@ -12,7 +12,8 @@
  *   3. La receta pedida ya no esta       renderNotFound
  *   4. No hay red, o no hay servidor     sw.js y el aviso de aislamiento
  *
- * Cubre los puntos 90 a 96 de QA.md.
+ * Fija lo que pasa cuando algo va mal: la direccion que no existe, el programa
+ * que no arranca, la receta borrada, el sitio sin servidor y el recetario sin red.
  */
 
 import { test, expect } from '@playwright/test';

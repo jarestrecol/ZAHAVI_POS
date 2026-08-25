@@ -6,7 +6,8 @@
  * funciono, porque el foco se quedaba fuera del panel y las teclas no llegaban
  * a quien las escucha. Con raton no se notaba y ninguna prueba lo alcanzaba.
  *
- * Cubre los puntos 28, 29, 30, 93a, 94 y 95 de QA.md.
+ * Fija que el foco entre en cada ventana y que el teclado del Modo Pesar
+ * responda de inmediato, sin pulsar Tab antes.
  */
 
 import { test, expect } from '@playwright/test';

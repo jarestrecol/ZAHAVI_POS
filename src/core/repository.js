@@ -25,6 +25,7 @@ import {
   serverStatus,
   generacionAcceso as generacionAccesoRemota,
   verificarClave as verificarClaveRemota,
+  setEditKey as setEditKeyRemota,
 } from './remote.js';
 
 /** Clave de los cambios locales sin publicar. */
@@ -91,6 +92,13 @@ let publicando = false;
 /**
  * Carga el recetario. Siempre intenta primero la version publicada, para que
  * un dispositivo nuevo vea exactamente lo mismo que los demas.
+ *
+ * EXCEPCION DECLARADA AL CONTRATO `{ok, code, message}`: esta funcion no puede
+ * fallar. Siempre devuelve un recetario -aunque sea vacio- porque el obrador
+ * tiene que poder abrir la aplicacion pase lo que pase. Lo que informa no es un
+ * error sino de DONDE salieron los datos (`source`) y que salio raro por el
+ * camino (`warning`, ya redactado). Es la unica excepcion del nucleo, y esta
+ * aqui escrita para que no se tome como precedente.
  *
  * @returns {Promise<{recipes: Array, ingredientes: Array, source: string, warning?: string}>}
  */
@@ -200,6 +208,16 @@ export async function hydrate() {
   };
 }
 
+/**
+ * Lee la version publicada: primero el servidor, luego el archivo del sitio.
+ *
+ * Devuelve `code` ademas de `message`, como el resto del nucleo. Sin el, quien
+ * llama no podia distinguir "no hay red" de "el archivo publicado no valida",
+ * que son dos situaciones muy distintas: la primera es lo normal en una cocina
+ * y la segunda es un recetario roto que alguien tiene que mirar.
+ *
+ * @returns {Promise<{ok: true, value: object} | {ok: false, code: string, message: string}>}
+ */
 async function loadPublished() {
   // Primero el recetario compartido del servidor: es el que ven todas las sedes
   // y el que recoge lo que alguien acaba de publicar desde otro equipo.
@@ -223,11 +241,11 @@ async function loadPublished() {
   try {
     const response = await fetch(PUBLISHED_URL, { cache: 'no-cache' });
     if (!response.ok) {
-      return { ok: false, message: 'No se pudo leer el recetario publicado.' };
+      return err('publicado_ilegible', 'No se pudo leer el recetario publicado.');
     }
     const data = await response.json();
     const result = validateBackup(data);
-    if (!result.ok) return { ok: false, message: result.message };
+    if (!result.ok) return err('publicado_invalido', result.message);
     return {
       ok: true,
       value: {
@@ -239,7 +257,7 @@ async function loadPublished() {
   } catch {
     // Sin conexion. Es lo normal en una cocina con mala señal: se sigue
     // trabajando con lo que ya esta guardado en el dispositivo.
-    return { ok: false, message: 'Sin conexión: se muestra la última copia guardada en este equipo.' };
+    return err('sin_conexion', 'Sin conexión: se muestra la última copia guardada en este equipo.');
   }
 }
 
@@ -467,20 +485,6 @@ export function canPublishToAll() {
 }
 
 /**
- * Indica si hay que recargar antes de poder publicar, porque otra sede publico
- * mientras tanto.
- *
- * @returns {boolean}
- */
-/**
- * Generacion de acceso que declara el servidor.
- *
- * Vive aqui porque el repositorio es la unica puerta al almacenamiento: las
- * vistas y el arranque no hablan con `remote.js`.
- *
- * @returns {number}
- */
-/**
  * Comprueba una clave de edicion contra el servidor, sin publicar nada.
  *
  * @param {string} password
@@ -491,6 +495,21 @@ export function verificarClaveEdicion(password) {
 }
 
 /**
+ * Guarda la clave de edicion ya comprobada, para que la publicacion automatica
+ * salga sola despues de guardar.
+ *
+ * Existe para que el arranque no tenga que importar `remote.js` por su cuenta.
+ * Antes lo hacia, y dejaba en falso el parrafo de arriba de este archivo: el
+ * repositorio decia ser la unica puerta y no lo era. Una regla que el codigo
+ * contradice deja de ser una regla y pasa a ser una nota de buenas intenciones.
+ *
+ * @param {string|null} password clave comprobada, o null para revocarla
+ */
+export function guardarClaveEdicion(password) {
+  setEditKeyRemota(password);
+}
+
+/**
  * Indica si hay una publicacion viajando ahora mismo.
  * @returns {boolean}
  */
@@ -498,6 +517,14 @@ export function publicacionEnCurso() {
   return publicando;
 }
 
+/**
+ * Generacion de acceso que declara el servidor.
+ *
+ * Vive aqui porque el repositorio es la unica puerta al almacenamiento: las
+ * vistas y el arranque no hablan con `remote.js`.
+ *
+ * @returns {number}
+ */
 export function generacionAcceso() {
   return generacionAccesoRemota();
 }

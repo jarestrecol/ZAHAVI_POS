@@ -9,7 +9,8 @@
  * hecho que la pantalla se repinta antes de volver de `setState`, y con las
  * transiciones de vista el pintado va despues.
  *
- * Cubre los puntos 31g, 33, 34h, 34u y 34u2 de QA.md.
+ * Fija que se imprima lo que se esta mirando: el plan cuando es el plan, y la
+ * ficha escalada con sus cifras ya multiplicadas.
  */
 
 import { test, expect } from '@playwright/test';

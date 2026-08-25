@@ -120,9 +120,69 @@ function comprobarArquitectura() {
   return `${capas.length} de carpeta y 2 de responsabilidad`;
 }
 
+/**
+ * Texto corrompido por doble codificacion.
+ *
+ * Aparece cuando un archivo UTF-8 se lee como latin-1 y se vuelve a guardar como
+ * UTF-8: la "a" con tilde pasa a "A-tilde-ordinal" y los puntos suspensivos a
+ * "a-circunfleja-euro-barra". Lo provoca `Set-Content` sin `-Encoding utf8` en
+ * PowerShell, y aqui ya paso dos veces: `CLAUDE.md` acabo con 95 lineas asi, y
+ * este mismo archivo imprimia basura en cada linea de su resumen.
+ *
+ * Es un fallo que nadie ve al escribir -el editor lo muestra bien- y que se
+ * propaga en silencio hasta que alguien mira la pantalla del obrador.
+ */
+function comprobarCodificacion() {
+  const carpetas = ['src', 'api', 'scripts', 'tests', 'assets/css'];
+  const sueltos = ['sw.js', 'index.html', '404.html', '500.html', 'README.md', 'vercel.json'];
+  const problemas = [];
+
+  const archivos = [
+    ...carpetas.flatMap((c) => walk(join(root, c), (n) => /\.(js|mjs|css|html)$/.test(n))),
+    ...sueltos.map((n) => join(root, n)),
+  ];
+
+  for (const file of archivos) {
+    readFileSync(file, 'utf8')
+      .split(/\r?\n/)
+      .forEach((linea, i) => {
+        if (estaCorrompida(linea)) {
+          problemas.push(`${relative(root, file)}:${i + 1} texto corrompido por doble codificacion`);
+        }
+      });
+  }
+
+  if (problemas.length) throw new Error(problemas.slice(0, 8).join('\n'));
+  return `${archivos.length} archivos en UTF-8`;
+}
+
+/**
+ * La marca de la doble codificacion, comparada POR CODIGO y no por caracter.
+ *
+ * Escrita con los caracteres de verdad, esta funcion se delataria a si misma en
+ * cada ejecucion y el bloque fallaria siempre. Los tres arranques posibles son
+ * 0xC3 y 0xC2 -la "A" con tilde y con circunflejo, que preceden a una vocal
+ * acentuada o a un signo- y 0xE2, que abre unos puntos suspensivos o unas
+ * comillas. Ninguno de los tres aparece en espanol bien escrito seguido de otro
+ * byte alto, asi que no hay falsos positivos que perdonar.
+ *
+ * @param {string} linea
+ * @returns {boolean}
+ */
+function estaCorrompida(linea) {
+  for (let i = 0; i < linea.length - 1; i += 1) {
+    const a = linea.charCodeAt(i);
+    if (a !== 0xc3 && a !== 0xc2 && a !== 0xe2) continue;
+    const b = linea.charCodeAt(i + 1);
+    if (b === 0x20ac || (b >= 0xa0 && b <= 0xbf)) return true;
+  }
+  return false;
+}
+
 console.log('\nVerificando el recetario\n');
 
 paso('Fronteras de arquitectura', comprobarArquitectura);
+paso('Codificacion de los archivos', comprobarCodificacion);
 
 paso('Sintaxis de los modulos', () => {
   // node --check trata .js como CommonJS: se copian a .mjs para validarlos como

@@ -236,13 +236,34 @@ function leerCredencialAnterior() {
 /**
  * Comprueba la clave escrita en la pantalla de entrada.
  *
+ * DEVUELVE UN RESULTADO Y NO UN BOOLEANO, porque hay dos formas de no entrar y
+ * decirlas igual manda a la persona por el camino equivocado:
+ *
+ *   clave_incorrecta   lo que escribio no coincide. Que lo vuelva a intentar.
+ *   sin_credencial     este equipo no tiene clave guardada, casi siempre porque
+ *                      el almacenamiento no esta disponible (modo privado, cuota
+ *                      agotada). Reescribir la clave no arregla nada, y la
+ *                      pantalla decia "Clave incorrecta" igualmente: alguien
+ *                      podia pasarse la manana probando claves buenas.
+ *
  * @param {string} password
- * @returns {Promise<boolean>}
+ * @returns {Promise<{ok: true, value: undefined} | {ok: false, code: string, message: string}>}
  */
 export async function verifyPassword(password) {
   const acceso = readAccess();
-  if (!acceso) return false;
-  return matches(password, acceso.credential);
+
+  if (!acceso) {
+    return err(
+      'sin_credencial',
+      'Este equipo no tiene una clave guardada. Revisa que el navegador permita guardar datos del sitio.',
+    );
+  }
+
+  if (!(await matches(password, acceso.credential))) {
+    return err('clave_incorrecta', 'Clave incorrecta.');
+  }
+
+  return ok(undefined);
 }
 
 /**
@@ -330,7 +351,7 @@ export function estadoClave() {
  * @returns {Promise<boolean>}
  */
 export async function isUsingDefaultPassword() {
-  return verifyPassword(DEFAULT_PASSWORD);
+  return (await verifyPassword(DEFAULT_PASSWORD)).ok;
 }
 
 /* ===========================================================================

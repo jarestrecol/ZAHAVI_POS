@@ -20,6 +20,16 @@ import { ok, err } from './storage.js';
 export const CATEGORIES = Object.freeze(['PASTELERÍA', 'PANADERÍA', 'GALLETAS']);
 
 /**
+ * Filtro de categoria que no filtra nada.
+ *
+ * Vive aqui, junto a las categorias reales, y no en `core/router.js`: es
+ * vocabulario del recetario y no de las direcciones. Tenerlo en el enrutador
+ * obligaba a `core/search.js` -filtrado puro, sin nada que ver con la barra de
+ * direcciones- a importar el modulo de rutas para poder comparar una categoria.
+ */
+export const ALL_CATEGORIES = 'TODAS';
+
+/**
  * Categoria que se asigna cuando un dato llega sin ella. Se elige pasteleria
  * por ser la mayoritaria, para que nada quede fuera de los tres filtros.
  */

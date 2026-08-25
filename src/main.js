@@ -32,7 +32,6 @@ import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js
 import { ensureAccess, isSignedIn, estadoClave, anotarGeneracion } from './core/access.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
-import { setEditKey } from './core/remote.js';
 import {
   saveRecipe,
   deleteRecipe,
@@ -845,7 +844,7 @@ function buildDesbloquear(accion, id) {
       if (result.ok) {
         // La clave se guarda para que la publicacion salga sola despues de
         // guardar; la autorizacion es lo que abre esta accion, y solo esta.
-        setEditKey(password);
+        repo.guardarClaveEdicion(password);
         setState({ autorizacion: { accion, id: id || null } });
       }
       return result;

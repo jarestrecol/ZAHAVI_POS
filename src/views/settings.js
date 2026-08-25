@@ -453,7 +453,7 @@ function renderPasswordBlock() {
     // Aqui iba una nota sobre el modelo de amenaza, y era el ultimo texto de la
     // ventana: explicaba que esta clave es una cortina y remataba señalando a la
     // clave de edicion, que desde hoy ya no vive en esta pantalla. Su sitio es
-    // `docs/SEGURIDAD.md`; la idea que valia la pena conservar cabe en el titulo
+    // `CLAUDE.md`, seccion 8; la idea que valia la pena conservar cabe en el titulo
     // de la seccion.
   ]);
 }

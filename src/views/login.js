@@ -67,8 +67,11 @@ export function renderLogin(params) {
     const submit = async (event) => {
       event.preventDefault();
 
-      if (!(await verifyPassword(clave.value))) {
-        const texto = 'Clave incorrecta.';
+      const comprobacion = await verifyPassword(clave.value);
+      if (!comprobacion.ok) {
+        // El motivo viene ya redactado: distingue una clave mal escrita de un
+        // equipo que no puede guardar nada, que son dos problemas distintos.
+        const texto = comprobacion.message;
         error.textContent = texto;
         params.onError(texto);
         announce(texto, 'assertive');

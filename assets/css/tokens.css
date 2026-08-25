@@ -242,28 +242,6 @@
   /* Halo cálido de marca en las pantallas de entrada y bienvenida. */
   --glow: rgba(246, 138, 30, 0.14);
 
-  /*
-   * VELO DE LA PANTALLA DE ENTRADA.
-   *
-   * Va sobre la fotografia del obrador. Empezo siendo denso porque tenia que
-   * garantizar el contraste del texto, pero eso dejo de ser cierto en cuanto la
-   * tarjeta recupero su fondo solido tambien en celular: TODO el texto de esta
-   * pantalla vive dentro de la tarjeta, asi que su legibilidad no depende de lo
-   * que haya detras.
-   *
-   * Conviene tenerlo claro antes de tocar estos numeros, porque cambia lo que
-   * hay en juego: lo que hace el velo ahora es que la foto no compita con la
-   * tarjeta ni con el logo, no que el texto se lea. Con la tarjeta transparente
-   * volveria a ser cuestion de contraste, y estos valores serian insuficientes.
-   *
-   * Sigue siendo mas denso abajo que arriba: el formulario esta centrado y la
-   * parte de arriba de la foto -la ventana con el campo al atardecer- es lo que
-   * vale la pena dejar ver.
-   */
-  --velo-entrada-alto: rgba(251, 250, 249, 0.3);
-  --velo-entrada-medio: rgba(251, 250, 249, 0.48);
-  --velo-entrada-bajo: rgba(251, 250, 249, 0.62);
-
   /* Textura de puntos, muy sutil, para dar atmósfera a las pantallas de mayor
      peso sin distraer de los datos. Un solo punto de 1px repetido: nada que
      pese ni que dependa de una imagen. */

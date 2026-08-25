@@ -784,8 +784,8 @@ comprobar(
 
 console.log('\n7. Clave de fabrica');
 await acceso.ensureAccess();
-comprobar('entra con la clave de fabrica', await acceso.verifyPassword(acceso.DEFAULT_PASSWORD));
-comprobar('rechaza una clave incorrecta', !(await acceso.verifyPassword('incorrecta')));
+comprobar('entra con la clave de fabrica', (await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)).ok);
+comprobar('rechaza una clave incorrecta', !(await acceso.verifyPassword('incorrecta')).ok);
 comprobar('y detecta que sigue siendo la de fabrica', await acceso.isUsingDefaultPassword());
 acceso.signIn();
 comprobar('la sesion queda abierta', acceso.isSignedIn() === true);
@@ -802,8 +802,8 @@ comprobar('rechaza repetir la misma clave', !r.ok, r.ok ? 'lo permitio' : r.mess
 
 r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, 'NuevaClave123', 'NuevaClave123');
 comprobar('acepta con la actual correcta', r.ok, r.ok ? '' : r.message);
-comprobar('la nueva funciona', await acceso.verifyPassword('NuevaClave123'));
-comprobar('la anterior ya no', !(await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)));
+comprobar('la nueva funciona', (await acceso.verifyPassword('NuevaClave123')).ok);
+comprobar('la anterior ya no', !(await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)).ok);
 comprobar('y deja de ser la de fabrica', !(await acceso.isUsingDefaultPassword()));
 
 console.log('\n9. Retirada de la clave por generacion de acceso');
@@ -823,7 +823,7 @@ comprobar(
   vigencia.caducada === true && vigencia.motivo === 'revocada',
   JSON.stringify(vigencia),
 );
-comprobar('retirada, todavia sirve para entrar y poder cambiarla', await acceso.verifyPassword('NuevaClave123'));
+comprobar('retirada, todavia sirve para entrar y poder cambiarla', (await acceso.verifyPassword('NuevaClave123')).ok);
 
 r = await acceso.changePassword('NuevaClave123', 'OtraMas456', 'OtraMas456');
 comprobar('poner una clave nueva la sella con la generacion vigente', r.ok, r.ok ? '' : r.message);
@@ -849,19 +849,39 @@ almacen.set(
   ]),
 );
 await acceso.ensureAccess();
-comprobar('migra conservando la clave de zahavi', await acceso.verifyPassword('la-de-siempre'));
+comprobar('migra conservando la clave de zahavi', (await acceso.verifyPassword('la-de-siempre')).ok);
 comprobar('y descarta la lista de usuarios', almacen.get('zahavi_usuarios_v1') === undefined);
 
 // Un equipo que venia de la clave unica de dos modelos atras.
 almacen.clear();
 almacen.set('zahavi_recetario_pwd_v2', JSON.stringify({ alg: 'plain', value: 'clave-vieja' }));
 await acceso.ensureAccess();
-comprobar('migra la clave unica anterior', await acceso.verifyPassword('clave-vieja'));
+comprobar('migra la clave unica anterior', (await acceso.verifyPassword('clave-vieja')).ok);
 
 // Un equipo nuevo del todo.
 almacen.clear();
 await acceso.ensureAccess();
-comprobar('un equipo nuevo arranca con la de fabrica', await acceso.verifyPassword(acceso.DEFAULT_PASSWORD));
+comprobar('un equipo nuevo arranca con la de fabrica', (await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)).ok);
+
+console.log('\n10c. Los dos motivos de no entrar se distinguen');
+
+// Decir "Clave incorrecta" cuando el problema real es que el equipo no puede
+// guardar nada manda a la persona a probar claves buenas toda la manana.
+const malaClave = await acceso.verifyPassword('esta-no-es-la-clave');
+comprobar('una clave mal escrita da clave_incorrecta', malaClave.code === 'clave_incorrecta', malaClave.code);
+
+// Sin credencial guardada: es lo que ocurre cuando el almacenamiento no esta
+// disponible, y reescribir la clave no lo arregla.
+almacen.clear();
+const sinCredencial = await acceso.verifyPassword('la-que-sea');
+comprobar('sin credencial guardada da sin_credencial', sinCredencial.code === 'sin_credencial', sinCredencial.code);
+comprobar(
+  'y el mensaje NO dice "incorrecta"',
+  !sinCredencial.message.toLowerCase().includes('incorrecta'),
+  sinCredencial.message,
+);
+
+await acceso.ensureAccess();
 
 console.log('\n11. Cerrar sesion revoca tambien la clave de edicion');
 // Se prueba `cerrarSesion` y NO `signOut`, y la diferencia importa: `signOut`
