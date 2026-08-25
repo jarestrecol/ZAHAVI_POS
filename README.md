@@ -4,7 +4,7 @@ Las fórmulas de la panadería, la repostería y el café en un solo enlace: la 
 información en el obrador y en la casa de producción, consultable desde el móvil
 junto a la báscula y funcionando aunque no haya señal.
 
-**Versión 1.5.0 · Fase 1 en producción** · 121 recetas · 187 componentes · 1.282
+**Versión 1.5.1 · Fase 1 en producción** · 121 recetas · 187 componentes · 1.282
 líneas de ingrediente · 159 ingredientes en catálogo.
 
 > **¿Vas a usarlo y no a modificarlo?** Lo tuyo es la sección *Manual de uso* de
@@ -12,7 +12,29 @@ líneas de ingrediente · 159 ingredientes en catálogo.
 
 ---
 
-## El problema
+## Qué es esto, y qué va a ser
+
+Esto no es un recetario que después crecerá. Es **el primer módulo del sistema de
+producción de la empresa**, y el recetario es por dónde se empieza porque es la
+base de todo lo demás: no se puede calcular lo que cuesta producir algo hasta que
+la fórmula de ese algo está escrita, es única y nadie discute cuál es la buena.
+
+El recorrido previsto, por orden:
+
+1. **Fase 1, el recetario.** Está en producción. Las fórmulas dejan de vivir en
+   hojas de cálculo sueltas y pasan a tener una sola versión publicada.
+2. **Fase 2, costos contra producción diaria.** Qué cuesta cada fórmula y qué se
+   produjo de verdad ese día, para poder comparar lo uno con lo otro.
+3. **Fases siguientes**, hasta que toda la producción de la empresa esté dentro
+   del sistema.
+
+Cada fase se apoya en la anterior y se añade como módulos nuevos sobre la misma
+base. El sistema está construido para eso, no para reescribirse en cada fase:
+las reglas viven en `core/`, las pantallas solo pintan, y un módulo nuevo entra
+como un archivo más en cada capa sin tocar lo que ya funciona. Ese es el motivo
+real de la separación en tres capas que se describe más abajo.
+
+## El problema que resolvió la Fase 1
 
 Las fórmulas vivían en una hoja de cálculo que se enviaba por correo. Cada sede
 acababa con una versión distinta y nadie sabía cuál era la buena. Escalar una
@@ -22,7 +44,7 @@ para siempre.
 Este proyecto sustituye ese circuito por un recetario único y editable, con una
 sola fuente publicada y un historial completo de quién cambió qué.
 
-## Qué hace
+## Qué hace hoy
 
 - **Escala una tanda** y recalcula todas las cantidades, sin tocar tiempos ni
   moldes, que no se multiplican.
@@ -35,41 +57,73 @@ sola fuente publicada y un historial completo de quién cambió qué.
 - **Funciona sin conexión** y se instala como aplicación en tableta y teléfono.
 - **Se publica solo**: lo guardado sale hacia las demás sedes sin que nadie tenga
   que acordarse, y si no hay red se reintenta al volver.
-- **Separa consultar de cambiar**: leer, buscar, escalar, imprimir y pesar son de
-  todo el obrador. Crear, modificar o eliminar una fórmula piden la clave de
-  edición, porque eso llega a las dos sedes.
+
+---
+
+## Quién entra y quién puede cambiar
+
+**El sistema no tiene cuentas por persona. Hay un solo usuario para todo el
+trabajo**, y esa es una decisión tomada a conciencia, no una simplificación
+pendiente de arreglar.
+
+Hubo usuarios con nombre y clave individuales, y se retiraron. Se guardaban en
+cada aparato y no en el servidor, así que dar de alta a alguien en la panadería
+no lo daba de alta en la casa de producción, y cada baja había que repetirla
+equipo por equipo. Una lista de usuarios que nadie actualiza es peor que no
+tenerla, porque aparenta un control que no existe.
+
+Lo que hay en su lugar son **dos claves con propósitos distintos**, y conviene no
+confundirlas:
+
+| | Qué abre | Dónde se comprueba | Fuerza real |
+|---|---|---|---|
+| **Clave de acceso** | Ver el recetario en ese equipo | En el navegador | Ninguna. Es una cortina, no una cerradura |
+| **Clave de edición** | Crear, modificar, eliminar y publicar | **En el servidor** | La única protección real del sistema |
+
+La clave de acceso no puede validarse contra el servidor, y no es un descuido: el
+recetario tiene que abrir a las cinco de la mañana aunque no haya cobertura. Lo
+que hace es evitar que un cliente asomado al mostrador lea las fórmulas. No
+protege frente a nadie decidido.
+
+La clave de edición sí es real. Se comprueba en el servidor con una comparación
+de tiempo constante, se pide **antes de cada cambio y cada vez** (no una vez al
+día ni al final, al publicar), y caduca sola a la media hora sin usarse, para que
+una tableta olvidada encendida en el obrador no siga siendo una llave abierta.
+
+Cuando alguien deja el equipo, la variable `ACCESS_GENERATION` retira la clave de
+acceso en todas las sedes a la vez, sin ir aparato por aparato.
+
+**Leer no requiere clave de edición.** Consultar, buscar, escalar, imprimir y
+pesar son de todo el obrador. Lo que se protege es lo que **cambia** una fórmula,
+porque eso llega a las dos sedes.
 
 ---
 
 ## Versión y fases
 
-La versión actual es **1.5.0**, y se lee dentro de la propia aplicación: abajo en
+La versión actual es **1.5.1**, y se lee dentro de la propia aplicación: abajo en
 la pantalla de entrada y en la barra de título de Ajustes. Así, cuando una sede
 dice que algo no le aparece, lo primero que hay que saber (si las dos están
 mirando lo mismo) se comprueba sin llamar a nadie.
 
 **El primer número es la fase de la hoja de ruta**, no un capricho de numeración:
-quien vea `v1.5.0` sabe qué módulos tiene delante. El tercero sube con cada
+quien vea `v1.5.1` sabe qué módulos tiene delante. El tercero sube con cada
 corrección publicada.
 
 | Fase | Alcance | Estado |
 |---|---|---|
 | **1.0** | Consulta, edición y publicación de fórmulas | En producción |
 | **1.5** | Escalado de tandas, plan del día y catálogo de ingredientes | En producción |
-| 2.x | Costeo por receta y margen | Requiere precios por ingrediente |
+| 2.x | **Costos por fórmula contra producción diaria** | Siguiente. Requiere precios por ingrediente y registro de lo producido |
 | 3.x | Inventario y órdenes de producción | Requiere base de datos real |
-| 4.x | Control integral del restaurante | Por definir |
+| 4.x | Producción de la empresa completa | Por definir |
 
-**Todo lo que hay hoy es la Fase 1: el recetario.** El sistema está construido
-para crecer por módulos sobre la misma base, no para reescribirse en cada fase.
-Las reglas viven en `core/`, las pantallas solo pintan, y un módulo nuevo (el
-costeo, el inventario) se añade como un archivo más en cada capa sin tocar lo que
-ya funciona. Ese es el motivo real de la separación en tres capas.
-
-Con una advertencia dicha a tiempo: la Fase 2 es el punto donde hay que revisar
-la decisión de guardar en un archivo, porque los precios cambian a diario y ese
-patrón de escritura sí justifica una base de datos. El detalle está en
-[CLAUDE.md](CLAUDE.md), sección 13.
+Con una advertencia dicha a tiempo: **la Fase 2 es el punto donde hay que revisar
+la decisión de guardar en un archivo.** Los precios cambian a diario y la
+producción se registra todos los días; ese patrón de escritura sí justifica una
+base de datos, mientras que el de las fórmulas (que cambian de vez en cuando) no
+la justificaba. El razonamiento completo está en [CLAUDE.md](CLAUDE.md),
+sección 13.
 
 La versión se declara una sola vez, en `src/core/version.js`, y la verificación
 comprueba en cada ejecución que `package.json` dice lo mismo.
@@ -122,8 +176,9 @@ decía "Rinde 6 und" mientras la hoja que se llevaba al obrador seguía diciendo
 4. sw.js            registra el service worker para el uso sin conexión
 ```
 
-A partir de ahí, cualquier cambio de estado o de dirección vuelve a llamar a
-`render()`.
+Esa cadena de respaldos es la que sostiene la promesa de que el obrador nunca se
+queda sin consultar. A partir de ahí, cualquier cambio de estado o de dirección
+vuelve a llamar a `render()`.
 
 ### Qué pasa al publicar
 
@@ -162,7 +217,8 @@ publicación automática se detiene y avisa en rojo para que decida una persona.
 | Publicado | `data/recipes.json` en el repositorio | Todas las sedes |
 | Pendiente | `localStorage` del navegador | Solo ese dispositivo |
 | Rescate | `localStorage`, clave aparte | Copia local dañada, apartada sin sobrescribir |
-| Sesión | `localStorage` / `sessionStorage` | Usuario activo y clave de edición de la pestaña |
+| Sesión | `localStorage` | Usuario activo en ese equipo |
+| Clave de edición | `sessionStorage`, con caducidad | Esa pestaña, y media hora sin uso |
 
 **No hay base de datos.** El recetario es un archivo JSON de 225 KB versionado en
 git, con `version`, `revision`, `recipes[]` (cada una con sus componentes y sus
@@ -209,7 +265,7 @@ CLAUDE.md                  Toda la documentación del proyecto, en un solo archi
 ```bash
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
-npm run verificar    # diez bloques de comprobación, sin navegador
+npm run verificar    # once bloques de comprobación, sin navegador
 npm run qa           # 66 pruebas en navegador (escritorio, celular, tableta)
 ```
 
@@ -241,10 +297,11 @@ Dos capas, y las dos corren en cada envío desde
 `.github/workflows/verificacion.yml`:
 
 - `npm run verificar` comprueba en segundos y sin navegador las cinco fronteras de
-  arquitectura, la sintaxis de los módulos, la resolución de importaciones, la
-  coherencia del CSS, la capa de datos, la publicación y sus conflictos, el
-  validador del servidor, un alta y baja masiva de recetas, que la versión
-  declarada sea una sola, y la integridad y el tamaño de las 121 fórmulas.
+  arquitectura, la codificación de los archivos, la sintaxis de los módulos, la
+  resolución de importaciones, la coherencia del CSS, la capa de datos, la
+  publicación y sus conflictos, el validador del servidor, un alta y baja masiva
+  de recetas, que la versión declarada sea una sola, y la integridad y el tamaño
+  de las 121 fórmulas.
 - `npm run qa` abre un navegador de verdad en tres tamaños y fija lo que la capa
   anterior no puede ver: el foco que no entra en una ventana, la hoja que se
   imprime antes de existir, la barra flotante atrapada, la lista que se desborda
@@ -261,21 +318,24 @@ defectos reales que estas pruebas han encontrado.
 
 ## Lo que hay que saber antes de tocar nada
 
-Cuatro cosas que no son obvias y salen caras si se descubren tarde.
+Cinco cosas que no son obvias y salen caras si se descubren tarde.
 
 1. **Guardar y publicar no son lo mismo.** Guardar escribe en el equipo, también
    sin señal. Publicar envía el recetario **entero** al repositorio y es lo que
    ven las demás sedes.
-2. **El contenido es público para quien tenga el enlace.** La clave de acceso es
+2. **El contenido es legible para quien tenga el enlace.** La clave de acceso es
    una cortina, no una cerradura: `data/recipes.json` y `/api/recipes` entregan las
-   121 fórmulas sin ninguna clave. Lo que sí está protegido es **escribir**:
-   `EDIT_PASSWORD` se comprueba en el servidor y hace falta para crear, modificar,
-   eliminar y publicar. Es la única frontera real del sistema, y por eso la sabe
-   menos gente que la de entrar.
-3. **El techo es el tamaño del archivo, no el número de recetas.** La API de
+   121 fórmulas sin ninguna clave. Es una decisión consciente, y cerrarla exigiría
+   proteger el despliegue entero o autenticar la lectura, que rompería el arranque
+   sin conexión. Lo que sí está protegido es **escribir**.
+3. **Leer no puede tumbar el recetario compartido.** Cada lectura que llega al
+   servidor consume cuota del token de GitHub, así que hay un tope por origen y
+   una copia en memoria de diez segundos. Sin ese freno, cualquiera podía agotar
+   la cuota desde fuera y dejar a las dos sedes sin poder consultar.
+4. **El techo es el tamaño del archivo, no el número de recetas.** La API de
    contenidos de GitHub deja de entregarlo a partir de 1 MB. Hoy son 225 KB y el
-   umbral para actuar son 700 KB.
-4. **Cada despliegue tiene su propia URL, y para el navegador es otro origen**:
+   umbral para actuar son 700 KB. Es el límite que la Fase 2 tocará antes.
+5. **Cada despliegue tiene su propia URL, y para el navegador es otro origen**:
    otro almacenamiento, otra sesión, otros cambios sin publicar. Se entra siempre
    por el dominio de producción.
 
@@ -300,5 +360,5 @@ cifras aparecían en tres sitios con tres valores distintos y ninguno era el rea
 
 Código bajo licencia MIT (ver [LICENSE](LICENSE)).
 
-Las fórmulas contenidas en `data/recipes.json` son propiedad de Zahavi y no están
-cubiertas por esa licencia.
+Las fórmulas contenidas en `data/recipes.json` son propiedad de Repostería Zahavi
+Nir Am S.A.S. y no están cubiertas por esa licencia.

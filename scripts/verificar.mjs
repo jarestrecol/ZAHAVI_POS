@@ -85,8 +85,18 @@ function comprobarArquitectura() {
   //
   // Sin este comprobador la regla estaba escrita y rota a la vez, en tres
   // vistas. El modulo siguiente repetiria el patron.
+  // Quien puede escribir son los CASOS DE USO y la CAPA DE COMPOSICION, que es
+  // la de los archivos sueltos en `src/`: los que unen las tres capas y deciden
+  // que se pinta. Lo que no puede escribir es una vista, que existe para pintar
+  // lo que le den, ni el nucleo, que no sabe que hay una pantalla delante.
+  //
+  // La lista es explicita y no un patron de carpeta a proposito: asi anadir un
+  // archivo de composicion nuevo es una decision, no un descuido.
   const escritores = [
     'src/main.js',
+    // Composicion: decide QUE dialogo toca y lo monta. Vive fuera de `app/`
+    // porque construye pantallas, y fuera de `views/` porque decide cual.
+    'src/dialogs.js',
     'src/app/commands.js',
     // `sync.js` refresca el recetario tras publicar en segundo plano: es un caso
     // de uso, vive en `app/`, y no construye ninguna pantalla.
@@ -247,6 +257,82 @@ paso('Resolucion de importaciones', () => {
   }
   if (problems.length) throw new Error(problems.join('\n'));
   return `${files.length} modulos`;
+});
+
+paso('Importaciones que faltan', () => {
+  // EL HUECO QUE ESTE BLOQUE CIERRA
+  // -------------------------------
+  // "Resolucion de importaciones" comprueba que lo IMPORTADO exista en el
+  // destino. No comprueba lo contrario: que lo USADO este importado. Un
+  // identificador sin importar es sintaxis valida y `node --check` lo acepta;
+  // el fallo aparece en el navegador, al ejecutar esa linea concreta, y puede
+  // tardar dias en salir si vive en una rama poco transitada.
+  //
+  // Paso de verdad al partir `main.js`: quedo usando `escalarReceta` sin
+  // importarlo y los once bloques siguieron en verde. Lo caza tres pruebas de
+  // navegador despues.
+  //
+  // Solo se miran nombres EXPORTADOS POR EL PROPIO PROYECTO. Acotar asi el
+  // universo es lo que hace que no haya falsos positivos: no hay que saber que
+  // globales trae el navegador ni resolver el ambito de cada funcion.
+  const files = walk(join(root, 'src'), (n) => n.endsWith('.js'));
+
+  const exportados = new Set();
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+    for (const m of src.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)) exportados.add(m[1]);
+    for (const m of src.matchAll(/^export\s+(?:const|let|var|class)\s+(\w+)/gm)) exportados.add(m[1]);
+  }
+
+  const problemas = [];
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+
+    // Fuera comentarios y cadenas: una mencion en la prosa de un comentario no
+    // es un uso, y aqui casi todo lleva comentario largo.
+    const codigo = src
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+      .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
+      .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
+      .replace(/`(?:[^`\\]|\\.)*`/g, '``');
+
+    // El cuerpo, sin las lineas de import: dentro de un import el nombre
+    // aparece por definicion, y `canPublish as canPublishRemote` se contaba
+    // como un uso de `canPublish` que nadie hace.
+    const cuerpo = codigo.replace(/^\s*import[\s\S]*?from\s+''\s*;?/gm, ' ');
+
+    const disponibles = new Set();
+    for (const m of codigo.matchAll(/import\s+(?:\*\s+as\s+(\w+)|\{([^}]+)\})\s+from/g)) {
+      if (m[1]) disponibles.add(m[1]);
+      if (m[2]) {
+        for (const parte of m[2].split(',')) {
+          const nombre = parte.trim().split(/\s+as\s+/).pop().trim();
+          if (nombre) disponibles.add(nombre);
+        }
+      }
+    }
+    // Lo que el propio archivo declara no necesita importarse.
+    for (const m of codigo.matchAll(/(?:^|\s)(?:export\s+)?(?:async\s+)?function\s+(\w+)/g)) {
+      disponibles.add(m[1]);
+    }
+    for (const m of codigo.matchAll(/(?:^|\s)(?:export\s+)?(?:const|let|var|class)\s+(\w+)/g)) {
+      disponibles.add(m[1]);
+    }
+
+    for (const nombre of exportados) {
+      if (disponibles.has(nombre)) continue;
+      // Se busca el nombre suelto, nunca detras de un punto: `repo.findAll` es
+      // una propiedad del espacio de nombres, no un identificador libre.
+      const suelto = new RegExp('(?<![.\\w$])' + nombre + '(?![\\w$]|\\s*:)');
+      if (suelto.test(cuerpo)) {
+        problemas.push(`${relative(root, file)} usa "${nombre}" sin importarlo`);
+      }
+    }
+  }
+
+  if (problemas.length) throw new Error(problemas.slice(0, 8).join('\n'));
+  return `${exportados.size} nombres del proyecto, todos importados donde se usan`;
 });
 
 paso('Coherencia del CSS', () => {

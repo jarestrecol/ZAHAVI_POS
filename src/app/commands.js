@@ -79,8 +79,7 @@ function pedirClaveSiEsLoUnicoQueFalta() {
  */
 function refreshState() {
   setState({
-    recipes: repo.findAll(),
-    ingredientes: repo.allIngredients(),
+    recetario: { recipes: repo.findAll(), ingredientes: repo.allIngredients() },
   });
 }
 
@@ -143,12 +142,12 @@ export function deleteRecipe(id) {
     notify(result.message, 'error');
     // El permiso se retira tambien cuando el borrado FALLA: si no, un reintento
     // sobre la misma receta se saltaria la puerta.
-    setState({ confirmDelete: null, autorizacion: null });
+    setState({ recetario: { confirmDelete: null }, autorizacion: null });
     return result;
   }
 
   refreshState();
-  setState({ confirmDelete: null, autorizacion: null });
+  setState({ recetario: { confirmDelete: null }, autorizacion: null });
   notify(
     sePuedePublicarSolo() ? 'Receta eliminada. Publicando…' : 'Receta eliminada en este equipo.',
     'success',
@@ -251,15 +250,18 @@ const SESION_CERRADA = Object.freeze({
   // Permiso de escritura: lo primero que hay que retirar.
   autorizacion: null,
   pedirClave: false,
-  // Ventanas y pantallas de trabajo: ninguna sobrevive al cambio de persona.
   settingsOpen: false,
-  confirmDelete: null,
-  production: null,
-  planOpen: false,
-  ingredientsOpen: false,
-  planPrint: null,
-  factor: 1,
   loginError: '',
+  // Ventanas y pantallas de trabajo del recetario: ninguna sobrevive al cambio
+  // de persona. `recipes` e `ingredientes` NO se tocan (ver arriba).
+  recetario: Object.freeze({
+    confirmDelete: null,
+    production: null,
+    planOpen: false,
+    ingredientsOpen: false,
+    planPrint: null,
+    factor: 1,
+  }),
 });
 
 /**

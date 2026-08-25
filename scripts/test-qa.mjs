@@ -1003,6 +1003,63 @@ comprobar(
   realesValidas + ' de ' + publicado.recipes.length,
 );
 
+console.log('\n14c. El estado por modulos aguanta un modulo nuevo');
+
+// El dia que entre el costeo, `setState({costos: {...}})` no puede pisar el
+// recetario, y `setState({recetario: {factor: 2}})` no puede borrar las recetas
+// cargadas. Las dos cosas dependen de que la fusion sea de UN nivel y de que
+// todo modulo este declarado en `MODULOS`.
+const almacenEstado = await import(pathToFileURL(repoRoot + '/src/core/store.js').href);
+
+const modulosDeclarados = almacenEstado.MODULOS;
+const estadoInicial = almacenEstado.getState();
+
+// Toda clave de objeto plano en la raiz tiene que ser un modulo declarado. Si
+// no lo esta, `setState` la reemplazaria entera en vez de fusionarla, y un
+// cambio parcial borraria en silencio el resto de ese modulo.
+const objetosEnRaiz = Object.keys(estadoInicial).filter((k) => {
+  const v = estadoInicial[k];
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+});
+const sinDeclarar = objetosEnRaiz.filter((k) => !modulosDeclarados.includes(k));
+comprobar(
+  'todo modulo del estado esta declarado en MODULOS',
+  sinDeclarar.length === 0,
+  sinDeclarar.length ? 'sin declarar: ' + sinDeclarar.join(', ') : modulosDeclarados.length + ' modulo(s)',
+);
+
+// La fusion de un nivel: cambiar una clave deja el resto del modulo intacto.
+almacenEstado.setState({ recetario: { recipes: [{ id: 'X1' }], factor: 3 } });
+almacenEstado.setState({ recetario: { factor: 5 } });
+comprobar(
+  'cambiar una clave del modulo no borra las demas',
+  almacenEstado.recetario().recipes.length === 1,
+  String(almacenEstado.recetario().recipes.length),
+);
+comprobar(
+  'y la clave cambiada tiene el valor nuevo',
+  almacenEstado.recetario().factor === 5,
+  String(almacenEstado.recetario().factor),
+);
+
+// Lo transversal y lo del modulo no se estorban.
+almacenEstado.setState({ online: false });
+comprobar(
+  'tocar lo transversal no toca el modulo',
+  almacenEstado.recetario().factor === 5 && almacenEstado.getState().online === false,
+);
+
+// Un cambio que no cambia nada no debe repintar.
+let repintados = 0;
+const cancelarEscucha = almacenEstado.subscribe(() => {
+  repintados += 1;
+});
+almacenEstado.setState({ recetario: { factor: 5 } });
+comprobar('un cambio que no cambia nada no notifica', repintados === 0, String(repintados));
+almacenEstado.setState({ recetario: { factor: 6 } });
+comprobar('y uno que si cambia, notifica una vez', repintados === 1, String(repintados));
+cancelarEscucha();
+
 console.log('\n15. El archivo de recetas reales no se modifico');
 const shaDespues = createHash('sha256').update(readFileSync(rutaDatos)).digest('hex');
 comprobar('mismo resumen sha256', shaAntes === shaDespues, shaDespues.slice(0, 8));

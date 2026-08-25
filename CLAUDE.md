@@ -101,11 +101,13 @@ data/recipes.json                  Recetario publicado (225 KB, NO ABRIRLO ENTER
 assets/css/                        tokens.css manda: ni un color fuera de ahí
 assets/fonts/                      Tres familias auto-hospedadas (OFL)
 
-src/main.js                        Arranque y orquestación (une las tres capas)
+src/main.js                        Arranque y pintado
+src/dialogs.js                     Qué diálogo toca y cómo se monta
+src/shortcuts.js                   Atajos de teclado
 src/salvavidas.js                  Red de seguridad: aviso con salida si no arranca
 src/app/                           Casos de uso: commands.js, sync.js
 src/core/                          Datos, esquema, acceso, estado, rutas, cálculos
-src/lib/                           dom.js (sin innerHTML), format.js, a11y.js
+src/lib/                           dom.js (sin innerHTML), format.js, a11y.js, paint.js
 src/views/                         Una pantalla por archivo
 
 scripts/                           Verificación y servidor local
@@ -130,6 +132,7 @@ tests/                             Pruebas de navegador (Playwright)
 | `lib/dom.js` | Construcción de DOM sin innerHTML |
 | `lib/format.js` | Formato de texto y cifras |
 | `lib/a11y.js` | Foco atrapado, región viva, inerte |
+| `lib/paint.js` | Cola de trabajos que esperan al repintado real |
 | `app/commands.js` | Guardar, eliminar, publicar, descartar, entrar, salir |
 | `app/sync.js` | Publicación automática con reintento |
 | `views/*.js` | Una pantalla por archivo. `window.js` es la carcasa modal compartida |
@@ -157,8 +160,21 @@ tests/                             Pruebas de navegador (Playwright)
                  └─────────────────┘
 ```
 
-`main.js` es el único módulo que une las tres: decide qué pintar y llama a los
-casos de uso.
+Y por encima, una **capa de composición**: los archivos sueltos en `src/`. Son
+los únicos que ven las tres capas a la vez, porque su trabajo es precisamente
+unirlas.
+
+| Archivo | Trabajo |
+|---|---|
+| `main.js` | Arranca y pinta |
+| `dialogs.js` | Decide qué diálogo toca y lo monta |
+| `shortcuts.js` | Atajos de teclado |
+
+`dialogs.js` no está en `app/` ni en `views/` a propósito, y la razón vale para
+cualquier módulo futuro: **construye pantallas**, así que no puede ser un caso de
+uso (`app/` tiene prohibido importar de `views/`); y **decide cuál** construir
+mirando el estado y la ruta, así que tampoco es una vista, porque las vistas
+pintan lo que les dan.
 
 ### Las cinco fronteras, y las comprueba la máquina
 
@@ -170,8 +186,11 @@ intenciones: son un bloque que falla.
 | **Carpeta** | `core/` no importa de `app/` ni `views/` | Es la que de verdad no se cruza nunca |
 | **Carpeta** | `lib/` no importa de nadie | Utilidades puras, comprobables sin navegador |
 | **Carpeta** | `app/` no importa de `views/` | Un caso de uso no construye pantallas |
-| **Escritura** | `setState` solo en `main.js`, `app/commands.js` y `app/sync.js` | Estaba escrita y rota a la vez en tres vistas |
+| **Escritura** | `setState` solo en la capa de composición y en `app/` | Estaba escrita y rota a la vez en tres vistas |
 | **Responsabilidad** | `signOut` solo desde `app/commands.js` | Cerrar sesión tiene que revocar además la clave de edición |
+| **Importaciones** | Ningún nombre del proyecto usado sin importar | Sintaxis válida que solo falla en el navegador. Pasó al partir `main.js` y los once bloques siguieron en verde |
+| **Codificación** | Nada de doble codificación UTF-8 | `CLAUDE.md` llegó a tener 95 líneas corruptas |
+| **Carcasa** | `sw.js` y los archivos reales, en los dos sentidos | Un módulo fuera del precache no existe sin conexión; una ruta borrada rompe el `addAll` entero |
 
 Dos matices que conviene enunciar como son, para que nadie los "arregle" mal:
 
@@ -242,6 +261,35 @@ del equipo, no la receta que se acaba de tocar. Si otra sede publicó mientras e
 equipo tenía cambios pendientes, este equipo se quedó en la versión anterior. El
 `sha` no lo protege, porque al cargar se leyó la referencia nueva: el servidor
 aceptaría el envío y el trabajo ajeno desaparecería en silencio.
+
+### El estado va por módulos
+
+`core/store.js` tiene exactamente **dos niveles**:
+
+```js
+{
+  ready, authed, online, notice, autorizacion, …   // transversal
+  recetario: { recipes, factor, planOpen, … }      // por módulo
+}
+```
+
+`setState` **reemplaza** en el nivel de arriba y **fusiona un nivel** dentro de un
+módulo declarado en `MODULOS`:
+
+```js
+setState({ ready: true })                  // reemplaza
+setState({ recetario: { factor: 2 } })     // fusiona: no borra las recetas
+```
+
+No hay un tercer nivel a propósito: fusionar más obligaría a comparar en
+profundidad, que es justo el coste que este diseño evita.
+
+**Un módulo nuevo añade una entrada en `MODULOS` y otra en `INITIAL`, y no toca
+nada de lo que ya existe.** Antes esto era una bolsa plana de dieciséis claves,
+diez de ellas del recetario: con tres módulos habrían sido unas cuarenta
+compitiendo por nombres en el mismo sitio. `test-qa.mjs` comprueba que todo
+módulo del estado esté declarado, que la fusión no borre hermanos y que un cambio
+que no cambia nada no repinte.
 
 ### El contrato de errores
 
@@ -401,19 +449,31 @@ procedimiento, y el orden importa.
 5. **Ejecuta las dos capas de verificación.** El `sha` de las recetas no debe
    moverse.
 
-### Lo que hay que rehacer antes del segundo módulo grande
+### Lo que ya está hecho
 
-Esto salió de la auditoría de arquitectura y es barato hoy, caro después. Está
-listado en orden de barato a caro:
+De la auditoría de arquitectura, estos seis ya no son deuda:
+
+| Hecho | Qué cambió |
+|---|---|
+| **Estado por módulo** | `core/store.js`, dos niveles y fusión de uno. Un módulo nuevo es una entrada |
+| **Diálogos declarativos** | `src/dialogs.js`: la clave y el constructor son el mismo renglón de una tabla, así que no pueden separarse |
+| **`main.js` partido** | De 979 a 454 líneas: los diálogos, los atajos y la cola de pintado salieron a sus propios archivos |
+| **Categorías con una sola fuente** | `CATEGORIES` y `ALL_CATEGORIES` viven en `core/schema.js` |
+| **`access.js` sin transporte** | La puerta local ya no arrastra `remote.js` |
+| **El repositorio, única puerta de verdad** | El arranque ya no esquiva `repository.js` para hablar con `remote.js` |
+
+### Lo que queda, y por qué se dejó
+
+Dos, y las dos por la misma razón: hoy no arreglan nada y tocan el camino de los
+datos, que funciona en producción.
 
 | Qué | Dónde | Por qué |
 |---|---|---|
-| **Estado por módulo** | `core/store.js` | Hoy es una bolsa plana de 16 claves, 10 de ellas de recetas. Con tres módulos son ~40. `setState` compara en superficie, así que anidar sin tocarlo rompería la detección de cambios en silencio. Hacerlo **antes** del segundo módulo; después es migrar todas las vistas |
-| **Rutas por módulo** | `core/router.js` | `parseHash`/`buildHash` codifican los literales `nueva`/`receta`. Cada módulo son dos ediciones espejadas dentro de cadenas de `if`. Debería ser `{modulo, name, id, params}` con una tabla segmento↔módulo |
-| **Diálogos declarativos** | `src/main.js` (`renderDialogs` y `dialogKey`) | Son dos cadenas de `if` gemelas que hay que mantener sincronizadas a mano. Una tabla `[{key, guard, build}]` recorrida una vez hace imposible añadir un `build` sin su `key` |
-| **Partir `main.js`** | 901 líneas | Tres costuras limpias: los diálogos a `app/dialogs.js`, los atajos a `app/shortcuts.js`, y `render`/`trasPintar` a `lib/paint.js` (fontanería genérica de View Transitions, sin conocimiento de recetas). Quedan ~300 líneas de arranque, que es el tamaño correcto |
-| **Un archivo por módulo en la API** | `api/recipes.js` | `FILE_PATH` es constante y el `sha` es global: dos personas editando módulos **distintos** se rechazarían entre sí con 409. Debería ser un mapa blanco `{recetas: 'data/recipes.json', costos: 'data/costos.json'}` elegido por un campo `dataset`, con sha independiente |
-| **`createRepository`** | `core/repository.js` (636 líneas) | Es un singleton cableado a recetas: tres constantes y seis `let` de módulo. Un módulo de costos tendría que copiar las 636 líneas y con ellas los seis casos de pérdida de datos documentados dentro. Extraer `createRepository({localKey, publishedUrl, validate, nextId})` y dejar `repository.js` como una instancia de una línea. Requiere antes separar la publicación del almacén local |
+| Qué | Dónde | Por qué se dejó, y cuándo toca |
+|---|---|---|
+| **Un archivo por módulo en la API** | `api/recipes.js` | `FILE_PATH` es constante y el `sha` es global, así que dos personas editando módulos **distintos** se rechazarían con un 409. Hoy es especulativo: no existe un segundo conjunto de datos. Se hace **el día que exista**, con un mapa blanco `{recetas: 'data/recipes.json', costos: 'data/costos.json'}` elegido por un campo `dataset`. Es media hora entonces, y hoy tocaría el camino de publicación que funciona en producción sin ganar nada |
+| **`createRepository`** | `core/repository.js` (636 líneas) | Es un singleton cableado a recetas. Un módulo de costos tendría que copiar las 636 líneas y con ellas los seis casos de pérdida de datos documentados dentro. La extracción es mecánica —salvo tres constantes y `nextId()`, nada del cuerpo sabe qué es una receta— pero toca el almacén, que es donde se pierde el trabajo de la gente. Se hace **al abrir la Fase 2**, con su propia ventana de pruebas y no en la misma tanda que otra cosa |
+| **Rutas por módulo** | `core/router.js` | `parseHash`/`buildHash` codifican los literales `nueva`/`receta`. Cada módulo son dos ediciones espejadas. Debería ser `{modulo, name, id, params}` con una tabla segmento↔módulo. No corre prisa: es acotado y sin riesgo de datos |
 
 ### Archivos a vigilar por tamaño
 
@@ -423,6 +483,9 @@ nuevo querrá añadirle una fila. Partir por bloque antes de que llegue el segun
 módulo. `views/editor.js` (621) y `views/plan.js` (584) tienen costuras claras
 (las filas de ingrediente y el resultado del plan, respectivamente).
 `views/detail.js` (551) está justificado: son seis secciones ya separadas.
+`src/dialogs.js` (445) crecerá con cada módulo: cuando pase de unas 600, la
+costura es sacar los `build*` de cada módulo a su propio archivo y dejar aquí la
+tabla.
 
 ---
 
@@ -431,7 +494,7 @@ módulo. `views/editor.js` (621) y `views/plan.js` (584) tienen costuras claras
 ```bash
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
-npm run verificar    # 11 bloques, sin navegador, segundos
+npm run verificar    # 12 bloques, sin navegador, segundos
 npm run qa           # 66 pruebas en escritorio, celular y tableta
 ```
 
@@ -439,15 +502,16 @@ npm run qa           # 66 pruebas en escritorio, celular y tableta
 
 ```
 Fronteras de arquitectura... ok (3 de carpeta y 2 de responsabilidad)
-Codificacion de los archivos... ok (68 archivos en UTF-8)
-Sintaxis de los modulos... ok (37 archivos)
-Resolucion de importaciones... ok (34 modulos)
+Codificacion de los archivos... ok (71 archivos en UTF-8)
+Sintaxis de los modulos... ok (40 archivos)
+Resolucion de importaciones... ok (37 modulos)
+Importaciones que faltan... ok (146 nombres del proyecto, todos importados donde se usan)
 Coherencia del CSS... ok (312 clases)
 Capa de datos... ok (29 comprobaciones)
 Publicacion y conflictos... ok (22 comprobaciones)
 Validacion del servidor... ok (37 comprobaciones)
-Alta y baja masiva... ok (182 comprobaciones)
-Version del proyecto... ok (v1.5.0)
+Alta y baja masiva... ok (188 comprobaciones)
+Version del proyecto... ok (v1.5.1)
 Integridad de las recetas... ok (121 recetas, 187 componentes, 1282 items, 225 KB, sha f0307204)
 ```
 
@@ -914,7 +978,7 @@ distancia de brazo y con posible reflejo.
 |---|---|
 | Dependencias en tiempo de ejecución | 0 |
 | Peticiones a terceros | 0 |
-| JavaScript `src/` (sin comprimir) | ~351 KB (34 módulos) |
+| JavaScript `src/` (sin comprimir) | ~355 KB (37 módulos) |
 | CSS | ~169 KB (10 hojas) |
 | Tipografías (subconjunto latino) | ~145 KB (7 archivos) |
 | Datos | 225 KB |
@@ -940,11 +1004,11 @@ cifra: **no abras `data/recipes.json`**.
 | `data/recipes.json` | 225 KB (230.598 bytes), `version: 2` |
 | `sha` de integridad | `f0307204` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
-| Versión | 1.5.0 (Fase 1). El primer número es la fase de la hoja de ruta |
-| `CACHE_VERSION` de `sw.js` | `zahavi-v36` |
+| Versión | 1.5.1 (Fase 1). El primer número es la fase de la hoja de ruta |
+| `CACHE_VERSION` de `sw.js` | `zahavi-v37` |
 | Node en el servidor | 24.x |
-| Módulos en `src/` | 34 |
-| Bloques de `verificar` / pruebas de `qa` | 11 / 66 |
+| Módulos en `src/` | 37 |
+| Bloques de `verificar` / pruebas de `qa` | 12 / 66 |
 
 ---
 
@@ -996,6 +1060,31 @@ El techo no es el número de recetas: es el **tamaño del archivo**.
 - Con la forma actual y métodos escritos, el techo llega hacia las 300 recetas.
 - Lo que sí lo revienta es el **histórico de precios** de la Fase 2: 159
   ingredientes con captura diaria llegan a 1 MB en unos dos meses.
+
+### Lo siguiente: el cerrojo de edición (v1.5.2)
+
+**Decidido y pendiente de implementar.** Hoy el sistema usa concurrencia
+optimista: dos personas pueden editar a la vez y el choque se detecta **al
+publicar**, por el `sha`, con aviso en rojo. Nadie pierde trabajo en silencio,
+pero el segundo se entera tarde.
+
+Lo acordado es un cerrojo: quien llega segundo **espera**, y se le dice que está
+ocupado.
+
+| Decisión | Valor |
+|---|---|
+| Dónde vive | `data/lock.json` en el repositorio, archivo aparte |
+| Por qué ahí | No añade servicios: sigue siendo GitHub + Vercel. El historial de `data/recipes.json` no se ensucia porque el cerrojo va en otro archivo |
+| Coste asumido | Tomar y soltar el cerrojo son dos commits, y añade 1-2 s al abrir el editor |
+| Forma | `{ dispositivo, nombre, desde, expira }` |
+| Caducidad | **Obligatoria.** Sin ella, un editor abierto y olvidado deja el recetario bloqueado para siempre. Se renueva mientras se edita |
+| Cuándo se toma | Al abrir el editor, en la misma llamada que ya comprueba la clave (`verificar: true`) |
+| Cuándo se suelta | Al guardar, al cancelar, o sola al caducar |
+| Respuesta si está tomado | `423`, con quién y desde cuándo, para que la pantalla diga "otro equipo está editando desde hace N minutos" |
+
+**No sustituye al control del `sha`, lo complementa.** El cerrojo evita el choque
+antes de que ocurra; el `sha` sigue siendo la red por debajo, para el caso de un
+cerrojo caducado o un equipo que publique sin haberlo tomado.
 
 ### Antes de la Fase 2
 

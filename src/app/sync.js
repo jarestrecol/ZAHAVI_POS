@@ -205,7 +205,7 @@ async function publicar() {
     // El estado tiene que refrescarse aunque las recetas no hayan cambiado: lo
     // que cambia es la referencia de lo publicado, y de ahi sale el aviso de
     // "cambios sin publicar" que debe desaparecer de la cabecera.
-    setState({ recipes: repo.findAll(), ingredientes: repo.allIngredients() });
+    setState({ recetario: { recipes: repo.findAll(), ingredientes: repo.allIngredients() } });
 
     // Alguien guardo mientras esto viajaba. Ese cambio no iba dentro, asi que
     // sigue sin publicar: se encadena otra vuelta en lugar de esperar a que

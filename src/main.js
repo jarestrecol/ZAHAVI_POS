@@ -25,13 +25,15 @@
  */
 
 import { el, clear } from './lib/dom.js';
-import { setInert, recordarFoco } from './lib/a11y.js';
+import { recordarFoco } from './lib/a11y.js';
+import { drenarTrasPintar } from './lib/paint.js';
+import { renderDialogs } from './dialogs.js';
+import { handleShortcuts } from './shortcuts.js';
 import * as repo from './core/repository.js';
-import { getState, setState, subscribe, notify, clearNotice } from './core/store.js';
+import { getState, setState, subscribe, notify, clearNotice, recetario } from './core/store.js';
 import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
-import { ensureAccess, isSignedIn, estadoClave, anotarGeneracion } from './core/access.js';
-import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
+import { ensureAccess, isSignedIn, estadoClave, anotarGeneracion } from './core/access.js';
 import {
   saveRecipe,
   deleteRecipe,
@@ -46,14 +48,6 @@ import { renderHeader, renderBadges } from './views/header.js';
 import { renderSidebar, SEARCH_ID } from './views/sidebar.js';
 import { renderDetail, renderPlaceholder, renderNotFound } from './views/detail.js';
 import { renderSkeleton } from './views/skeleton.js';
-import { openEditor } from './views/editor.js';
-import { openSettings } from './views/settings.js';
-import { openPublicar } from './views/publicar.js';
-import { openDesbloquear } from './views/desbloquear.js';
-import { openConfirmDelete } from './views/confirm.js';
-import { openProduction } from './views/production.js';
-import { openPlan } from './views/plan.js';
-import { openIngredients } from './views/ingredients.js';
 import { renderRecipeSheet, renderIndexSheet, renderPlanSheet } from './views/print.js';
 
 /** Contenedor donde se pinta la aplicacion. */
@@ -61,23 +55,6 @@ const app = document.getElementById('app');
 
 /** Contenedor aparte para la hoja de impresion, que no se ve en pantalla. */
 const printRoot = document.getElementById('print-root');
-
-/**
- * Dialogo abierto en este momento, o null si no hay ninguno.
- * @type {{node: HTMLElement, close: () => void}|null}
- */
-let openDialog = null;
-
-/**
- * Identidad del dialogo abierto, del tipo "edit:R012".
- *
- * Sirve para saber si el dialogo que toca mostrar es el mismo que ya esta
- * puesto. Si lo es, no se reconstruye: el editor perderia el texto a medio
- * escribir y el foco.
- *
- * @type {string|null}
- */
-let openDialogKey = null;
 
 boot();
 
@@ -116,8 +93,7 @@ async function boot() {
   const loaded = await repo.hydrate();
   setState({
     ready: true,
-    recipes: loaded.recipes,
-    ingredientes: loaded.ingredientes,
+    recetario: { recipes: loaded.recipes, ingredientes: loaded.ingredientes },
   });
 
   // LA CLAVE RETIRADA SE COMPRUEBA AQUI, y no antes, porque la generacion
@@ -181,8 +157,8 @@ async function boot() {
  */
 function resetFactorAlCambiarDeReceta(route, previous) {
   if (route.id === previous.id) return;
-  if (getState().factor === 1) return;
-  setState({ factor: 1 });
+  if (recetario().factor === 1) return;
+  setState({ recetario: { factor: 1 } });
 }
 
 /**
@@ -202,97 +178,6 @@ function registerServiceWorker() {
   navigator.serviceWorker.register('./sw.js').catch(() => {
     /* sin funcionamiento sin conexion; con red la aplicacion va igual */
   });
-}
-
-/* ===========================================================================
- *  2. ATAJOS DE TECLADO
- * ======================================================================== */
-
-/**
- * Atajos de teclado.
- *
- * Son pocos a proposito: solo lo que de verdad se repite muchas veces al dia.
- *
- *      /            ir al buscador
- *      flechas      recorrer el listado de recetas
- *      E            editar la receta abierta
- *      Escape       salir del buscador y limpiar la busqueda
- *
- * No se activan mientras se escribe en un campo ni con un dialogo abierto: ahi
- * las teclas pertenecen a lo que la persona esta haciendo.
- *
- * @param {KeyboardEvent} event
- */
-function handleShortcuts(event) {
-  const state = getState();
-
-  if (!state.ready || !state.authed) return;
-  if (openDialog || state.production) return;
-
-  const target = event.target;
-  const typing =
-    target instanceof HTMLElement &&
-    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
-
-  // Barra: al buscador desde cualquier punto.
-  if (event.key === '/' && !typing) {
-    event.preventDefault();
-    const field = document.getElementById(SEARCH_ID);
-    if (field) field.focus();
-    return;
-  }
-
-  // Escape dentro del buscador: soltar el foco y limpiar la busqueda.
-  if (event.key === 'Escape' && typing && target.id === SEARCH_ID) {
-    target.blur();
-    navigate({ name: 'index', id: null, query: '' }, { replace: true });
-    return;
-  }
-
-  // El resto de atajos no deben interferir con la escritura.
-  if (typing) return;
-
-  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-    event.preventDefault();
-    moveSelection(event.key === 'ArrowDown' ? 1 : -1);
-    return;
-  }
-
-  const route = getRoute();
-  if ((event.key === 'e' || event.key === 'E') && route.name === 'detail') {
-    event.preventDefault();
-    navigate({ name: 'edit', id: route.id });
-  }
-}
-
-/**
- * Mueve la seleccion por el listado con las flechas.
- *
- * Se apoya en los enlaces ya pintados en lugar de recalcular la lista filtrada,
- * porque asi respeta exactamente lo que la persona esta viendo, incluidos el
- * filtro de categoria y la busqueda activa.
- *
- * @param {number} delta 1 para bajar, -1 para subir
- */
-function moveSelection(delta) {
-  const links = Array.from(document.querySelectorAll('.recipe-link'));
-  if (links.length === 0) return;
-
-  const activeIndex = links.findIndex((link) => link.classList.contains('is-active'));
-
-  // Si no hay ninguna receta abierta, la primera flecha selecciona la primera.
-  const nextIndex =
-    activeIndex === -1 ? 0 : Math.min(links.length - 1, Math.max(0, activeIndex + delta));
-  const next = links[nextIndex];
-  if (!next) return;
-
-  // El codigo se lee de `data-id`, no recortando la direccion: desde que el
-  // enlace conserva el filtro y la busqueda, la direccion lleva parametros
-  // detras (`#/receta/R123?cat=GALLETAS`) y recortarla daba un codigo invalido.
-  const id = next.dataset.id;
-  if (!id) return;
-  navigate({ name: 'detail', id });
-  next.scrollIntoView({ block: 'nearest' });
 }
 
 /* ===========================================================================
@@ -353,38 +238,6 @@ function render() {
 
   transicion.ready.catch(descartarSalto);
   transicion.finished.catch(descartarSalto);
-}
-
-/**
- * Cola de trabajos que solo pueden hacerse con la pantalla ya repintada.
- *
- * Existe porque imprimir el plan del dia sacaba la ficha de la receta abierta:
- * se guardaba el plan en el estado y se llamaba a `window.print()` dentro de un
- * `requestAnimationFrame`, dando por hecho que para entonces la hoja del plan
- * ya estaria montada. Con la View Transitions API no lo estaba, y encima el
- * plan se borraba del estado justo despues, asi que la hoja correcta no llegaba
- * a existir en ningun momento.
- *
- * @type {Array<() => void>}
- */
-const pendientesTrasPintar = [];
-
-/**
- * Apunta un trabajo para cuando la pantalla refleje el estado nuevo.
- *
- * Se apunta ANTES del cambio de estado que lo provoca: si el navegador no usa
- * transiciones, el repintado ocurre dentro de `setState` y ya seria tarde.
- *
- * @param {() => void} trabajo
- */
-function trasPintar(trabajo) {
-  pendientesTrasPintar.push(trabajo);
-}
-
-/** Ejecuta y vacia lo que estuviera esperando al repintado. */
-function drenarTrasPintar() {
-  const trabajos = pendientesTrasPintar.splice(0);
-  for (const trabajo of trabajos) trabajo();
 }
 
 /**
@@ -476,15 +329,15 @@ function paint() {
     renderHeader({
       canEdit: true,
       onNewRecipe: () => navigate({ name: 'new', id: null }),
-      onPlan: () => setState({ planOpen: true }),
-      onIngredients: () => setState({ ingredientsOpen: true }),
+      onPlan: () => setState({ recetario: { planOpen: true } }),
+      onIngredients: () => setState({ recetario: { ingredientsOpen: true } }),
       onSettings: () => setState({ settingsOpen: true }),
     }),
 
     el('div', { class: 'workspace' }, [
       // Izquierda: filtros, buscador y listado completo.
       renderSidebar({
-        recipes: state.recipes,
+        recipes: state.recetario.recipes,
         query: route.query,
         category: route.category,
         selectedId: recipe ? recipe.id : null,
@@ -530,10 +383,10 @@ function renderPanel(state, route, recipe) {
     return renderDetail({
       recipe,
       canEdit: true,
-      factor: state.factor,
-      onPesar: () => setState({ production: recipe.id }),
-      onEliminar: () => setState({ confirmDelete: recipe.id }),
-      onFactor: (factor) => setState({ factor }),
+      factor: state.recetario.factor,
+      onPesar: () => setState({ recetario: { production: recipe.id } }),
+      onEliminar: () => setState({ recetario: { confirmDelete: recipe.id } }),
+      onFactor: (factor) => setState({ recetario: { factor } }),
     });
   }
 
@@ -545,10 +398,10 @@ function renderPanel(state, route, recipe) {
   }
 
   return renderPlaceholder({
-    count: state.recipes.length,
-    withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
-    categories: new Set(state.recipes.map((r) => r.categoria).filter(Boolean)).size,
-    ingredients: state.ingredientes.length,
+    count: state.recetario.recipes.length,
+    withMethod: state.recetario.recipes.filter((r) => (r.metodo || '').trim()).length,
+    categories: new Set(state.recetario.recipes.map((r) => r.categoria).filter(Boolean)).size,
+    ingredients: state.recetario.ingredientes.length,
   });
 }
 
@@ -587,336 +440,15 @@ function renderPrint(state, route, recipe) {
 
   // Un plan pendiente de imprimir manda sobre todo lo demas: es lo que la
   // persona acaba de pedir de forma explicita.
-  if (state.planPrint) {
-    printRoot.appendChild(renderPlanSheet(state.planPrint));
+  if (state.recetario.planPrint) {
+    printRoot.appendChild(renderPlanSheet(state.recetario.planPrint));
     return;
   }
 
   printRoot.appendChild(
     recipe
-      ? renderRecipeSheet(escalarReceta(recipe, state.factor), state.factor)
-      : renderIndexSheet({ recipes: state.recipes, query: route.query, category: route.category }),
+      ? renderRecipeSheet(escalarReceta(recipe, state.recetario.factor), state.recetario.factor)
+      : renderIndexSheet({ recipes: state.recetario.recipes, query: route.query, category: route.category }),
   );
 }
 
-/* ===========================================================================
- *  4. DIALOGOS
- * ======================================================================== */
-
-/**
- * Monta como maximo un dialogo por encima de la aplicacion.
- *
- * REGLA IMPORTANTE: si el dialogo que toca mostrar es el mismo que ya esta
- * puesto, se deja tal cual. Reconstruirlo borraria lo que se este escribiendo en
- * el editor y sacaria el foco del campo. Por eso existe `dialogKey`.
- *
- * Mientras hay un dialogo abierto, el resto de la aplicacion queda inerte: no se
- * puede tabular hacia ella ni la leen los lectores de pantalla.
- *
- * @param {HTMLElement|null} shell la aplicacion que queda por debajo
- */
-function renderDialogs(shell) {
-  const state = getState();
-  const route = getRoute();
-  const key = dialogKey(state, route);
-
-  // Ya esta puesto el que toca: no tocar nada.
-  if (key !== null && key === openDialogKey) {
-    setInert(shell, true);
-    return;
-  }
-
-  // Cambio el dialogo (o ya no hace falta ninguno): se cierra el anterior.
-  if (openDialog) {
-    openDialog.close();
-    openDialog = null;
-    openDialogKey = null;
-  }
-
-  if (state.production) openDialog = buildProduction(state);
-  else if (state.confirmDelete) {
-    // Eliminar sale hacia las dos sedes en cuanto se publica, asi que pide la
-    // clave de edicion antes incluso de enseñar la confirmacion.
-    openDialog = faltaLaClave('delete', state.confirmDelete)
-      ? buildDesbloquear('delete', state.confirmDelete)
-      : buildConfirmDelete(state);
-  } else if (state.pedirClave) openDialog = buildPublicar();
-  else if (state.planOpen) openDialog = buildPlan(state);
-  else if (state.ingredientsOpen) openDialog = buildIngredients(state);
-  else if (state.settingsOpen) openDialog = buildSettings(state);
-  else if (route.name === 'new' || route.name === 'edit') {
-    openDialog = faltaLaClave(route.name, route.id)
-      ? buildDesbloquear(route.name, route.id)
-      : buildEditor(route);
-  }
-
-  openDialogKey = openDialog ? key : null;
-  setInert(shell, Boolean(openDialog));
-  if (openDialog) document.body.appendChild(openDialog.node);
-}
-
-/**
- * Identifica de forma estable el dialogo que corresponde al estado actual.
- *
- * Dos estados distintos con la misma clave se consideran el mismo dialogo y no
- * lo reconstruyen. Por eso la clave de Ajustes incluye el estado de publicacion:
- * tras publicar hay que repintarlo para que deje de decir "cambios sin publicar".
- *
- * @returns {string|null} null cuando no debe haber ningun dialogo
- */
-function dialogKey(state, route) {
-  if (state.production) return 'prod:' + state.production;
-  // El prefijo cambia cuando falta la clave, para que al ponerla se
-  // reconstruya el dialogo y aparezca lo que se estaba pidiendo.
-  if (state.confirmDelete) {
-    return (faltaLaClave('delete', state.confirmDelete) ? 'clave-delete:' : 'delete:') + state.confirmDelete;
-  }
-
-  // Clave fija: el dialogo lleva por dentro el campo de la clave a medio
-  // escribir, y cualquier repintado de la aplicacion lo borraria.
-  if (state.pedirClave) return 'publicar';
-
-  // Clave fija a proposito: el plan lleva su propia seleccion por dentro y se
-  // repinta solo. Si la clave cambiara, cualquier repintado de la aplicacion
-  // lo reconstruiria y se perderia lo que se llevara elegido. Lo mismo vale
-  // para el catalogo de ingredientes, que guarda su busqueda y su orden.
-  if (state.planOpen) return 'plan';
-  if (state.ingredientsOpen) return 'ingredientes';
-
-  if (state.settingsOpen) {
-    const changes = repo.localChanges();
-    // El estado del servidor forma parte de la clave porque el bloque de
-    // Conexion lo muestra: si cambia mientras Ajustes esta abierto (vuelve la
-    // red, se publica solo), el dialogo tiene que repintarse para no seguir
-    // enseñando un diagnostico viejo.
-    const sync = estadoSincronizacion();
-    const servidor = repo.serverDiagnosis().state;
-    return [
-      'settings',
-      changes.total,
-      changes.dirty,
-      repo.publishedRevision(),
-      servidor,
-      sync.motivo,
-    ].join(':');
-  }
-
-  // El prefijo cambia cuando falta la clave, igual que en el borrado: sin eso,
-  // poner la clave no reconstruia el dialogo y la puerta se quedaba puesta con
-  // el editor detras, esperando a nadie.
-  if (route.name === 'new') return faltaLaClave('new', null) ? 'clave-new' : 'new';
-  if (route.name === 'edit') {
-    return (faltaLaClave('edit', route.id) ? 'clave-edit:' : 'edit:') + route.id;
-  }
-
-  return null;
-}
-
-/**
- * Modo Pesar: pantalla completa para el momento de pesar ingredientes.
- *
- * Recibe la receta YA escalada. Es el sitio donde el factor mas importa: es
- * justo donde alguien esta con la bascula delante siguiendo las cifras al pie
- * de la letra.
- */
-function buildProduction(state) {
-  const recipe = repo.findById(state.production);
-  if (!recipe) {
-    setState({ production: null });
-    return null;
-  }
-  return openProduction({
-    recipe: escalarReceta(recipe, state.factor),
-    factor: state.factor,
-    onClose: () => setState({ production: null }),
-  });
-}
-
-/**
- * Plan de produccion del dia.
- *
- * Al pedir imprimir se guarda el plan en el estado y se cierra la ventana: la
- * hoja se genera en `renderPrint` y `window.print()` se llama despues del
- * repintado, para que el navegador encuentre la hoja ya montada. Sin esa
- * espera se imprimiria lo que hubiera antes.
- *
- * Esa espera es `trasPintar`, y no un `requestAnimationFrame`: el cuadro llega
- * antes que el pintado cuando hay una View Transition por medio. El trabajo se
- * apunta antes de `setState` porque sin transiciones el repintado ocurre
- * dentro de esa misma llamada.
- */
-function buildPlan(state) {
-  return openPlan({
-    recipes: state.recipes,
-    onClose: () => setState({ planOpen: false, planPrint: null }),
-    onPrint: (plan) => {
-      trasPintar(() => {
-        window.print();
-        // El plan deja de estar pendiente en cuanto se manda a imprimir: si
-        // se quedara, la siguiente impresion sacaria el plan en vez de la
-        // receta que se estuviera viendo.
-        setState({ planPrint: null });
-      });
-      setState({ planOpen: false, planPrint: plan });
-    },
-  });
-}
-
-/**
- * Catalogo de ingredientes.
- *
- * Solo lee el recetario: no cambia nada ni guarda nada.
- */
-function buildIngredients(state) {
-  return openIngredients({
-    recipes: state.recipes,
-    onClose: () => setState({ ingredientsOpen: false }),
-  });
-}
-
-/** Confirmacion antes de eliminar una receta. */
-function buildConfirmDelete(state) {
-  const recipe = repo.findById(state.confirmDelete);
-  if (!recipe) {
-    setState({ confirmDelete: null });
-    return null;
-  }
-  return openConfirmDelete({
-    recipe,
-    // Igual que en la puerta: cancelar AQUI tambien retira el permiso. Sin
-    // esto, el permiso sobrevivia a la cancelacion y un segundo intento de
-    // eliminar la MISMA receta se saltaba la puerta sin volver a pedir la
-    // clave. Vale para las tres salidas del dialogo -boton, Escape y la equis-,
-    // porque las tres acaban aqui.
-    onCancel: () => setState({ confirmDelete: null, autorizacion: null }),
-    onConfirm: () => deleteRecipe(recipe.id),
-  });
-}
-
-/**
- * Indica si hay que pedir la clave de edicion antes de dejar tocar el recetario.
- *
- * Consultar, buscar, escalar la tanda, imprimir y el Modo Pesar no pasan por
- * aqui: son de todo el obrador. Lo que se protege es lo que CAMBIA formulas,
- * porque con la publicacion automatica en marcha eso llega a las dos sedes.
- *
- * Sin recetario compartido no se pide nada. Ahi no hay servidor que pueda
- * comprobar la clave, y tampoco hay a donde publicar: lo que se escriba se
- * queda en el aparato. Exigir una clave que nadie puede verificar seria pedir
- * algo que no existe y dejar el recetario inservible en local.
- *
- * @returns {boolean}
- */
-function faltaLaClave(accion, id) {
-  if (!repo.canPublishToAll()) return false;
-
-  // NO se mira si la clave esta guardada en la sesion. Esa clave existe para
-  // que la publicacion salga sola despues de guardar, y usarla tambien como
-  // permiso de entrada convertia la primera comprobacion del dia en una llave
-  // que abria el resto de la jornada: quien se encontrara la tableta del
-  // mostrador abierta podia crear, cambiar o borrar formulas de las dos sedes
-  // sin que nadie volviera a preguntarle nada.
-  //
-  // Lo que se mira es la autorizacion, que vale para UNA accion concreta y se
-  // retira en cuanto esa accion termina.
-  const permiso = getState().autorizacion;
-  return !(permiso && permiso.accion === accion && permiso.id === (id || null));
-}
-
-/**
- * Pide la clave de edicion antes de crear, modificar o eliminar.
- *
- * Al acertar, la clave queda en la sesion y este mismo repintado sustituye el
- * dialogo por lo que se estaba pidiendo: el editor o la confirmacion de
- * borrado. No hay que volver a pulsar nada.
- *
- * @param {"new"|"edit"|"delete"} accion
- * @param {string|null} id
- */
-function buildDesbloquear(accion, id) {
-  const recipe = id ? repo.findById(id) : null;
-
-  return openDesbloquear({
-    accion,
-    nombre: recipe ? recipe.nombre : '',
-    onVerificar: async (password) => {
-      const result = await repo.verificarClaveEdicion(password);
-      if (result.ok) {
-        // La clave se guarda para que la publicacion salga sola despues de
-        // guardar; la autorizacion es lo que abre esta accion, y solo esta.
-        repo.guardarClaveEdicion(password);
-        setState({ autorizacion: { accion, id: id || null } });
-      }
-      return result;
-    },
-    onClose: () => {
-      // Cancelar deshace lo que se pedia, para no dejar el recetario en un
-      // estado a medias donde el dialogo vuelve a aparecer solo.
-      if (accion === 'delete') setState({ confirmDelete: null, autorizacion: null });
-      else {
-        setState({ autorizacion: null });
-        navigate({ name: id ? 'detail' : 'index', id: id || null }, { replace: true });
-      }
-    },
-  });
-}
-
-/**
- * Pide la clave de edicion justo despues de guardar, que es donde hace falta.
- *
- * Se cierra pase lo que pase con la publicacion: si sale bien no queda nada que
- * decir aqui, y si sale mal el mensaje se enseña dentro del propio dialogo antes
- * de que nadie lo cierre.
- */
-function buildPublicar() {
-  return openPublicar({
-    pendientes: repo.localChanges().total,
-    onPublish: publish,
-    onClose: () => setState({ pedirClave: false }),
-  });
-}
-
-/** Ajustes: estado de publicacion, contrasena y recuperacion. */
-function buildSettings(state) {
-  return openSettings({
-    recipeCount: state.recipes.length,
-    withMethod: state.recipes.filter((r) => (r.metodo || '').trim()).length,
-    revision: repo.publishedRevision(),
-    changes: repo.localChanges(),
-    canPublish: repo.canPublishToAll(),
-    needsReload: repo.needsReloadBeforePublish(),
-    server: repo.serverDiagnosis(),
-    sync: estadoSincronizacion(),
-    // No se publica desde Ajustes: se abre el dialogo que ya sabe pedir la clave,
-    // enfocar el campo, aceptar Intro y enseñar el error donde se esta mirando.
-    onPedirClave: () => setState({ pedirClave: true }),
-    onDiscard: discardChanges,
-    onSalir: cerrarSesion,
-    onClose: () => setState({ settingsOpen: false }),
-  });
-}
-
-/** Editor de recetas, tanto para crear como para modificar. */
-function buildEditor(route) {
-  const isNew = route.name === 'new';
-  const source = isNew ? emptyRecipe(repo.nextId()) : repo.findById(route.id);
-
-  // La receta que se pedia editar ya no existe: de vuelta al listado.
-  if (!source) {
-    navigate({ name: 'index', id: null }, { replace: true });
-    return null;
-  }
-
-  return openEditor({
-    draft: source,
-    isNew,
-    ingredientes: getState().ingredientes,
-    onCancel: () => {
-      // El permiso muere con la ventana: volver a abrir el editor vuelve a
-      // pedir la clave.
-      setState({ autorizacion: null });
-      navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id });
-    },
-    onSave: saveRecipe,
-  });
-}
