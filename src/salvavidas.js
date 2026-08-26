@@ -72,7 +72,7 @@
     // toca: puede estar funcionando aunque haya habido un error suelto por
     // detras, y borrarle la pantalla a alguien que esta trabajando seria peor
     // que el propio fallo.
-    if (!app.querySelector('.booting')) return;
+    if (!app.querySelector('.portada')) return;
 
     avisado = true;
 

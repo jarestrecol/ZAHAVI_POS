@@ -91,7 +91,7 @@ test.describe('Arranque', () => {
     await expect(page.locator('.fallo__note')).toContainText('no se borran');
 
     // Y lo que antes se quedaba en pantalla para siempre.
-    await expect(page.locator('.booting')).toHaveCount(0);
+    await expect(page.locator('.portada')).toHaveCount(0);
   });
 
   test('cuando arranca bien no se ve ningún aviso de fallo', async ({ page }) => {

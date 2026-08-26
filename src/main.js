@@ -55,7 +55,7 @@ import { renderLogin } from './views/login.js';
 import { renderHeader, renderBadges } from './views/header.js';
 import { renderSidebar, SEARCH_ID, restaurarFocoBusqueda } from './views/sidebar.js';
 import { renderDetail, renderPlaceholder, renderNotFound } from './views/detail.js';
-import { renderSkeleton } from './views/skeleton.js';
+import { renderPortada } from './views/portada.js';
 import { renderRecipeSheet, renderIndexSheet, renderPlanSheet } from './views/print.js';
 
 /** Contenedor donde se pinta la aplicacion. */
@@ -306,9 +306,9 @@ function paint() {
 
   clear(app);
 
-  // --- Pantalla de carga -------------------------------------------------
+  // --- Portada de arranque -----------------------------------------------
   if (!state.ready) {
-    app.appendChild(renderSkeleton());
+    app.appendChild(renderPortada());
     return;
   }
 

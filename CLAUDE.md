@@ -850,6 +850,7 @@ Está en `vercel.json`, y cada línea responde a un motivo distinto:
 | `/assets/fonts/` | `max-age=31536000, immutable` | Las tipografías no cambian nunca |
 | `/assets/` (imágenes) | `max-age=3600` | Cambian poco y no rompen nada si tardan |
 | `/data/recipes.json` y `/sw.js` | `no-cache, must-revalidate` | Una publicación nueva debe verse en la siguiente carga |
+| `/manifest.webmanifest` | `no-cache, must-revalidate` | Declara los iconos y los colores con los que se **instala** la aplicación, y el navegador solo lo mira en ese momento. Antes caía en la política por defecto, que no está declarada en ninguna parte |
 | `/api/` | `no-store` | Nunca se guarda una respuesta del servidor |
 
 El código llevaba `max-age=3600` y costó caro: un equipo con la página abierta
@@ -1033,7 +1034,7 @@ dos midan 512.
 |---|---|---|
 | `icon-maskable-512.png` | Pantalla de inicio de Android | El monograma: cuadro naranja, Z blanca |
 | `icon-192.png` · `apple-touch-icon.png` | Pantalla de inicio en tamaños pequeños, y iOS | El monograma |
-| `icon-512.png` | **Pantalla de arranque de Android** | El logotipo completo sobre el naranja de marca |
+| `icon-512.png` | Instalación y catálogos (NO el arranque: ver abajo) | El logotipo completo sobre el naranja de marca |
 | `favicon.svg` | Pestaña del navegador | El monograma |
 
 **Por qué el logotipo NO va en el icono de la pantalla de inicio.** Es un
@@ -1042,12 +1043,34 @@ CAFÉ" debajo. A los 48 px de una pantalla de inicio esa línea es una mancha, y
 Android recorta el icono a círculo, así que le cortaría la Z y la I. El monograma
 existe justamente para ese tamaño.
 
-**Cómo se consigue que sea el logotipo el que se amplía al abrir.** Android usa el
-icono `maskable` para la pantalla de inicio y el normal para la de arranque, así
-que se reparten el trabajo: el monograma va como `maskable` y el logotipo como
-`any`. **Es la mejor palanca disponible, no una garantía**: la especificación no
-tiene un propósito "solo para el arranque" y la selección de Chrome es
-heurística. Se comprueba en un teléfono real en dos minutos.
+**En Android 12 y posteriores, la imagen del arranque NO se puede elegir.** Aquí
+hubo escrito lo contrario —que el `maskable` iba a la pantalla de inicio y el
+`any` al arranque, así que bastaba con poner el logotipo en el `any`— y se
+comprobó en un teléfono real: no es cierto. Desde Android 12 el sistema dibuja la
+pantalla de arranque de **todas** las aplicaciones, y la
+[documentación de Android](https://developer.android.com/develop/ui/views/launch/splash-screen)
+lo dice sin margen: *"The launcher icon is the default"*, con una animación de
+entrada *"controlled by the system and isn't customizable"*. En una aplicación
+instalada desde el navegador ese icono del lanzador sale del `maskable`, o sea el
+monograma. El `icon-512.png` con el logotipo **no aparece ahí**.
+
+Queda una sola palanca, y es el color: el `background_color` del manifiesto es el
+fondo de esa pantalla. Está en `#f68a1e`, el naranja de marca, muestreado del
+propio `icon-maskable-512.png` (246,138,30) para que el recorte circular del
+icono se funda con el fondo y quede la Z blanca sobre naranja pleno. El
+`theme_color` se queda oscuro (`#1a1714`, el mismo `--rail` que declara
+`index.html`): ese controla la barra de estado durante toda la sesión, no el
+arranque.
+
+**El logotipo completo solo cabe ya dentro de la página**, en la portada de
+arranque (`src/views/portada.js`), que comparte ese naranja para que el encendido
+se lea como una sola pantalla y no como tres saltos de color.
+
+**Y un icono ya instalado no se entera de nada de esto.** El navegador fija los
+iconos y los colores al generar la aplicación instalada, y solo los renueva en una
+actualización que puede tardar. Para ver un cambio de icono o de color de arranque
+**hay que quitar el acceso directo y volver a añadirlo**. Publicar no basta, y esa
+es la explicación de cualquier "lo cambiaste y sigue igual" en este apartado.
 
 **Por qué el SVG salió del manifiesto.** Estaba declarado con `sizes: "any"`, que
 lo hace candidato a cualquier tamaño, incluido el del arranque, y eso volvía el
@@ -1170,7 +1193,7 @@ cifra: **no abras `data/recipes.json`**.
 | `sha` de integridad | `f0307204` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
 | Versión | 1.5.6 (Fase 1). El primer número es la fase de la hoja de ruta |
-| `CACHE_VERSION` de `sw.js` | `zahavi-v43` |
+| `CACHE_VERSION` de `sw.js` | `zahavi-v44` |
 | Node en el servidor | 24.x |
 | Módulos en `src/` | 43 |
 | Bloques de `verificar` / pruebas de `qa` | 14 / 79 |
@@ -1354,6 +1377,7 @@ Defectos reales, para que no vuelvan sin que nadie se dé cuenta. Todos corregid
 | **La prueba del tamaño de texto era inestable**: medía de una sola pasada justo después de poner el atributo en la raíz, y poner el atributo y recalcular el estilo son dos cosas distintas. Fallaba una de cada tantas ejecuciones en paralelo y nunca aislada, que es el peor tipo de fallo | Suite ejecutada en paralelo |
 | **Y al volver no quedaba marcada ninguna fila**: la marca dependía de que hubiera una receta en la ruta, y al volver al listado ya no la hay. En una columna de 122 filas iguales, la altura correcta sin marca sigue sin decir cuál era | Uso real, reportado por el obrador |
 | `CLAUDE.md` tenía 95 líneas con doble codificación y `verificar.mjs` imprimía `â€¦` en cada línea | Auditoría de deuda técnica |
+| **La pantalla de arranque del celular seguía mostrando el monograma** pese a tener el logotipo en `icon-512.png` y publicado. Desde Android 12 esa pantalla la dibuja el sistema con el icono del lanzador, y el `any` del manifiesto no interviene: la estrategia documentada solo era cierta hasta Android 11 | Prueba en un teléfono real, reportada por el obrador |
 
 ---
 

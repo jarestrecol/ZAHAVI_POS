@@ -129,14 +129,6 @@
     padding-right: var(--gutter);
   }
 
-  .booting__body {
-    grid-template-columns: 1fr;
-  }
-
-  .booting__main {
-    display: none;
-  }
-
   /* La columna de cifras del plan cede ancho al nombre del ingrediente, que es
      el que se queda sin sitio primero. Empieza aqui y no en el corte de celular
      porque en tablet el plan CONSERVA sus dos mitades: cada una se queda en la

@@ -270,58 +270,75 @@
   color: var(--ink);
 }
 
-/* ---- Carga: esqueleto, no una frase suelta ---- */
+/* ---- Portada de arranque: la marca, no un esqueleto ---- */
 
-.booting {
+/*
+ * Lo que se ve mientras se leen las recetas.
+ *
+ * NO es un esqueleto de la interfaz: es la continuacion de la pantalla de
+ * arranque del sistema. Desde Android 12 esa pantalla la dibuja el sistema
+ * operativo, con el icono del lanzador -el monograma, la Z- sobre el
+ * `background_color` del manifiesto, y su animacion no es personalizable. La
+ * imagen no se puede cambiar sin cambiar tambien el icono del acceso directo,
+ * que a 48 px tiene que seguir siendo legible, asi que el logotipo completo
+ * solo cabe aqui, ya dentro de la pagina.
+ *
+ * Al compartir las dos el mismo naranja, el encendido se lee como una sola
+ * pantalla que pasa del monograma al logotipo, y no como tres saltos de color.
+ *
+ * Antes habia aqui un esqueleto gris de la interfaz. Se retiro por dos motivos:
+ * el salto de naranja a gris oscuro era justo el parpadeo que un esqueleto
+ * existe para evitar, y la pantalla que suele seguir -la de entrada- no se
+ * parece en nada a la silueta que ese esqueleto anunciaba.
+ */
+.portada {
   display: grid;
-  grid-template-rows: auto 1fr;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-6);
   height: 100vh;
   height: 100dvh;
+  padding: var(--gutter);
   overflow: hidden;
-}
-
-.booting__bar {
-  height: 3.25rem;
-  background: var(--rail);
-}
-
-.booting__body {
-  display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  background: var(--brand);
 }
 
 /*
- * El esqueleto anuncia lo que va a aparecer, asi que tiene que parecerse a lo
- * que va a aparecer. Iba en blanco cuando el listado real es la estructura
- * oscura: se veia un panel claro que saltaba a oscuro al terminar de arrancar,
- * justo el parpadeo que un esqueleto existe para evitar.
+ * El rectangulo naranja va incrustado en el propio archivo del logotipo y su
+ * tono es el mismo `--brand` del fondo (muestreado: 246,139,30 contra
+ * 246,138,30), por eso no se ve donde acaba la imagen y empieza la pantalla.
+ *
+ * Las medidas van declaradas en el marcado para que el renglon de debajo no
+ * salte cuando la imagen termina de cargar.
  */
-.booting__side {
-  padding: var(--space-4);
-  background: var(--rail);
-  border-right: 1px solid var(--rail-line);
+.portada__logo {
+  width: min(66vw, 20rem);
+  height: auto;
+  animation: portada-entrada var(--dur-slow) var(--ease) both;
 }
 
-.booting__line {
-  height: 1rem;
-  margin-bottom: var(--space-3);
-  background: var(--surface-sunk);
-  border-radius: var(--radius-sm);
+/*
+ * Sobre el naranja de marca el blanco se queda en 2,1:1. Este renglon va en
+ * `--brand-ink`, que da 8,2:1 contra ese mismo naranja. El logotipo esta exento
+ * del criterio de contraste por ser una marca; un texto de interfaz no lo esta.
+ */
+.portada__estado {
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  color: var(--brand-ink);
   animation: pulse 1.4s ease-in-out infinite;
 }
 
-.booting__line:nth-child(even) {
-  width: 70%;
-}
-
-/* La primera linea del panel simula el titulo de la receta. */
-.booting__line--title {
-  width: 45%;
-  height: 2rem;
-}
-
-.booting__main {
-  padding: var(--space-6);
+/* Recoge el icono donde el sistema lo deja: entra creciendo, no apareciendo. */
+@keyframes portada-entrada {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes pulse {
@@ -335,7 +352,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .booting__line {
+  .portada__logo,
+  .portada__estado {
     animation: none;
   }
 }

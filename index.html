@@ -66,8 +66,25 @@
   <body>
     <a class="skip-link" href="#contenido">Saltar al contenido</a>
 
+    <!--
+      PORTADA DE ARRANQUE. Va escrita aquí, en el HTML, para que se vea en el
+      primer pintado sin esperar a que carguen los módulos ES: es lo que enlaza
+      con la pantalla de arranque del sistema, que comparte este mismo naranja.
+
+      Está duplicada en src/views/portada.js, que es quien la vuelve a montar
+      cuando render() reconstruye #app. Si se cambia una, cámbiese la otra.
+    -->
     <div id="app">
-      <p class="booting">Cargando recetario…</p>
+      <div class="portada" aria-busy="true">
+        <img
+          class="portada__logo"
+          src="./assets/logo-zahavi.png"
+          alt="Zahavi, panadería, repostería y café"
+          width="254"
+          height="78"
+        />
+        <p class="portada__estado">Cargando recetario…</p>
+      </div>
     </div>
 
     <!-- Hoja de impresión: se rellena aparte de la maqueta de pantalla. -->
