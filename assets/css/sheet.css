@@ -7,7 +7,45 @@
  * una línea a otra mientras se pesa.
  */
 
+/*
+ * AQUÍ Y SOLO AQUÍ SE APLICA LA ESCALA DE LECTURA.
+ *
+ * Los tamaños se vuelven a declarar multiplicados por `--escala-texto`, que
+ * vale 1 en toda la interfaz y cambia cuando alguien elige otro tamaño en
+ * Ajustes (ver la tabla `data-escala` al final de tokens.css).
+ *
+ * Al ser propiedades personalizadas, esto alcanza a TODO lo que cuelgue de la
+ * ficha y a nada más: la barra de arriba, el listado, los diálogos, el modo
+ * producción y las hojas impresas están fuera de este elemento y no se enteran.
+ * Eso es exactamente lo que se pidió: achicar el texto de las recetas sin mover
+ * el resto de la pantalla.
+ *
+ * Y los objetivos táctiles tampoco se mueven. Los botones miden 44 px por una
+ * altura mínima en `rem` (`--tap-row`, y el bloque de `pointer: coarse` en
+ * responsive.css), no por el tamaño de su letra: la etiqueta encoge, el área
+ * que hay que tocar con las manos ocupadas se queda donde estaba.
+ *
+ * El segundo juego de nombres (`--tam-*`) no es un capricho: una propiedad
+ * personalizada que se refiera a sí misma forma un ciclo y el navegador la
+ * descarta entera, así que `--text-xs: calc(var(--text-xs) * …)` dejaría la
+ * ficha sin ningún tamaño.
+ */
 .sheet-view {
+  --text-2xs: calc(var(--tam-2xs) * var(--escala-texto));
+  --text-xs: calc(var(--tam-xs) * var(--escala-texto));
+  --text-sm: calc(var(--tam-sm) * var(--escala-texto));
+  --text-base: calc(var(--tam-base) * var(--escala-texto));
+  --text-md: calc(var(--tam-md) * var(--escala-texto));
+  --text-lg: calc(var(--tam-lg) * var(--escala-texto));
+  --text-xl: calc(var(--tam-xl) * var(--escala-texto));
+  --text-2xl: calc(var(--tam-2xl) * var(--escala-texto));
+  --text-ingredient: calc(var(--tam-ingredient) * var(--escala-texto));
+
+  /* Se vuelve a declarar aunque no lleve la escala escrita: en tokens.css este
+     token se resolvió contra el `--text-xl` de la raíz, sin escalar, y solo
+     repitiéndolo aquí toma el de esta misma regla, que sí la lleva. */
+  --text-qty: var(--text-xl);
+
   max-width: 78rem;
   padding: 0 0 var(--space-8);
 }

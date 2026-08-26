@@ -28,7 +28,14 @@ import { getState, setState, recetario } from './core/store.js';
 import { getRoute, navigate } from './core/router.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
-import { saveRecipe, deleteRecipe, publish, discardChanges, cerrarSesion } from './app/commands.js';
+import {
+  saveRecipe,
+  deleteRecipe,
+  publish,
+  discardChanges,
+  cerrarSesion,
+  cambiarEscalaTexto,
+} from './app/commands.js';
 import { estadoSincronizacion } from './app/sync.js';
 import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
@@ -410,6 +417,12 @@ function buildSettings(state) {
     needsReload: repo.needsReloadBeforePublish(),
     server: repo.serverDiagnosis(),
     sync: estadoSincronizacion(),
+    // La escala NO entra en la clave del dialogo, unas lineas mas arriba: se
+    // pasa para pintar cual esta elegida al ABRIR, y a partir de ahi el propio
+    // grupo de botones se encarga. Meterla en la clave reconstruiria Ajustes
+    // entero con cada pulsacion y el foco saldria del boton recien tocado.
+    escalaTexto: state.escalaTexto,
+    onEscalaTexto: cambiarEscalaTexto,
     // No se publica desde Ajustes: se abre el dialogo que ya sabe pedir la clave,
     // enfocar el campo, aceptar Intro y enseñar el error donde se esta mirando.
     onPedirClave: () => setState({ pedirClave: true }),

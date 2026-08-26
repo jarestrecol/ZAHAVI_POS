@@ -38,6 +38,7 @@ import { navigate, ALL_CATEGORIES } from '../core/router.js';
 import { announce } from '../lib/a11y.js';
 import { setEditKey, getEditKey } from '../core/remote.js';
 import { signIn, signOut } from '../core/access.js';
+import { guardarEscalaTexto } from '../core/preferencias.js';
 import { publicarEnSegundoPlano, sePuedePublicarSolo } from './sync.js';
 
 /**
@@ -282,6 +283,27 @@ export function entrarSesion() {
 
   setState({ authed: true, loginError: '' });
   return result;
+}
+
+/**
+ * Cambia el tamano del texto de las recetas en este aparato.
+ *
+ * No toca ninguna receta ni viaja a las demas sedes: es una preferencia de
+ * pantalla, asi que no pide la clave de edicion ni marca nada como pendiente de
+ * publicar.
+ *
+ * @param {string} clave una de las de `ESCALAS` en `core/preferencias.js`
+ */
+export function cambiarEscalaTexto(clave) {
+  const guardado = guardarEscalaTexto(clave);
+
+  // El estado se pone SIEMPRE, haya podido guardarse o no. Que este aparato no
+  // pueda recordar la eleccion para manana no es razon para ignorarla ahora:
+  // quien acaba de pulsar el boton espera ver el cambio.
+  const escala = guardado.ok ? guardado.value : clave;
+  setState({ escalaTexto: escala });
+
+  if (!guardado.ok) notify(guardado.message, 'info');
 }
 
 /**

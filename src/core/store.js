@@ -29,6 +29,8 @@
  *  coste que este diseno evita.
  */
 
+import { ESCALA_POR_DEFECTO } from './preferencias.js';
+
 /**
  * @typedef {Object} EstadoRecetario
  * @property {Array} recipes
@@ -53,6 +55,7 @@
  * @property {string} notice mensaje visible para la persona usuaria
  * @property {'info'|'error'|'success'} noticeKind
  * @property {string} loginError
+ * @property {string} escalaTexto tamano del texto de las recetas en este aparato
  * @property {EstadoRecetario} recetario
  */
 
@@ -102,6 +105,11 @@ const INITIAL = Object.freeze({
   notice: '',
   noticeKind: 'info',
   loginError: '',
+  // Tamano del texto de las recetas. Es TRANSVERSAL y no del modulo de recetas:
+  // es una preferencia del aparato, como lo seria el idioma, y el dia que haya
+  // costeo o inventario tendra que valer alli tambien. `main.js` la sustituye
+  // por la guardada nada mas arrancar.
+  escalaTexto: ESCALA_POR_DEFECTO,
   recetario: RECETARIO_INICIAL,
 });
 

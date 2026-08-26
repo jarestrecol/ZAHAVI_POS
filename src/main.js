@@ -27,6 +27,7 @@
 import { el, clear } from './lib/dom.js';
 import { recordarFoco } from './lib/a11y.js';
 import { drenarTrasPintar } from './lib/paint.js';
+import { leerEscalaTexto } from './core/preferencias.js';
 import { renderDialogs } from './dialogs.js';
 import { handleShortcuts } from './shortcuts.js';
 import * as repo from './core/repository.js';
@@ -45,7 +46,7 @@ import {
 import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
 import { renderLogin } from './views/login.js';
 import { renderHeader, renderBadges } from './views/header.js';
-import { renderSidebar, SEARCH_ID } from './views/sidebar.js';
+import { renderSidebar, SEARCH_ID, restaurarFocoBusqueda } from './views/sidebar.js';
 import { renderDetail, renderPlaceholder, renderNotFound } from './views/detail.js';
 import { renderSkeleton } from './views/skeleton.js';
 import { renderRecipeSheet, renderIndexSheet, renderPlanSheet } from './views/print.js';
@@ -117,6 +118,12 @@ async function boot() {
   // `hydrate` avisa cuando algo no salio como esperaba: sin conexion, sin
   // recetas, o cambios locales danados que hubo que apartar.
   if (loaded.warning) notify(loaded.warning, 'info');
+
+  // Tamano del texto de las recetas, elegido en Ajustes y propio de este
+  // aparato. Va ANTES de `subscribe`, asi que no provoca un repintado extra: el
+  // primer pintado ya sale con el tamano elegido y no se ve el salto de
+  // aplicarlo despues.
+  setState({ escalaTexto: leerEscalaTexto() });
 
   // A partir de aqui, cualquier cambio de estado o de direccion repinta.
   subscribe(render);
@@ -201,7 +208,20 @@ function registerServiceWorker() {
  * DOM ya cambiado usa `trasPintar`, mas abajo.
  */
 function render() {
-  if (typeof document.startViewTransition !== 'function') {
+  // ESCRIBIENDO EN EL BUSCADOR NO SE CRUZA LA PANTALLA.
+  //
+  // La View Transitions API fotografia el documento entero antes y despues de
+  // cada cambio, y aqui llega un cambio por pulsacion. En un telefono ese
+  // trabajo es la mitad del tiron que se siente al teclear -la otra mitad era
+  // el campo que se reconstruia, ver `sidebar.js`- y ademas no se ve nunca,
+  // porque la tecla siguiente cancela la transicion anterior antes de que
+  // termine: es el AbortError que se recoge mas abajo, que en el buscador
+  // saltaba constantemente. Se pinta directo y se acabo.
+  const escribiendoEnBuscador = Boolean(
+    document.activeElement && document.activeElement.id === SEARCH_ID,
+  );
+
+  if (escribiendoEnBuscador || typeof document.startViewTransition !== 'function') {
     paint();
     drenarTrasPintar();
     return;
@@ -251,29 +271,31 @@ function paint() {
   const state = getState();
   const route = getRoute();
 
-  // El buscador se reconstruye en cada render: se anota si tenia el foco para
-  // devolverselo despues y no cortar a alguien a media palabra. Se anota
-  // tambien POR DONDE iba el cursor: devolver el foco al final del texto es
-  // igual de molesto que perderlo cuando alguien esta corrigiendo una letra en
-  // mitad de la palabra, y los repintados de fondo (una publicacion que
-  // termina, la conexion que vuelve) llegan sin avisar.
-  const searchNode = document.activeElement && document.activeElement.id === SEARCH_ID
-    ? document.activeElement
-    : null;
-  const searchHadFocus = Boolean(searchNode);
-  const searchCaret = searchNode ? searchNode.selectionStart : null;
+  // Tamano del texto de las recetas: viaja al CSS como un atributo de la raiz
+  // del documento, no como un numero. Las cifras viven en `tokens.css`, que es
+  // donde manda la regla 3, y asi el navegador tampoco tiene que confiar en un
+  // valor calculado en JavaScript.
+  //
+  // Se pone ANTES de cualquier salida temprana para que valga tambien en la
+  // pantalla de carga y en la de entrada.
+  document.documentElement.dataset.escala = state.escalaTexto;
+
+  // El buscador se anota ANTES de vaciar la pantalla: es el unico momento en el
+  // que todavia se puede saber si tenia el foco. Por donde iba el cursor ya no
+  // hace falta apuntarlo, porque el campo no se reconstruye -`sidebar.js`
+  // reutiliza el mismo nodo- y un nodo se lleva su propio cursor consigo.
+  const searchHadFocus = Boolean(
+    document.activeElement && document.activeElement.id === SEARCH_ID,
+  );
 
   // Lo mismo para el resto de la pantalla, pero pensando en los dialogos: el
   // que se abra aqui mismo necesita saber a que boton devolver el foco cuando
   // se cierre, y ese boton deja de existir dos lineas mas abajo.
   recordarFoco();
 
-  // El listado tambien se reconstruye entero: es un elemento nuevo para el
-  // navegador, sin memoria de por donde iba desplazado. Sin esto, elegir una
-  // receta que esta mas abajo en la lista (la 27, por ejemplo) devolvia el
-  // listado al principio en cada clic, en vez de quedarse donde estaba.
-  const sidebarList = app.querySelector('.sidebar__list');
-  const sidebarScrollTop = sidebarList ? sidebarList.scrollTop : 0;
+  // El listado tambien se reconstruye entero, asi que hay que acordarse de por
+  // donde iba. Ver `listaScroll`, mas abajo.
+  recordarScrollDelListado();
 
   clear(app);
 
@@ -342,7 +364,6 @@ function paint() {
         category: route.category,
         selectedId: recipe ? recipe.id : null,
         focusSearch: searchHadFocus,
-        searchCaret,
       }),
 
       // Derecha: la receta abierta, o la bienvenida si no hay ninguna.
@@ -352,16 +373,119 @@ function paint() {
 
   app.appendChild(shell);
 
+  // EL FOCO DEL BUSCADOR SE DEVUELVE AQUI Y AHORA, no en el cuadro de animacion
+  // siguiente. Entre el `clear(app)` de mas arriba y esta linea no cabe ni un
+  // fotograma, asi que el teclado del telefono no llega a cerrarse. Con el
+  // `requestAnimationFrame` que habia antes si cabia, y el teclado bajaba y
+  // subia con cada pulsacion.
+  if (searchHadFocus) restaurarFocoBusqueda();
+
   // Se devuelve el listado al mismo punto en el que estaba, en vez de dejarlo
   // arriba del todo por defecto.
-  const newSidebarList = app.querySelector('.sidebar__list');
-  if (newSidebarList) newSidebarList.scrollTop = sidebarScrollTop;
+  restaurarScrollDelListado(claveDelListado(route));
 
   // Aviso flotante de la ultima operacion (guardado, error, publicacion).
   if (state.notice) app.appendChild(renderNotice(state));
 
   renderDialogs(shell);
   renderPrint(state, route, recipe);
+}
+
+/**
+ * POR DONDE IBA EL LISTADO, Y DE QUE LISTADO.
+ *
+ * El repintado reconstruye la lista entera, y un elemento recien creado no
+ * tiene memoria de su desplazamiento. Antes esto se resolvia leyendo el
+ * `scrollTop` del nodo viejo justo antes de destruirlo y escribiendolo en el
+ * nuevo, todo dentro del mismo pintado. En escritorio funciona, porque el
+ * listado no se va nunca de la pantalla.
+ *
+ * EN CELULAR Y TABLETA NO FUNCIONABA, y es lo que reporto el obrador: abrir una
+ * receta y volver dejaba la lista arriba del todo, con lo que despues de cada
+ * consulta habia que volver a bajar hasta donde uno estaba. La causa es que ahi
+ * no caben las dos cosas a la vez y `.app[data-view='detail'] .sidebar` pone la
+ * lista en `display: none` (responsive.css). Un elemento sin caja no se
+ * desplaza: escribirle `scrollTop` no hace nada, y leerselo devuelve 0. Asi
+ * que al abrir la receta la posicion no llegaba a guardarse en ninguna parte, y
+ * el primer repintado dentro de la ficha la sustituia por ese 0.
+ *
+ * De ahi las dos reglas de aqui abajo:
+ *
+ *   1. La posicion vive EN UNA VARIABLE, no en el DOM. Sobrevive a que la lista
+ *      desaparezca de la pantalla, que es justo lo que hace falta.
+ *   2. Ni se anota ni se restaura cuando la lista no tiene caja. Sin esa
+ *      guarda, cada repintado con la ficha abierta escribiria un 0 encima de lo
+ *      recordado, que es exactamente el defecto.
+ *
+ * @type {{clave: string, top: number}}
+ */
+let listaScroll = { clave: '', top: 0 };
+
+/**
+ * La clave del listado QUE HAY PUESTO EN LA PANTALLA ahora mismo.
+ *
+ * Hace falta porque `paint()` ya trabaja con la ruta NUEVA mientras el DOM
+ * todavia muestra la lista ANTERIOR: al anotar la posicion, la ruta dice
+ * "galletas" y lo que se esta midiendo sigue siendo la lista completa. Sin esta
+ * variable, cambiar de categoria guardaba la altura de la lista vieja con la
+ * etiqueta de la nueva, y la lista de galletas se abria a media altura.
+ *
+ * @type {string}
+ */
+let claveEnPantalla = '';
+
+/**
+ * La identidad del listado: la categoria filtrada y la busqueda.
+ *
+ * Dos filtros distintos son DOS LISTAS distintas, y devolver a la altura 900 de
+ * la anterior es caer en cualquier sitio. Con la clave por delante, cambiar de
+ * categoria o de busqueda empieza arriba -que es lo correcto para una lista que
+ * no se habia visto- y volver de una receta conserva el sitio, que es lo que se
+ * pidio.
+ *
+ * @param {object} route
+ * @returns {string}
+ */
+function claveDelListado(route) {
+  // Se serializa en vez de pegar los dos textos con un separador: cualquier
+  // separador que se eligiera podria aparecer dentro de una busqueda y hacer
+  // que dos listados distintos compartieran clave.
+  return JSON.stringify([route.category, route.query]);
+}
+
+/**
+ * Anota por donde va el listado, si es que se puede saber.
+ *
+ * `clientHeight` vale 0 cuando la lista esta oculta, y ese es el unico caso que
+ * hay que dejar pasar de largo. Leer 0 de una lista sin caja y darlo por bueno
+ * es lo que borraba la posicion.
+ *
+ */
+function recordarScrollDelListado() {
+  const lista = app.querySelector('.sidebar__list');
+  if (!lista || lista.clientHeight === 0) return;
+  listaScroll = { clave: claveEnPantalla, top: lista.scrollTop };
+}
+
+/**
+ * Devuelve el listado a donde estaba, si sigue siendo el mismo listado.
+ *
+ * @param {string} clave
+ */
+function restaurarScrollDelListado(clave) {
+  // Se apunta SIEMPRE, tambien con la lista oculta: en celular la ficha se
+  // pinta sin listado y aun asi pertenece al mismo filtro, asi que al volver
+  // tiene que reconocerse.
+  claveEnPantalla = clave;
+
+  const lista = app.querySelector('.sidebar__list');
+  if (!lista || lista.clientHeight === 0) return;
+
+  // Solo se recuerda UNA posicion, la ultima. Guardar una por filtro obligaria
+  // a un mapa que crece con cada busqueda tecleada, y no compra nada: lo que se
+  // pidio es que volver de una receta no mueva la lista, no que cada filtro
+  // recuerde su altura de hace media hora.
+  lista.scrollTop = listaScroll.clave === clave ? listaScroll.top : 0;
 }
 
 /**

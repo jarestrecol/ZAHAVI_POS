@@ -328,15 +328,45 @@
   background: rgba(245, 241, 234, 0.14);
 }
 
-/* Categoria activa: barra de su color pegada al borde izquierdo. Va con inset
-   box-shadow y no con border-left, porque un borde que crece de 1 a 4px
-   desplazaria el contenido cada vez que se cambia de filtro. */
+/*
+ * CATEGORÍA ACTIVA: SE RELLENA CON SU COLOR.
+ *
+ * Antes el estado activo era el mismo botón un poco más claro -0,14 de blanco
+ * contra 0,04- más una barrita de 4px. Sobre el rail oscuro esos dos fondos se
+ * distinguen a 1,1:1: en el obrador, con la tableta a contraluz y reflejo, no
+ * se veía cuál de los cuatro filtros estaba puesto. Lo reportó quien lo usa.
+ *
+ * Ahora el activo es el único botón relleno de la columna, y encima con el
+ * color que ya significa esa categoría en toda la aplicación (el punto de cada
+ * fila del listado, la guía de la ficha). No hay que leer para saber cuál es.
+ *
+ * Los tres tonos son claros, así que la tinta pasa a `--rail`. Contrastes
+ * calculados del texto sobre su relleno:
+ *
+ *     rosa   #d58fb0   7,1:1
+ *     ámbar  #dda471   8,2:1
+ *     verde  #83bc96   8,2:1
+ *
+ * Los tres cumplen AAA incluso a 12 px, y el propio relleno queda a esa misma
+ * distancia del rail, muy por encima del 3:1 que hace falta para leerse como un
+ * objeto. La barra lateral se mantiene, en oscuro, porque es la marca común de
+ * "esta es la activa" que comparte con TODAS.
+ *
+ * La barra va con inset box-shadow y no con border-left: un borde que crece de
+ * 1 a 4px desplazaría el contenido cada vez que se cambia de filtro (regla 14).
+ */
 .chip[aria-pressed='true'] {
-  color: var(--on-rail);
-  background: rgba(245, 241, 234, 0.14);
-  border-color: var(--rail-line);
-  box-shadow: inset 4px 0 0 0 var(--cat-otros-rail);
+  color: var(--rail);
+  background: var(--cat-otros-rail);
+  border-color: var(--cat-otros-rail);
+  box-shadow: inset 4px 0 0 0 var(--rail);
   font-weight: 700;
+}
+
+/* Sobre el relleno claro, el punto y el contador tienen que invertirse también:
+   en su color de siempre el punto desaparece dentro del fondo. */
+.chip[aria-pressed='true'] .chip__dot {
+  background: var(--rail);
 }
 
 /*
@@ -375,7 +405,10 @@
   color: var(--on-rail);
 }
 
-.chip[data-category='TODAS'] .chip__dot {
+/* La segunda mitad del selector gana al `.chip[aria-pressed='true'] .chip__dot`
+   de arriba, que dejaría el punto oscuro sobre el ámbar de TODAS. */
+.chip[data-category='TODAS'] .chip__dot,
+.chip[data-category='TODAS'][aria-pressed='true'] .chip__dot {
   background: var(--on-rail);
 }
 
@@ -389,15 +422,18 @@
 }
 
 .chip[data-category='PASTELERÍA'][aria-pressed='true'] {
-  box-shadow: inset 4px 0 0 0 var(--cat-pasteleria-rail);
+  background: var(--cat-pasteleria-rail);
+  border-color: var(--cat-pasteleria-rail);
 }
 
 .chip[data-category='PANADERÍA'][aria-pressed='true'] {
-  box-shadow: inset 4px 0 0 0 var(--cat-panaderia-rail);
+  background: var(--cat-panaderia-rail);
+  border-color: var(--cat-panaderia-rail);
 }
 
 .chip[data-category='GALLETAS'][aria-pressed='true'] {
-  box-shadow: inset 4px 0 0 0 var(--cat-galletas-rail);
+  background: var(--cat-galletas-rail);
+  border-color: var(--cat-galletas-rail);
 }
 
 .chip__dot {
@@ -438,7 +474,7 @@
 }
 
 .chip[aria-pressed='true'] .chip__count {
-  color: var(--on-rail);
+  color: var(--rail);
 }
 
 /* ---- Buscador ----

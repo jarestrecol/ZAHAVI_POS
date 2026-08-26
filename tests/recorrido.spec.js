@@ -9,7 +9,15 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, CLAVE, CLAVE_NUEVA, RECETA, desbordeHorizontal } from './apoyo.js';
+import {
+  entrar,
+  CLAVE,
+  CLAVE_NUEVA,
+  RECETA,
+  desbordeHorizontal,
+  abrirRecetaDesde,
+  alturaDelListado,
+} from './apoyo.js';
 
 test('la clave incorrecta no dice cual de los dos datos fallo', async ({ page }) => {
   await page.goto('/index.html');
@@ -191,4 +199,127 @@ test('ningun ancho de pantalla desborda la pagina', async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     expect(await desbordeHorizontal(page), `desborda a ${width}px`).toBe(0);
   }
+});
+
+/*
+ * EL FILTRO ACTIVO TIENE QUE VERSE SIN LEERLO.
+ *
+ * Iba con el mismo boton un poco mas claro -0,14 de blanco contra 0,04-, que
+ * sobre el rail oscuro son 1,1:1. En la tableta del obrador, a contraluz, no se
+ * distinguia cual de los cuatro estaba puesto.
+ *
+ * No se fija un color concreto a proposito: lo que importa es que se DISTINGA,
+ * asi que se mide el contraste real entre el activo y uno inactivo y se exige
+ * el 3:1 que la norma pide para que algo se lea como un objeto aparte. Cualquier
+ * paleta que lo cumpla pasa.
+ */
+test('el filtro de categoria activo se distingue de los demas', async ({ page }) => {
+  await entrar(page);
+
+  await page.getByRole('button', { name: /pasteler/i }).click();
+
+  const activo = page.locator("[data-category='PASTELERÍA'].chip");
+  await expect(activo).toHaveAttribute('aria-pressed', 'true');
+
+  const contraste = await page.evaluate(() => {
+    const cifras = (valor) => valor.match(/[0-9.]+/g).map(Number);
+
+    // El fondo del boton INACTIVO es un blanco casi transparente sobre el rail
+    // oscuro, y `getComputedStyle` devuelve el color declarado CON su alfa, no
+    // el que se acaba viendo. Sin componerlo contra lo que hay detras, el
+    // inactivo se leeria como casi blanco y la medida no diria nada.
+    //
+    // Se sube por los ancestros hasta el primero que pinte de verdad, en vez de
+    // dar por hecho cual es: asi la prueba sigue valiendo si el fondo del rail
+    // cambia de elemento.
+    const detras = (nodo) => {
+      for (let n = nodo.parentElement; n; n = n.parentElement) {
+        const color = cifras(getComputedStyle(n).backgroundColor);
+        if (color.length < 4 || color[3] === 1) return color.slice(0, 3);
+      }
+      return [255, 255, 255];
+    };
+
+    const compuesto = (sel) => {
+      const nodo = document.querySelector(sel);
+      const [r, g, b, a = 1] = cifras(getComputedStyle(nodo).backgroundColor);
+      const fondo = detras(nodo);
+      return [r, g, b].map((canal, i) => canal * a + fondo[i] * (1 - a));
+    };
+
+    const canal = (v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    const luminancia = ([r, g, b]) => 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
+
+    const a = luminancia(compuesto("[data-category='PASTELERÍA'].chip"));
+    const b = luminancia(compuesto("[data-category='PANADERÍA'].chip"));
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+
+  expect(contraste).toBeGreaterThanOrEqual(3);
+});
+
+/*
+ * EL TAMAÑO DEL TEXTO ALCANZA A LA RECETA Y A NADA MAS.
+ *
+ * Lo pidio el obrador desde el telefono: el texto de la ficha se ve grande, y
+ * quiere poder achicarlo sin que se le mueva el resto de la pantalla. Las dos
+ * mitades importan igual, asi que las dos se comprueban aqui: que la receta
+ * encoja Y que el filtro del listado se quede donde estaba.
+ */
+test('el tamaño del texto cambia la receta y deja quieto el resto', async ({ page }) => {
+  await entrar(page, `#/receta/${RECETA}`);
+
+  const medir = () =>
+    page.evaluate(() => ({
+      ingrediente: getComputedStyle(document.querySelector('.item__name')).fontSize,
+      filtro: getComputedStyle(document.querySelector('.chip')).fontSize,
+    }));
+
+  await expect(page.locator('.item__name').first()).toBeVisible();
+  const antes = await medir();
+
+  await page.getByRole('button', { name: 'Ajustes' }).click();
+  await page.getByRole('button', { name: 'Pequeño' }).click();
+  await page.keyboard.press('Escape');
+
+  // El repintado va dentro de una transicion de vista, asi que no es sincrono:
+  // se espera a que el atributo de la raiz refleje la eleccion (regla 20).
+  await expect(page.locator('html')).toHaveAttribute('data-escala', 'pequeno');
+
+  const despues = await medir();
+
+  expect(parseFloat(despues.ingrediente)).toBeLessThan(parseFloat(antes.ingrediente));
+  expect(despues.filtro).toBe(antes.filtro);
+
+  // Y se queda puesto: es una preferencia de ESTE aparato, no del rato que dura
+  // la pantalla abierta.
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('.item__name').first()).toBeVisible();
+  expect(await medir()).toEqual(despues);
+});
+
+/*
+ * EN ESCRITORIO EL LISTADO NO SE VA DE LA PANTALLA, asi que abrir una receta ya
+ * conservaba el sitio. Lo que se fija aqui es la otra mitad de la regla: que la
+ * posicion pertenece a UN listado concreto.
+ *
+ * Cambiar de categoria da otra lista, mas corta o mas larga, y devolverla a la
+ * altura de la anterior es caer en cualquier sitio. Con un filtro nuevo se
+ * empieza arriba; volviendo de una receta, no.
+ */
+test('la posicion del listado pertenece al filtro, no a la pantalla', async ({ page }) => {
+  await entrar(page);
+
+  const altura = await abrirRecetaDesde(page, 900);
+  expect(altura).toBeGreaterThan(0);
+  await expect(page.locator('.sheet-view')).toBeVisible();
+  await expect.poll(() => alturaDelListado(page)).toBe(altura);
+
+  // Otro filtro es otra lista: arriba del todo.
+  await page.getByRole('button', { name: /galletas/i }).click();
+  await expect.poll(() => alturaDelListado(page)).toBe(0);
 });

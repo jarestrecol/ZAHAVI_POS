@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, desbordeHorizontal, RECETA } from './apoyo.js';
+import { entrar, desbordeHorizontal, RECETA, abrirRecetaDesde, alturaDelListado } from './apoyo.js';
 
 test.describe('Celular', () => {
   test('las acciones de la receta llegan abajo, al pulgar', async ({ page }) => {
@@ -97,5 +97,79 @@ test.describe('Celular', () => {
     });
     expect(hoja.alFondo).toBeLessThanOrEqual(1);
     expect(hoja.ocupaElAncho).toBe(true);
+  });
+});
+
+test.describe('Celular', () => {
+  /*
+   * EL TECLADO NO PUEDE PARPADEAR AL ESCRIBIR.
+   *
+   * Lo reporto el obrador: escribir en el buscador desde el telefono era una
+   * pelea porque el teclado se cerraba y se volvia a abrir con cada pulsacion.
+   * La causa era la del repintado completo: el campo enfocado se sacaba del
+   * documento y se fabricaba otro, y quitar el foco cierra el teclado del
+   * sistema.
+   *
+   * Aqui no se puede mirar el teclado, asi que se comprueba su causa, que es lo
+   * que de verdad interesa fijar: que el campo sea EL MISMO NODO despues del
+   * repintado. Se le pone una marca; si alguien vuelve a reconstruirlo, la
+   * marca se va con el nodo viejo y esta prueba se pone roja.
+   */
+  test('escribir no reconstruye el buscador ni le quita el foco', async ({ page }) => {
+    await entrar(page);
+
+    const buscador = page.getByRole('searchbox', { name: 'Buscar receta' });
+    const contador = page.locator('nav [role=status]');
+
+    await buscador.click();
+    await buscador.evaluate((campo) => {
+      campo.dataset.testigo = 'el-mismo-nodo';
+    });
+
+    // 200 ms entre teclas, por encima de los 160 del retardo del buscador: asi
+    // CADA pulsacion provoca su propio repintado completo, que es la situacion
+    // exacta que se reporto. Con teclas mas rapidas solo repintaria al final y
+    // la prueba pasaria sin haber ejercitado nada.
+    await buscador.pressSequentially('brioche', { delay: 200 });
+
+    // El recuento cambia solo cuando el listado ya se repinto: hasta aqui ha
+    // habido al menos un repintado completo con el campo enfocado dentro.
+    await expect(contador).toHaveText('2 recetas');
+
+    await expect(buscador).toHaveAttribute('data-testigo', 'el-mismo-nodo');
+    await expect(buscador).toBeFocused();
+
+    // Y lo que se escribe DESPUES del repintado se anade donde toca. Cuando el
+    // campo se reconstruia y el cursor se devolvia a mano un cuadro de
+    // animacion mas tarde, escribir encima de una busqueda anterior daba
+    // "briocheR005".
+    await buscador.pressSequentially('s', { delay: 200 });
+    await expect(buscador).toHaveValue('brioches');
+  });
+});
+
+test.describe('Celular', () => {
+  /*
+   * VOLVER DE UNA RECETA NO PUEDE MANDAR EL LISTADO ARRIBA.
+   *
+   * Aqui no caben la lista y la ficha a la vez, asi que abrir una receta pone
+   * la lista en `display: none`. Un elemento sin caja no se desplaza: leerle el
+   * `scrollTop` da 0 y escribirselo no hace nada. Mientras la posicion se
+   * guardaba en el propio nodo, abrir una receta la perdia y volver dejaba el
+   * indice arriba del todo, con lo que despues de cada consulta habia que bajar
+   * otra vez hasta donde uno estaba. Lo reporto el obrador.
+   */
+  test('volver de una receta deja el listado donde estaba', async ({ page }) => {
+    await entrar(page);
+    await expect(page.locator('.sidebar__list')).toBeVisible();
+
+    const altura = await abrirRecetaDesde(page, 900);
+    expect(altura).toBeGreaterThan(0);
+    await expect(page.locator('.sheet-view')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Volver al listado de recetas' }).click();
+    await expect(page.locator('.sidebar__list')).toBeVisible();
+
+    await expect.poll(() => alturaDelListado(page)).toBe(altura);
   });
 });

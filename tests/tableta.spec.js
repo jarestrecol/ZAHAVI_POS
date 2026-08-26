@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, desbordeHorizontal, RECETA } from './apoyo.js';
+import { entrar, desbordeHorizontal, RECETA, abrirRecetaDesde, alturaDelListado } from './apoyo.js';
 
 test.describe('Tableta', () => {
   test('el listado se reparte en dos columnas y no se va de lado', async ({ page }) => {
@@ -65,5 +65,30 @@ test.describe('Tableta', () => {
     for (const proporcion of anchos) expect(proporcion).toBeGreaterThan(0.98);
 
     expect(await desbordeHorizontal(page)).toBe(0);
+  });
+});
+
+test.describe('Tableta', () => {
+  /*
+   * VOLVER DE UNA RECETA NO PUEDE MANDAR EL LISTADO ARRIBA.
+   *
+   * Mismo defecto que en celular y por la misma causa -aqui tampoco caben las
+   * dos cosas, asi que la lista se oculta y un elemento sin caja no se
+   * desplaza-, pero se comprueba tambien aqui porque el listado de la tableta
+   * no es el mismo: va en DOS COLUMNAS, asi que la misma altura corresponde a
+   * otras recetas y a otro alto total.
+   */
+  test('volver de una receta deja el listado donde estaba', async ({ page }) => {
+    await entrar(page);
+    await expect(page.locator('.sidebar__list')).toBeVisible();
+
+    const altura = await abrirRecetaDesde(page, 900);
+    expect(altura).toBeGreaterThan(0);
+    await expect(page.locator('.sheet-view')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Volver al listado de recetas' }).click();
+    await expect(page.locator('.sidebar__list')).toBeVisible();
+
+    await expect.poll(() => alturaDelListado(page)).toBe(altura);
   });
 });

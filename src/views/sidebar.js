@@ -28,7 +28,7 @@ const SEARCH_DEBOUNCE_MS = 160;
 export const SEARCH_ID = 'search-recipes';
 
 /**
- * @param {{recipes: Array, query: string, category: string, selectedId: string|null, focusSearch: boolean, searchCaret?: number|null}} params
+ * @param {{recipes: Array, query: string, category: string, selectedId: string|null, focusSearch: boolean}} params
  * @returns {HTMLElement}
  */
 export function renderSidebar(params) {
@@ -43,7 +43,7 @@ export function renderSidebar(params) {
       { class: 'sidebar__filters', attrs: { role: 'group', 'aria-label': 'Filtrar por categoría' } },
       categories.map((name) => renderCategoryChip(name, counts[name] || 0, params.category)),
     ),
-    renderSearch(params.query, params.focusSearch, params.searchCaret),
+    renderSearch(params.query, params.focusSearch),
     el('p', {
       class: 'sidebar__count',
       attrs: { role: 'status' },
@@ -54,6 +54,53 @@ export function renderSidebar(params) {
 }
 
 /**
+ * Campo de busqueda VIVO: el MISMO nodo entre repintados.
+ *
+ * POR QUE SE GUARDA AQUI
+ * ----------------------
+ * Cada repintado reconstruye el arbol entero, asi que el buscador se fabricaba
+ * de cero con cada tecla. En un ordenador no se nota. En un telefono se veia
+ * exactamente lo que reporto el obrador -el teclado se cierra y se vuelve a
+ * abrir con cada pulsacion, y escribir "brioche" es una pelea-, porque la
+ * secuencia era esta:
+ *
+ *     1. `clear(app)` saca del documento el campo que tiene el foco
+ *     2. quitar el foco cierra el teclado del sistema
+ *     3. el foco se devolvia un cuadro de animacion DESPUES, dentro de un
+ *        `requestAnimationFrame`, y el teclado volvia a subir
+ *
+ * La regla 16 dice que se puede reconstruir todo SALVO lo que la persona esta
+ * usando. Aqui se aplica al pie de la letra: si el campo tenia el foco, el
+ * repintado REUTILIZA ese mismo elemento en vez de fabricar otro. Al ser el
+ * mismo nodo conserva su texto y su cursor sin que nadie los copie a mano, que
+ * es de donde salia el defecto de "briocheR005" que arrastraba la version
+ * anterior.
+ *
+ * @type {HTMLInputElement|null}
+ */
+let campoBusqueda = null;
+
+/**
+ * Devuelve el foco al buscador despues de un repintado.
+ *
+ * La llama `main.js` de forma SINCRONA, en la misma tarea en la que acaba de
+ * insertar el arbol nuevo. Es la otra mitad de la correccion: entre el
+ * `clear(app)` que desconecta el campo y este `focus()` no cabe ni un
+ * fotograma, asi que el navegador no llega a animar el cierre del teclado.
+ * Hacerlo dentro de `requestAnimationFrame`, como antes, dejaba un fotograma
+ * entero por medio, y eso es justo lo que se veia parpadear.
+ */
+export function restaurarFocoBusqueda() {
+  if (!campoBusqueda || !campoBusqueda.isConnected) return;
+  if (document.activeElement === campoBusqueda) return;
+
+  // `preventScroll` porque el navegador de un telefono desplaza la pagina hasta
+  // el campo al enfocarlo, y aqui el campo ya esta donde tiene que estar: el
+  // salto solo serviria para marear a quien esta escribiendo.
+  campoBusqueda.focus({ preventScroll: true });
+}
+
+/**
  * Buscador del listado.
  *
  * Se aplica con un pequeno retardo tras la ultima tecla, para no rehacer el
@@ -61,58 +108,23 @@ export function renderSidebar(params) {
  * receta, la busqueda ya no se aplica: arrastraria a la persona de vuelta al
  * indice justo despues de haber elegido algo.
  *
- * @param {string} query texto actual
- * @param {boolean} focusSearch si hay que devolver el cursor tras repintar
- * @param {number|null} [caret] por donde iba el cursor antes de repintar
+ * `focusSearch` lo decide `main.js` ANTES de vaciar la pantalla, y por eso es
+ * un parametro y no algo que se mire aqui: cuando esta funcion corre, el arbol
+ * anterior ya esta desconectado y `document.activeElement` es el cuerpo del
+ * documento, asi que preguntarlo ahora siempre diria que no.
+ *
+ * Al reutilizar el campo NO se le reescribe el valor. Si alguien esta tecleando
+ * y llega un repintado de fondo -vuelve la conexion, termina una publicacion-,
+ * `query` es la ultima busqueda ya aplicada y el campo lleva lo que la persona
+ * ha escrito despues: lo que vale es lo segundo.
+ *
+ * @param {string} query texto de la busqueda ya aplicada
+ * @param {boolean} focusSearch si el campo tenia el foco antes de repintar
  * @returns {HTMLElement}
  */
-function renderSearch(query, focusSearch, caret) {
-  let debounce = null;
-
-  const field = el('input', {
-    type: 'search',
-    id: SEARCH_ID,
-    class: 'search__field',
-    value: query,
-    placeholder: 'Buscar receta…',
-    autocomplete: 'off',
-    on: {
-      input: (event) => {
-        const value = event.target.value;
-        const routeAtTyping = getRoute();
-        clearTimeout(debounce);
-        debounce = setTimeout(() => {
-          const now = getRoute();
-          if (now.name !== routeAtTyping.name || now.id !== routeAtTyping.id) return;
-          navigate({ name: 'index', id: null, query: value }, { replace: true });
-        }, SEARCH_DEBOUNCE_MS);
-      },
-    },
-  });
-
-  // Cada render reconstruye el listado entero, asi que hay que devolver el
-  // cursor a quien estuviera escribiendo: un evento ajeno, como perder la
-  // conexion, no debe sacarle el foco a media palabra.
-  if (focusSearch) {
-    window.requestAnimationFrame(() => {
-      if (!field.isConnected) return;
-
-      // Si alguien ya esta escribiendo en este campo, no se toca NADA. El
-      // cuadro llega despues de montar el campo, y para entonces puede haber
-      // texto seleccionado a punto de sustituirse; moverle el cursor ahi
-      // convierte lo escrito en un anadido al final. Sin esta salida, escribir
-      // una busqueda nueva encima de la anterior daba "briocheR005".
-      if (document.activeElement === field) return;
-
-      field.focus();
-      // Se vuelve por donde se iba, no al final: quien esta corrigiendo una
-      // letra en mitad de una palabra pierde el sitio igual que si se le
-      // hubiera ido el foco.
-      const end = field.value.length;
-      const pos = typeof caret === 'number' ? Math.min(caret, end) : end;
-      field.setSelectionRange(pos, pos);
-    });
-  }
+function renderSearch(query, focusSearch) {
+  const field = focusSearch && campoBusqueda ? campoBusqueda : construirCampo(query);
+  campoBusqueda = field;
 
   return el('div', { class: 'sidebar__search search' }, [
     el('label', { class: 'sr-only', for: SEARCH_ID, text: 'Buscar receta' }),
@@ -133,6 +145,41 @@ function renderSearch(query, focusSearch, caret) {
         // taparla con el boton de borrar.
         el('kbd', { class: 'search__key', text: '/', attrs: { 'aria-hidden': 'true' } }),
   ]);
+}
+
+/**
+ * Fabrica el campo. Solo se llama cuando no hay uno vivo al que volver.
+ *
+ * El temporizador del retardo vive en esta clausura, asi que reutilizar el nodo
+ * reutiliza tambien su temporizador. Antes cada repintado estrenaba uno y el
+ * anterior seguia corriendo por su cuenta.
+ *
+ * @param {string} query
+ * @returns {HTMLInputElement}
+ */
+function construirCampo(query) {
+  let debounce = null;
+
+  return el('input', {
+    type: 'search',
+    id: SEARCH_ID,
+    class: 'search__field',
+    value: query,
+    placeholder: 'Buscar receta…',
+    autocomplete: 'off',
+    on: {
+      input: (event) => {
+        const value = event.target.value;
+        const routeAtTyping = getRoute();
+        clearTimeout(debounce);
+        debounce = setTimeout(() => {
+          const now = getRoute();
+          if (now.name !== routeAtTyping.name || now.id !== routeAtTyping.id) return;
+          navigate({ name: 'index', id: null, query: value }, { replace: true });
+        }, SEARCH_DEBOUNCE_MS);
+      },
+    },
+  });
 }
 
 /**

@@ -129,6 +129,7 @@ tests/                             Pruebas de navegador (Playwright)
 | `core/scale.js` | Escalado de tanda (transformación de lectura) |
 | `core/plan.js` | Consolidación del plan de producción |
 | `core/ingredients.js` | Catálogo, totales por unidad y reparto de recetas por unidad |
+| `core/preferencias.js` | Lo que cada aparato decide para sí y no se publica. Hoy: el tamaño del texto |
 | `lib/dom.js` | Construcción de DOM sin innerHTML |
 | `lib/format.js` | Formato de texto y cifras |
 | `lib/a11y.js` | Foco atrapado, región viva, inerte |
@@ -387,6 +388,20 @@ regla se "mejora" y vuelve el defecto.
 16. **Se puede reconstruir todo salvo lo que la persona está usando.** El
     repintado destruye nodos; si uno tiene el foco, se pierde. O se actualiza en
     el sitio, o se devuelve el foco después buscándolo por `data-*`.
+    **Y devolverlo tiene que ser síncrono, en la misma tarea que inserta el
+    árbol nuevo.** Hacerlo en el `requestAnimationFrame` siguiente basta en un
+    ordenador y no basta en un teléfono: entre medias cabe un fotograma, y en
+    ese fotograma el sistema empieza a cerrar el teclado en pantalla. Escribir
+    en el buscador desde el móvil era una pelea justo por eso. Donde se pueda,
+    mejor todavía: **reutilizar el mismo nodo**, que se lleva su texto y su
+    cursor consigo y no deja nada que restaurar (`campoBusqueda` en
+    `views/sidebar.js`).
+    **Y lo que se recuerde de un nodo se guarda FUERA del DOM, no leyéndoselo al
+    nodo justo antes de destruirlo.** Un elemento oculto no tiene caja: leerle
+    el `scrollTop` devuelve 0 y escribírselo no hace nada. Por donde iba el
+    listado se guardaba así, y en celular y tableta —donde abrir una receta pone
+    la lista en `display: none`— se perdía en cada consulta. Va en
+    `listaScroll`, en `main.js`, con la clave del filtro al que pertenece.
 17. **Un límite que el núcleo aplique en silencio tiene que ser público.** Si la
     interfaz deja escribir un valor que el núcleo va a recortar, o avisa antes o
     acabará enseñando una cifra y calculando otra.
@@ -477,7 +492,7 @@ datos, que funciona en producción.
 
 ### Archivos a vigilar por tamaño
 
-`views/settings.js` (462 líneas) ya sostiene cinco bloques sin relación —estado,
+`views/settings.js` (543 líneas) ya sostiene seis bloques sin relación —estado,
 publicar, cambios, clave, diagnóstico— y es el archivo al que **todo** módulo
 nuevo querrá añadirle una fila. Partir por bloque antes de que llegue el segundo
 módulo. `views/editor.js` (621) y `views/plan.js` (584) tienen costuras claras
@@ -502,16 +517,16 @@ npm run qa           # 70 pruebas en escritorio, celular y tableta
 
 ```
 Fronteras de arquitectura... ok (3 de carpeta y 2 de responsabilidad)
-Codificacion de los archivos... ok (72 archivos en UTF-8)
-Sintaxis de los modulos... ok (40 archivos)
-Resolucion de importaciones... ok (37 modulos)
-Importaciones que faltan... ok (147 nombres del proyecto, todos importados donde se usan)
-Coherencia del CSS... ok (317 clases)
+Codificacion de los archivos... ok (73 archivos en UTF-8)
+Sintaxis de los modulos... ok (41 archivos)
+Resolucion de importaciones... ok (38 modulos)
+Importaciones que faltan... ok (154 nombres del proyecto, todos importados donde se usan)
+Coherencia del CSS... ok (322 clases)
 Capa de datos... ok (29 comprobaciones)
 Publicacion y conflictos... ok (22 comprobaciones)
 Validacion del servidor... ok (37 comprobaciones)
 Alta y baja masiva... ok (194 comprobaciones)
-Version del proyecto... ok (v1.5.2)
+Version del proyecto... ok (v1.5.3)
 Integridad de las recetas... ok (121 recetas, 187 componentes, 1282 items, 225 KB, sha f0307204)
 ```
 
@@ -541,11 +556,11 @@ revisión pasada pasaron por delante de siete bloques en verde.
 
 | Archivo | Qué fija |
 |---|---|
-| `tests/recorrido.spec.js` | Entrar, buscar, abrir una receta y escalar la tanda |
+| `tests/recorrido.spec.js` | Entrar, buscar, abrir una receta, escalar la tanda, que el filtro activo se distinga de los demás, que el tamaño del texto alcance a la receta y a nada más, y que la posición del listado pertenezca al filtro |
 | `tests/dialogos.spec.js` | Que el foco entre en cada ventana y el teclado del Modo Pesar responda de inmediato |
 | `tests/impresion.spec.js` | Que se imprima lo que se está mirando |
-| `tests/celular.spec.js` | Acciones al alcance del pulgar y nada inalcanzable a 320 px |
-| `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral |
+| `tests/celular.spec.js` | Acciones al alcance del pulgar, nada inalcanzable a 320 px, que escribir en el buscador no reconstruya el campo ni le quite el foco, y que volver de una receta deje el listado donde estaba |
+| `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral, y que volver de una receta deje el listado donde estaba |
 | `tests/unidades.spec.js` | Que las recetas de un ingrediente se separen por la unidad con que lo miden, con la minoritaria arriba |
 | `tests/resiliencia.spec.js` | La 404 con su estado y su estilo, el arranque roto que deja salida, la receta borrada que lo dice, el sitio sin servidor que lo anuncia y el recetario abriendo sin red |
 
@@ -923,6 +938,16 @@ Nace del logotipo real: naranja `#F68A1E`, dorado `#FCE00C`, blanco `#FCFCFC`.
 - **Un único relleno de marca en toda la pantalla**: `--brand-strong` (#995107).
   El naranja pleno es máxima saturación **y** máxima claridad a la vez, y por eso
   se leía como fluorescente aun sin degradado.
+- **El filtro de categoría activo va relleno con su color, y es la excepción
+  buscada al punto anterior.** No es relleno *de marca*: es el color que esa
+  categoría ya tiene en todo el sistema. Iba como los demás con el fondo un poco
+  más claro (0,14 de blanco contra 0,04), que sobre el rail oscuro son 1,1:1, y
+  en la tableta del obrador a contraluz no se veía cuál estaba puesto. Relleno,
+  es el único botón lleno de la columna y no hay que leer para encontrarlo. La
+  tinta pasa a `--rail`: 7,1:1 sobre el rosa, 8,2:1 sobre el ámbar y sobre el
+  verde. Lo mide `tests/recorrido.spec.js`, y no contra un color concreto sino
+  exigiendo 3:1 entre el activo y un inactivo: cualquier paleta que lo cumpla
+  vale.
 - **Dos paletas con dos trabajos.** El color cálido dice qué es la receta
   (`--cat-*`); el frío dice en qué parte del trabajo estás (`--comp-1` a
   `--comp-4`). Son exactamente cuatro componentes porque el recetario nunca pasa de
@@ -972,6 +997,17 @@ distancia de brazo y con posible reflejo.
   tecleado lo dice en un nodo visible que además es `role="status"`.
 - `prefers-reduced-motion` respetado: toda la animación sale de variables CSS que
   la propia hoja deja en `0ms`.
+- **El tamaño del texto de la ficha se ajusta por aparato**, en Ajustes, entre
+  0,8 y 1,15. La tableta de pared se lee a un brazo de distancia y el teléfono
+  del bolsillo a treinta centímetros: el tamaño que le sirve a una le estorba al
+  otro, así que la preferencia es local y no se publica. **Alcanza a `.sheet-view`
+  y a nada más**: barra, listado, diálogos, modo producción y hojas impresas se
+  quedan como están. Y **los objetivos táctiles tampoco se mueven**, porque los
+  44 px salen de una altura mínima en `rem` y no del tamaño de la letra. El
+  recorrido no llega más lejos a propósito: por debajo de 0,8 la cantidad de un
+  ingrediente baja de 14 px reales en un teléfono, que es el tamaño con el que
+  alguien se equivoca al pesar; por encima de 1,15 los nombres largos se parten
+  en tres líneas y la tabla deja de leerse como una tabla.
 
 ### Rendimiento
 
@@ -1005,11 +1041,11 @@ cifra: **no abras `data/recipes.json`**.
 | `data/recipes.json` | 225 KB (230.598 bytes), `version: 2` |
 | `sha` de integridad | `f0307204` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
-| Versión | 1.5.2 (Fase 1). El primer número es la fase de la hoja de ruta |
-| `CACHE_VERSION` de `sw.js` | `zahavi-v38` |
+| Versión | 1.5.3 (Fase 1). El primer número es la fase de la hoja de ruta |
+| `CACHE_VERSION` de `sw.js` | `zahavi-v39` |
 | Node en el servidor | 24.x |
-| Módulos en `src/` | 37 |
-| Bloques de `verificar` / pruebas de `qa` | 12 / 70 |
+| Módulos en `src/` | 38 |
+| Bloques de `verificar` / pruebas de `qa` | 12 / 76 |
 
 ---
 
@@ -1182,6 +1218,9 @@ Defectos reales, para que no vuelvan sin que nadie se dé cuenta. Todos corregid
 | **El limitador de intentos era falsificable**: tomaba el primer elemento de `X-Forwarded-For`, que lo escribe quien llama | Auditoría de seguridad |
 | **El tope de publicación medía el cuerpo recibido, no lo que se escribe** (que lleva sangrado y abulta más) | Auditoría de seguridad |
 | Dos bloques de `verificar.mjs` escribían su cifra a mano y las dos mentían: 9 en vez de 29, y 28 en vez de 37 | Auditoría de deuda técnica |
+| **En el teléfono el teclado se cerraba y se abría con cada tecla del buscador**: el repintado sacaba del documento el campo enfocado y le devolvía el foco un fotograma después, dentro de un `requestAnimationFrame` | Uso real, reportado por el obrador |
+| **No se veía cuál de los cuatro filtros de categoría estaba puesto**: activo e inactivo se diferenciaban en 1,1:1 sobre el rail oscuro | Uso real, reportado por el obrador |
+| **En celular y tableta, volver de una receta mandaba el listado arriba del todo**: la posición se leía del propio nodo justo antes de destruirlo, y ahí la lista está en `display: none`, así que se leía 0 y se escribía en el vacío | Uso real, reportado por el obrador |
 | `CLAUDE.md` tenía 95 líneas con doble codificación y `verificar.mjs` imprimía `â€¦` en cada línea | Auditoría de deuda técnica |
 
 ---
@@ -1216,6 +1255,22 @@ acentos o sin ellos), filtrar por categoría, o bajar por el listado alfabético
 El buscador **no busca por ingrediente**. Para saber en qué recetas entra un
 producto está el botón **Ingredientes** de la barra de arriba: ahí se busca
 "harina" y sale en cuántas recetas se usa y cuánta hace falta en total.
+
+Los cuatro botones de arriba (**Todas**, **Pastelería**, **Panadería**,
+**Galletas**) acotan el listado. El que está puesto se ve **relleno de su color**;
+los otros tres quedan apagados.
+
+### Si el texto se ve grande o pequeño
+
+En **Ajustes** hay **Tamaño del texto**, con cuatro opciones. Debajo se ve una
+línea de ejemplo que cambia al momento, así que se puede elegir sin cerrar nada.
+
+Dos cosas que conviene saber:
+
+- **Cambia solo el texto de las recetas.** La barra de arriba, el listado y los
+  botones se quedan igual de grandes, y las hojas impresas salen siempre iguales.
+- **Es de ese aparato solo.** Cambiarlo en el teléfono no cambia la tableta del
+  obrador, y al revés. Cada uno lo deja como mejor lo vea.
 
 ### Hacer una tanda más grande o más pequeña
 

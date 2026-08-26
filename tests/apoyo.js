@@ -108,3 +108,47 @@ export function desbordeHorizontal(page) {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
 }
+
+/**
+ * Desplaza el listado y abre una receta SIN mover la lista de sitio.
+ *
+ * Lo segundo es la mitad del asunto: `locator.click()` desplaza el elemento a la
+ * vista antes de pulsarlo, asi que pulsar asi mueve justo lo que se quiere
+ * medir. Aqui se pulsa desde la propia pagina, que no desplaza nada.
+ *
+ * Devuelve la altura a la que quedo el listado, que es contra lo que hay que
+ * comparar despues: la pedida puede no ser alcanzable si la lista es corta.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} alturaPedida
+ * @returns {Promise<number>}
+ */
+export async function abrirRecetaDesde(page, alturaPedida) {
+  const lista = page.locator('.sidebar__list');
+  await lista.evaluate((el, alto) => { el.scrollTop = alto; }, alturaPedida);
+  const altura = await lista.evaluate((el) => el.scrollTop);
+
+  // Una receta de las que SE VEN, comparando rectangulos: `offsetTop` no sirve,
+  // porque la lista no esta posicionada y ese valor no es relativo a ella.
+  const id = await lista.evaluate((el) => {
+    const caja = el.getBoundingClientRect();
+    const visible = [...el.querySelectorAll('.recipe-link')].find((enlace) => {
+      const r = enlace.getBoundingClientRect();
+      return r.top > caja.top + 60 && r.bottom < caja.bottom - 10;
+    });
+    return visible ? visible.dataset.id : null;
+  });
+
+  await page.locator(`.recipe-link[data-id="${id}"]`).evaluate((enlace) => enlace.click());
+  return altura;
+}
+
+/**
+ * Altura actual del listado.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<number>}
+ */
+export function alturaDelListado(page) {
+  return page.locator('.sidebar__list').evaluate((el) => el.scrollTop);
+}

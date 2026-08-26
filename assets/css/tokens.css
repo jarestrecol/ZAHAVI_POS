@@ -273,18 +273,52 @@
   --font-display: 'Lora', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --font-num: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
 
-  --text-2xs: 0.6875rem;
-  --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.9375rem;
-  --text-md: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.375rem;
-  --text-2xl: clamp(1.5rem, 1.2rem + 1.4vw, 2.125rem);
+  /*
+   * ESCALA DE LECTURA: cuánto se agranda o se achica el texto de la FICHA de
+   * receta. La elige cada equipo en Ajustes y no viaja a las demás sedes: la
+   * tableta de pared del obrador se lee a un brazo de distancia y el teléfono
+   * que alguien saca del bolsillo se lee a treinta centímetros.
+   *
+   * Aquí vale 1 y así se queda para toda la interfaz. Quien la usa de verdad es
+   * `.sheet-view`, en sheet.css, y NADIE MÁS: por eso la barra de arriba, el
+   * listado, los diálogos y las hojas impresas no se mueven al cambiarla.
+   *
+   * El valor lo elige el atributo `data-escala` de la raíz, más abajo. El
+   * navegador nunca recibe un número calculado en JavaScript: `main.js` solo
+   * escribe un nombre, y las cifras se quedan donde manda la regla 3.
+   */
+  --escala-texto: 1;
+
+  /*
+   * TAMAÑOS EN CRUDO. Existen para que la ficha pueda volver a declarar
+   * `--text-*` multiplicado por la escala sin repetir aquí ni una cifra.
+   *
+   * Hace falta un segundo juego de nombres porque una propiedad personalizada
+   * que se refiera a sí misma es un ciclo, y el navegador la descarta entera:
+   * `--text-xs: calc(var(--text-xs) * …)` no funcionaría. Ver `.sheet-view`.
+   */
+  --tam-2xs: 0.6875rem;
+  --tam-xs: 0.75rem;
+  --tam-sm: 0.8125rem;
+  --tam-base: 0.9375rem;
+  --tam-md: 1rem;
+  --tam-lg: 1.125rem;
+  --tam-xl: 1.375rem;
+  --tam-2xl: clamp(1.5rem, 1.2rem + 1.4vw, 2.125rem);
+
+  --text-2xs: var(--tam-2xs);
+  --text-xs: var(--tam-xs);
+  --text-sm: var(--tam-sm);
+  --text-base: var(--tam-base);
+  --text-md: var(--tam-md);
+  --text-lg: var(--tam-lg);
+  --text-xl: var(--tam-xl);
+  --text-2xl: var(--tam-2xl);
   --text-3xl: clamp(2rem, 1.4rem + 2.8vw, 3.25rem);
 
   /* La cantidad va por encima del nombre del ingrediente: es lo que se mira. */
-  --text-ingredient: 1.0625rem;
+  --tam-ingredient: 1.0625rem;
+  --text-ingredient: var(--tam-ingredient);
   --text-qty: var(--text-xl);
 
   /*
@@ -375,6 +409,26 @@
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/*
+ * LAS CUATRO ESCALAS DE LECTURA, y las cuatro cifras del asunto.
+ *
+ * `main.js` escribe el nombre en `data-escala` de la raíz; los números están
+ * aquí y en ningún otro sitio. Las claves son las de `ESCALAS` en
+ * `src/core/preferencias.js`, que es la única lista que las conoce: un valor
+ * que no esté ahí no llega nunca hasta aquí, y sin regla que coincida queda el
+ * 1 de `:root`.
+ *
+ * El recorrido va de 0,8 a 1,15 y no más allá a propósito. Por debajo de 0,8 la
+ * cantidad de un ingrediente baja de los 14 px reales en un teléfono, que es
+ * justo el tamaño con el que alguien se equivoca al pesar; por encima de 1,15
+ * los nombres largos ("CHOCOLATE COBERTURA 70%") empiezan a partirse en tres
+ * líneas y la tabla deja de leerse como una tabla.
+ */
+:root[data-escala='pequeno'] { --escala-texto: 0.8; }
+:root[data-escala='mediano'] { --escala-texto: 0.9; }
+:root[data-escala='normal'] { --escala-texto: 1; }
+:root[data-escala='grande'] { --escala-texto: 1.15; }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
