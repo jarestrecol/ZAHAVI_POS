@@ -261,17 +261,26 @@ test('el tamaño del texto cambia la receta y deja quieto el resto', async ({ pa
   // se espera a que el atributo de la raiz refleje la eleccion (regla 20).
   await expect(page.locator('html')).toHaveAttribute('data-escala', 'pequeno');
 
-  const despues = await medir();
+  // Se ESPERA a que el tamaño cambie, no se mide una vez y se cruzan los dedos.
+  // Poner el atributo en la raiz y recalcular el estilo son dos cosas distintas,
+  // y con la maquina cargada cabe un respiro entre las dos: medido de una sola
+  // pasada, esta prueba fallaba una de cada tantas ejecuciones en paralelo.
+  await expect
+    .poll(async () => parseFloat((await medir()).ingrediente))
+    .toBeLessThan(parseFloat(antes.ingrediente));
 
-  expect(parseFloat(despues.ingrediente)).toBeLessThan(parseFloat(antes.ingrediente));
+  const despues = await medir();
   expect(despues.filtro).toBe(antes.filtro);
 
   // Y se queda puesto: es una preferencia de ESTE aparato, no del rato que dura
   // la pantalla abierta.
+  //
+  // Sin `networkidle`, que es el otro sospechoso habitual de las pruebas
+  // inestables: espera a que la red se calle, y eso depende de la maquina. Lo
+  // que aqui importa es que la ficha este montada, y eso se pregunta directamente.
   await page.reload();
-  await page.waitForLoadState('networkidle');
   await expect(page.locator('.item__name').first()).toBeVisible();
-  expect(await medir()).toEqual(despues);
+  await expect.poll(medir).toEqual(despues);
 });
 
 /*
@@ -316,4 +325,50 @@ test('la receta abierta se distingue de las demas filas del listado', async ({ p
     '.recipe-link:not(.is-active)',
   );
   expect(contraste).toBeGreaterThanOrEqual(3);
+});
+
+/*
+ * LA FILA MARCADA NO PUEDE MOVERSE RESPECTO A LAS DEMAS.
+ *
+ * Es lo que protege la regla 14, y se comprueba lo que de verdad importa -que la
+ * columna siga recta- en vez de prohibir una propiedad concreta. Con
+ * `border-left` funcionaba solo porque habia una resta compensatoria escrita a
+ * mano en el `padding`; el dia que alguien tocara el espaciado, la fila abierta
+ * se habria desplazado dos pixeles y nadie lo habria notado hasta verlo.
+ *
+ * Se mide el texto, no la caja: el borde de la caja es justo lo que cambiaba.
+ */
+test('la receta abierta no desplaza su fila respecto a las demas', async ({ page }) => {
+  await entrar(page);
+  const { id } = await abrirRecetaDesde(page, 900);
+  await expect(page.locator('.sheet-view')).toBeVisible();
+
+  const izquierdas = await page.evaluate((codigo) => {
+    const activa = document.querySelector(`.recipe-link[data-id="${codigo}"] .recipe-link__name`);
+    const normal = document.querySelector('.recipe-link:not(.is-active) .recipe-link__name');
+    return {
+      activa: activa ? Math.round(activa.getBoundingClientRect().left) : null,
+      normal: normal ? Math.round(normal.getBoundingClientRect().left) : null,
+    };
+  }, id);
+
+  expect(izquierdas.activa).toBe(izquierdas.normal);
+
+  // Y la letra que titula el grupo arranca donde arranca el contenido de las
+  // filas, que es el punto de categoria y no el nombre: el nombre va despues del
+  // punto a proposito, para que las 122 filas tengan sus nombres en columna.
+  const arranques = await page.evaluate(() => {
+    const punto = document.querySelector('.recipe-link:not(.is-active) .recipe-link__dot');
+    const letra = document.querySelector('.sidebar__letter');
+    return {
+      fila: punto ? Math.round(punto.getBoundingClientRect().left) : null,
+      letra: letra
+        ? Math.round(
+            letra.getBoundingClientRect().left + parseFloat(getComputedStyle(letra).paddingLeft),
+          )
+        : null,
+    };
+  });
+
+  expect(arranques.fila).toBe(arranques.letra);
 });

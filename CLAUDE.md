@@ -103,12 +103,14 @@ assets/fonts/                      Tres familias auto-hospedadas (OFL)
 
 src/main.js                        Arranque y pintado
 src/dialogs.js                     Qué diálogo toca y cómo se monta
+src/memoria-pantalla.js            Lo que la pantalla recuerda entre repintados
 src/shortcuts.js                   Atajos de teclado
 src/salvavidas.js                  Red de seguridad: aviso con salida si no arranca
 src/app/                           Casos de uso: commands.js, sync.js
 src/core/                          Datos, esquema, acceso, estado, rutas, cálculos
 src/lib/                           dom.js (sin innerHTML), format.js, a11y.js, paint.js
 src/views/                         Una pantalla por archivo
+src/views/settings/                Ajustes, un bloque por archivo
 
 scripts/                           Verificación y servidor local
 tests/                             Pruebas de navegador (Playwright)
@@ -135,6 +137,7 @@ tests/                             Pruebas de navegador (Playwright)
 | `lib/a11y.js` | Foco atrapado, región viva, inerte |
 | `lib/paint.js` | Cola de trabajos que esperan al repintado real |
 | `app/commands.js` | Guardar, eliminar, publicar, descartar, entrar, salir |
+| `memoria-pantalla.js` | Lo que hay que recordar entre repintados y NO puede vivir en el DOM: por dónde iba el listado y qué receta se estuvo mirando |
 | `app/sync.js` | Publicación automática con reintento |
 | `views/*.js` | Una pantalla por archivo. `window.js` es la carcasa modal compartida |
 
@@ -170,6 +173,7 @@ unirlas.
 | `main.js` | Arranca y pinta |
 | `dialogs.js` | Decide qué diálogo toca y lo monta |
 | `shortcuts.js` | Atajos de teclado |
+| `memoria-pantalla.js` | Lo que la pantalla recuerda de un repintado al siguiente |
 
 `dialogs.js` no está en `app/` ni en `views/` a propósito, y la razón vale para
 cualquier módulo futuro: **construye pantallas**, así que no puede ser un caso de
@@ -382,6 +386,15 @@ regla se "mejora" y vuelve el defecto.
     `border-left`.** El borde forma parte del modelo de caja, así que ensancha esa
     fila y desplaza su contenido respecto a las demás. La sombra no participa. Se
     corrigió tres veces por separado antes de escribirlo.
+    **Y la regla estaba incumplida donde más se ve.** `.recipe-link.is-active`
+    llevaba `border-left` de 2 a 4 px con un `padding-left` que restaba
+    exactamente esos 2 px. Funcionaba, y esa era la trampa: lo único que impedía
+    que la fila abierta se desplazara respecto a las demás era una resta escrita
+    a mano en otra propiedad, que el día que alguien tocara el espaciado dejaría
+    de cuadrar en silencio. Ya no hay nada que compensar. Y lo que la regla
+    protege de verdad —que la columna siga recta— lo mide
+    `tests/recorrido.spec.js`, que es más honesto que prohibir una propiedad:
+    cualquier técnica que mantenga la alineación pasa.
 15. **Las columnas de una lista se declaran una vez.** El encabezado y las filas
     comparten una variable (`--ings-cols`, `--plan-cols`) y el sangrado izquierdo
     se aplica por igual a ambos.
@@ -492,15 +505,22 @@ datos, que funciona en producción.
 
 ### Archivos a vigilar por tamaño
 
-`views/settings.js` (543 líneas) ya sostiene seis bloques sin relación —estado,
-publicar, cambios, clave, diagnóstico— y es el archivo al que **todo** módulo
-nuevo querrá añadirle una fila. Partir por bloque antes de que llegue el segundo
-módulo. `views/editor.js` (621) y `views/plan.js` (584) tienen costuras claras
-(las filas de ingrediente y el resultado del plan, respectivamente).
-`views/detail.js` (551) está justificado: son seis secciones ya separadas.
-`src/dialogs.js` (445) crecerá con cada módulo: cuando pase de unas 600, la
-costura es sacar los `build*` de cada módulo a su propio archivo y dejar aquí la
-tabla.
+**`views/settings.js` ya está partido** (119 líneas): cada bloque vive en
+`views/settings/` y este solo decide el orden y monta la ventana. Llegó a 543
+líneas con seis bloques sin relación entre sí, y era el archivo al que **todo**
+módulo nuevo iba a querer añadirle una fila. Ahora añadir uno es un archivo nuevo
+y un renglón aquí.
+
+**`src/main.js` también se partió** (de 607 a 493): la memoria del ciclo de
+pintado salió a `memoria-pantalla.js`. No era solo tamaño. Eran tres variables
+sueltas que nadie reconocía como un grupo, y es exactamente donde tiene que poner
+sus cosas quien llegue con el costeo y necesite recordar algo entre repintados.
+
+Quedan por vigilar `views/editor.js` (621) y `views/plan.js` (584), con costuras
+claras: las filas de ingrediente y el resultado del plan. `views/detail.js` (558)
+está justificado, son seis secciones ya separadas. `src/dialogs.js` (458) crecerá
+con cada módulo: cuando pase de unas 600, la costura es sacar los `build*` de
+cada módulo a su propio archivo y dejar aquí la tabla.
 
 ---
 
@@ -509,7 +529,7 @@ tabla.
 ```bash
 npm install          # solo Playwright, y solo para las pruebas
 npm run servidor     # sirve en :8000 con las cabeceras de producción
-npm run verificar    # 12 bloques, sin navegador, segundos
+npm run verificar    # 14 bloques, sin navegador, segundos
 npm run qa           # 70 pruebas en escritorio, celular y tableta
 ```
 
@@ -517,18 +537,24 @@ npm run qa           # 70 pruebas en escritorio, celular y tableta
 
 ```
 Fronteras de arquitectura... ok (3 de carpeta y 2 de responsabilidad)
-Codificacion de los archivos... ok (73 archivos en UTF-8)
-Sintaxis de los modulos... ok (41 archivos)
-Resolucion de importaciones... ok (38 modulos)
-Importaciones que faltan... ok (154 nombres del proyecto, todos importados donde se usan)
+El DOM no es un almacen... ok (34 archivos, 11 medidas vigiladas)
+Codificacion de los archivos... ok (78 archivos en UTF-8)
+Sintaxis de los modulos... ok (46 archivos)
+Resolucion de importaciones... ok (43 modulos)
+Importaciones que faltan... ok (163 nombres del proyecto, todos importados donde se usan)
 Coherencia del CSS... ok (322 clases)
 Capa de datos... ok (29 comprobaciones)
 Publicacion y conflictos... ok (22 comprobaciones)
 Validacion del servidor... ok (37 comprobaciones)
 Alta y baja masiva... ok (194 comprobaciones)
-Version del proyecto... ok (v1.5.4)
+Version del proyecto... ok (v1.5.5)
 Integridad de las recetas... ok (122 recetas, 188 componentes, 1285 items, 226 KB, sha a488c070)
+Cifras de CLAUDE.md... ok (9 cifras cuadran con la realidad)
 ```
+
+Las cifras de esa muestra suben solas al añadir archivos y **nadie las
+comprueba**: lo que importa es que las catorce líneas digan `ok`. Las que sí se
+comprueban, y fallan si mienten, son las de la [sección 12](#12-datos-verificados).
 
 **Si el `sha` cambia sin que nadie haya editado una receta a propósito, para y
 averigua por qué.** Es la huella de las 122 fórmulas: cambia una cifra de un
@@ -1050,10 +1076,31 @@ distancia de brazo y con posible reflejo.
 | Datos | 226 KB |
 | Paso de compilación | Ninguno |
 
-El repintado reconstruye el árbol completo en cada cambio: con 122 recetas son unos
-cientos de nodos y el navegador lo resuelve sin esfuerzo. La única excepción son los
-diálogos, que se conservan montados para no borrar lo que alguien está escribiendo;
-y dentro de ellos, el campo de tandas del plan, que se actualiza sobre sí mismo.
+El repintado reconstruye el árbol completo en cada cambio. La única excepción son
+los diálogos, que se conservan montados para no borrar lo que alguien está
+escribiendo; y dentro de ellos, el campo de tandas del plan, que se actualiza
+sobre sí mismo, y el buscador del listado, que es el mismo nodo entre repintados
+para que el teclado del teléfono no parpadee.
+
+**Cuánto cuesta ese repintado, medido y no supuesto.** Veinte cambios de receta
+seguidos, cronometrando dentro de `paint()`:
+
+| | Mediana | Peor caso | Nodos |
+|---|---|---|---|
+| Escritorio (1440×900) | 5,3 ms | 9,7 ms | 764 |
+| Celular (Pixel 5) | 3,9 ms | 10,3 ms | 764 |
+
+Son medidas en una máquina de desarrollo con Chromium sin ventana, así que la
+tableta del obrador tardará bastante más. Aun multiplicando por cinco se queda
+por debajo de tres fotogramas, que es el orden en que empieza a notarse.
+**Reconstruirlo todo sigue siendo la decisión correcta a este tamaño**, y
+optimizarlo hoy sería trabajo especulativo contra las reglas del propio proyecto.
+
+**La señal a vigilar es la pendiente, no la cifra.** El coste crece con el número
+de filas del listado: al triplicarse el recetario, se triplica. Si alguna vez
+hace falta, la costura evidente es que el listado no se reconstruya cuando lo
+único que cambió fue la receta abierta, porque las 122 filas son lo que domina la
+medida.
 
 ---
 
@@ -1070,11 +1117,11 @@ cifra: **no abras `data/recipes.json`**.
 | `data/recipes.json` | 226 KB (231.280 bytes), `version: 2` |
 | `sha` de integridad | `a488c070` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
-| Versión | 1.5.4 (Fase 1). El primer número es la fase de la hoja de ruta |
-| `CACHE_VERSION` de `sw.js` | `zahavi-v40` |
+| Versión | 1.5.5 (Fase 1). El primer número es la fase de la hoja de ruta |
+| `CACHE_VERSION` de `sw.js` | `zahavi-v42` |
 | Node en el servidor | 24.x |
-| Módulos en `src/` | 38 |
-| Bloques de `verificar` / pruebas de `qa` | 12 / 79 |
+| Módulos en `src/` | 43 |
+| Bloques de `verificar` / pruebas de `qa` | 14 / 79 |
 
 ---
 
@@ -1251,6 +1298,8 @@ Defectos reales, para que no vuelvan sin que nadie se dé cuenta. Todos corregid
 | **No se veía cuál de los cuatro filtros de categoría estaba puesto**: activo e inactivo se diferenciaban en 1,1:1 sobre el rail oscuro | Uso real, reportado por el obrador |
 | **En celular y tableta, volver de una receta mandaba el listado arriba del todo**: la posición se leía del propio nodo justo antes de destruirlo, y ahí la lista está en `display: none`, así que se leía 0 y se escribía en el vacío | Uso real, reportado por el obrador |
 | **Publicar una receta desde el obrador puso la verificación en rojo**: cuatro scripts y seis pruebas de navegador llevaban escritos a mano el total (121), el reparto por categoría (66/34/21), las líneas de ingrediente (1.282) y el catálogo (159/64/15/86). No había nada roto: solo había una receta más | Publicación real desde la panadería |
+| **La fila de la receta abierta incumplía la regla 14**: iba con `border-left` y un `padding` que restaba los mismos píxeles. No se notaba porque la resta estaba bien puesta; se habría notado el día que alguien tocara el espaciado. De paso, las filas iban dos píxeles desalineadas respecto al separador de letra | Auditoría de arquitectura |
+| **La prueba del tamaño de texto era inestable**: medía de una sola pasada justo después de poner el atributo en la raíz, y poner el atributo y recalcular el estilo son dos cosas distintas. Fallaba una de cada tantas ejecuciones en paralelo y nunca aislada, que es el peor tipo de fallo | Suite ejecutada en paralelo |
 | **Y al volver no quedaba marcada ninguna fila**: la marca dependía de que hubiera una receta en la ruta, y al volver al listado ya no la hay. En una columna de 122 filas iguales, la altura correcta sin marca sigue sin decir cuál era | Uso real, reportado por el obrador |
 | `CLAUDE.md` tenía 95 líneas con doble codificación y `verificar.mjs` imprimía `â€¦` en cada línea | Auditoría de deuda técnica |
 

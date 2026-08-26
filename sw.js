@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v40';
+const CACHE_VERSION = 'zahavi-v42';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -46,6 +46,7 @@ const SHELL = [
   './assets/fonts/ibm-plex-mono-700.woff2',
   './src/main.js',
   './src/dialogs.js',
+  './src/memoria-pantalla.js',
   './src/shortcuts.js',
   './src/salvavidas.js',
   './src/app/commands.js',
@@ -75,6 +76,10 @@ const SHELL = [
   './src/views/detail.js',
   './src/views/editor.js',
   './src/views/settings.js',
+  './src/views/settings/estado.js',
+  './src/views/settings/diagnostico.js',
+  './src/views/settings/clave.js',
+  './src/views/settings/texto.js',
   './src/views/publicar.js',
   './src/views/desbloquear.js',
   './src/views/confirm.js',

@@ -18,6 +18,7 @@ import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { normalize } from '../src/lib/format.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let failed = 0;
@@ -49,6 +50,100 @@ function run(script) {
     encoding: 'utf8',
     stdio: 'pipe',
   });
+}
+
+/**
+ * Quita comentarios antes de buscar. Sin esto, un comentario que EXPLIQUE por
+ * que no se debe leer `scrollTop` cuenta como una lectura de `scrollTop`, y la
+ * frontera acaba prohibiendo documentarse a si misma.
+ *
+ * @param {string} codigo
+ * @returns {string}
+ */
+function sinComentarios(codigo) {
+  return codigo.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+/*
+ * EL DOM NO ES UN ALMACEN.
+ *
+ * Tres defectos reportados por el obrador en la misma semana resultaron ser el
+ * mismo: estado efimero guardado en el DOM, en una arquitectura que destruye el
+ * DOM entero en cada cambio.
+ *
+ *     el cursor del buscador   se leia del campo antes de reconstruirlo
+ *     la altura del listado    se leia del nodo antes de destruirlo
+ *     la receta marcada        dependia de que hubiera una en la ruta
+ *
+ * Los tres se cayeron en celular y tableta, donde la barra lateral se oculta con
+ * `display: none` y un elemento sin caja miente: leerle `scrollTop` devuelve 0 y
+ * escribirselo no hace nada.
+ *
+ * La regla 16 lo decia en prosa y por eso se aplico tres veces a medias. Aqui se
+ * convierte en dos fronteras que fallan solas:
+ *
+ *   1. NI `core/` NI `app/` TOCAN EL DOCUMENTO. Las reglas de negocio y los casos
+ *      de uso tienen que poder ejecutarse sin navegador, que es lo que permite
+ *      comprobarlos en `scripts/` en segundos. Se permite `window` porque ahi
+ *      viven APIs de plataforma que no son el documento (`localStorage`,
+ *      `sessionStorage`, `location`, `history`, `crypto`).
+ *
+ *   2. MEDIR EL DOM ES COSA DE LA CAPA DE COMPOSICION Y DE `lib/`. Una vista
+ *      CONSTRUYE; no mide. Las propiedades de aqui abajo son justo las que se
+ *      pierden al reconstruir y las que mienten cuando el nodo esta oculto, asi
+ *      que quien las lea tiene que ser quien manda en el ciclo de pintado y
+ *      sabe guardar el resultado en una variable de modulo.
+ *
+ * Lo que NO se prohibe: `document.activeElement` dentro de un manejador de
+ * eventos, que es una guarda del momento y no memoria (el Modo Pesar lo usa para
+ * no robarle la barra espaciadora a un boton enfocado), ni leer `.value` de un
+ * campo, que es el dato del propio campo.
+ */
+const MEDIDAS_DEL_DOM = [
+  'scrollTop',
+  'scrollLeft',
+  'scrollHeight',
+  'clientHeight',
+  'clientWidth',
+  'offsetTop',
+  'offsetHeight',
+  'selectionStart',
+  'selectionEnd',
+  'getBoundingClientRect',
+  'getComputedStyle',
+];
+
+function comprobarElDomNoEsAlmacen() {
+  const problemas = [];
+  let revisados = 0;
+
+  for (const carpeta of ['core', 'app']) {
+    for (const file of walk(join(root, 'src', carpeta), (n) => n.endsWith('.js'))) {
+      revisados += 1;
+      const codigo = sinComentarios(readFileSync(file, 'utf8'));
+      if (/\bdocument\s*\./.test(codigo)) {
+        problemas.push(
+          `${relative(root, file)} toca \`document\`: ${carpeta}/ tiene que poder correr sin navegador`,
+        );
+      }
+    }
+  }
+
+  for (const file of walk(join(root, 'src', 'views'), (n) => n.endsWith('.js'))) {
+    revisados += 1;
+    const codigo = sinComentarios(readFileSync(file, 'utf8'));
+    for (const medida of MEDIDAS_DEL_DOM) {
+      if (new RegExp('\\.' + medida + '\\b').test(codigo)) {
+        problemas.push(
+          `${relative(root, file)} mide el DOM (\`${medida}\`): una vista construye, no mide. ` +
+            'Eso es de la capa de composicion, que sabe guardarlo en una variable de modulo',
+        );
+      }
+    }
+  }
+
+  if (problemas.length) throw new Error(problemas.join('\n'));
+  return `${revisados} archivos, ${MEDIDAS_DEL_DOM.length} medidas vigiladas`;
 }
 
 function comprobarArquitectura() {
@@ -192,6 +287,7 @@ function estaCorrompida(linea) {
 console.log('\nVerificando el recetario\n');
 
 paso('Fronteras de arquitectura', comprobarArquitectura);
+paso('El DOM no es un almacen', comprobarElDomNoEsAlmacen);
 paso('Codificacion de los archivos', comprobarCodificacion);
 
 paso('Sintaxis de los modulos', () => {
@@ -422,6 +518,170 @@ paso('Integridad de las recetas', () => {
     `${data.recipes.length} recetas, ${componentes} componentes, ${items} items, ` +
     `${Math.round(bytes / 1024)} KB, sha ${hash.slice(0, 8)}`
   );
+});
+
+/*
+ * LO QUE `CLAUDE.md` AFIRMA TIENE QUE SER VERDAD.
+ *
+ * POR QUE EXISTE ESTE BLOQUE
+ * --------------------------
+ * `CLAUDE.md` es la unica documentacion del proyecto y esta escrito con mucha
+ * seguridad, que es su virtud y tambien su riesgo: la prosa COMPROBADA y la
+ * prosa CREIDA se ven exactamente igual. Ya ha mentido tres veces.
+ *
+ *   - Afirmaba en negrita que "ningun bloque escribe su cifra a mano" cuando las
+ *     comprobaciones de dentro estaban llenas de numeros escritos a mano.
+ *   - Afirmaba que la publicacion no se habia usado nunca cuando llevaba ocho
+ *     commits hechos por ella.
+ *   - Llego a tener 95 lineas con doble codificacion.
+ *
+ * La primera y la tercera ya las caza la maquina. Esta cierra la familia que
+ * faltaba: las CIFRAS de la seccion 12, que es donde mas barato sale equivocarse
+ * y donde mas caro sale creerselo.
+ *
+ * DOS NIVELES, Y LA RAZON IMPORTA
+ * -------------------------------
+ * Las cifras del PROGRAMA (version, carcasa, modulos, bloques) solo cambian
+ * cuando alguien toca el codigo, y quien toca el codigo puede corregir el
+ * documento en el mismo cambio. Esas FALLAN.
+ *
+ * Las cifras de los DATOS (recetas, componentes, lineas, catalogo, tamano, sha)
+ * cambian cuando la panaderia publica una receta desde el obrador, y esa
+ * publicacion es un commit automatico de `api/recipes.js` que no puede tocar
+ * `CLAUDE.md`. Si fallaran, el CI se pondria rojo cada vez que alguien hace su
+ * trabajo, y un CI que se pone rojo por hacer lo correcto se acaba ignorando,
+ * que es justo el defecto que este bloque viene a evitar. Esas AVISAN, con el
+ * valor nuevo ya escrito para que corregirlo sea copiar y pegar.
+ */
+
+/**
+ * El valor de una fila de la tabla de la seccion 12.
+ *
+ * Se comparan las dos partes sin acentos graves, asi que las etiquetas se
+ * escriben aqui en limpio y no hay que replicar el formato del documento.
+ *
+ * @param {string} doc
+ * @param {string} etiqueta
+ * @returns {string}
+ */
+function filaDeCLAUDE(doc, etiqueta) {
+  const limpio = (t) => t.replace(/`/g, '').trim();
+  const fila = doc
+    .split('\n')
+    .find((linea) => linea.startsWith('|') && limpio(linea.split('|')[1] || '') === etiqueta);
+
+  if (!fila) throw new Error(`CLAUDE.md ya no tiene la fila "${etiqueta}" en la seccion 12`);
+  return limpio(fila.split('|')[2] || '');
+}
+
+paso('Cifras de CLAUDE.md', () => {
+  const doc = readFileSync(join(root, 'CLAUDE.md'), 'utf8');
+  const crudoDatos = readFileSync(join(root, 'data/recipes.json'), 'utf8');
+  const data = JSON.parse(crudoDatos);
+
+  // --- Lo que es verdad ahora mismo ----------------------------------------
+  const porCategoria = {};
+  for (const r of data.recipes) porCategoria[r.categoria] = (porCategoria[r.categoria] || 0) + 1;
+
+  const componentes = data.recipes.reduce((n, r) => n + r.componentes.length, 0);
+  const items = data.recipes.reduce(
+    (n, r) => n + r.componentes.reduce((m, c) => m + c.items.length, 0),
+    0,
+  );
+
+  const catalogo = new Set();
+  for (const r of data.recipes) {
+    for (const c of r.componentes) {
+      for (const i of c.items) {
+        const nombre = String(i.ingrediente || '').trim();
+        if (nombre) catalogo.add(normalize(nombre).replace(/\s+/g, ' '));
+      }
+    }
+  }
+
+  const bytes = Buffer.byteLength(crudoDatos);
+  const sha = createHash('sha256').update(JSON.stringify(data.recipes)).digest('hex').slice(0, 8);
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const carcasa = readFileSync(join(root, 'sw.js'), 'utf8').match(/CACHE_VERSION\s*=\s*'([^']+)'/);
+  const modulos = walk(join(root, 'src'), (n) => n.endsWith('.js')).length;
+  const bloques = (readFileSync(join(root, 'scripts/verificar.mjs'), 'utf8').match(/^paso\(/gm) || [])
+    .length;
+
+  // --- Cifras del PROGRAMA: fallan -----------------------------------------
+  const duras = [
+    ['Versión', filaDeCLAUDE(doc, 'Versión').split(' ')[0], pkg.version],
+    ['CACHE_VERSION de sw.js', filaDeCLAUDE(doc, 'CACHE_VERSION de sw.js'), carcasa ? carcasa[1] : '?'],
+    ['Módulos en src/', filaDeCLAUDE(doc, 'Módulos en src/'), String(modulos)],
+    [
+      'Bloques de verificar',
+      filaDeCLAUDE(doc, 'Bloques de verificar / pruebas de qa').split('/')[0].trim(),
+      String(bloques),
+    ],
+  ];
+
+  const rotas = duras
+    .filter(([, dice, es]) => dice !== es)
+    .map(([fila, dice, es]) => `"${fila}" dice ${dice} y es ${es}`);
+
+  // --- Cifras de los DATOS: avisan -----------------------------------------
+  //
+  // Se comparan CIFRAS, no formato. El punto de los millares es opcional en
+  // español por debajo de diez mil (1285 y 1.285 son la misma cantidad bien
+  // escrita), y hacer fallar el aviso por eso seria pedirle al documento que
+  // adivine como formatea Node.
+  const soloCifras = (t) => t.replace(/(\d)\.(\d{3})/g, '$1$2');
+  const miles = (n) => n.toLocaleString('es-ES');
+
+  const blandas = [
+    [
+      'Recetas',
+      filaDeCLAUDE(doc, 'Recetas'),
+      `${data.recipes.length} (Pastelería ${porCategoria['PASTELERÍA'] || 0}, ` +
+        `Panadería ${porCategoria['PANADERÍA'] || 0}, Galletas ${porCategoria['GALLETAS'] || 0})`,
+    ],
+    [
+      'Componentes / líneas de ingrediente',
+      filaDeCLAUDE(doc, 'Componentes / líneas de ingrediente'),
+      `${componentes} / ${miles(items)}`,
+    ],
+    ['Catálogo de ingredientes', filaDeCLAUDE(doc, 'Catálogo de ingredientes'), String(catalogo.size)],
+    ['sha de integridad', filaDeCLAUDE(doc, 'sha de integridad'), sha],
+    [
+      'data/recipes.json',
+      filaDeCLAUDE(doc, 'data/recipes.json'),
+      `${Math.round(bytes / 1024)} KB (${miles(bytes)} bytes), version: ${data.version}`,
+    ],
+  ];
+
+  const desfasadas = blandas
+    .filter(([, dice, es]) => soloCifras(dice) !== soloCifras(es))
+    .map(([fila, dice, es]) => `"${fila}" dice «${dice}» y ahora es «${es}»`);
+
+  // El diagnostico sale entero de una vez, duras y blandas juntas: arreglar una
+  // cosa y descubrir la siguiente en la ejecucion de despues son dos viajes
+  // para lo que cabe en uno.
+  if (rotas.length) {
+    const aviso = desfasadas.length
+      ? '\n  Y ademas, de los datos (esto no hace falta arreglarlo hoy):\n  ' +
+        desfasadas.join('\n  ')
+      : '';
+
+    throw new Error(
+      'La seccion 12 de CLAUDE.md ya no dice la verdad:\n  ' +
+        rotas.join('\n  ') +
+        '\n  Corrigelo en el mismo cambio: un indice desactualizado cuesta mas que no tenerlo.' +
+        aviso,
+    );
+  }
+
+  if (desfasadas.length) {
+    return (
+      `${duras.length} del programa cuadran · AVISO, ${desfasadas.length} de datos no: ` +
+      desfasadas.join(' · ')
+    );
+  }
+
+  return `${duras.length + blandas.length} cifras cuadran con la realidad`;
 });
 
 console.log(

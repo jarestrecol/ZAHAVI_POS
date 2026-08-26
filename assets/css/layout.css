@@ -553,13 +553,26 @@
   color: var(--on-rail);
   text-decoration: none;
   border-bottom: 1px solid var(--rail-line);
-  border-left: 2px solid transparent;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
+/*
+ * LA MARCA LATERAL VA EN SOMBRA, NO EN BORDE. Es la regla 14, y esta fila la
+ * incumplia: llevaba `border-left: 2px` de base y la activa lo subia a 4px
+ * compensando con `padding-left: calc(var(--space-3) - 2px)`.
+ *
+ * Funcionaba, y esa es justo la trampa: el borde SI ensancha la caja, y lo unico
+ * que impedia que la fila activa se desplazara respecto a las demas era una
+ * resta escrita a mano en otra propiedad. Cambiar `--space-3`, o el grosor, o
+ * anadir un estado nuevo, y la columna se descuadra sin que nada avise. La
+ * sombra no participa del modelo de caja y no hay nada que compensar.
+ *
+ * De regalo, quitar el borde de 2px alinea el texto de las filas con el del
+ * separador de letra, que nunca lo tuvo: llevaban dos pixeles de desfase.
+ */
 .recipe-link:hover {
   background: rgba(245, 241, 234, 0.08);
-  border-left-color: var(--rail-line);
+  box-shadow: inset 2px 0 0 0 var(--rail-line);
 }
 
 /*
@@ -579,9 +592,7 @@
   background: var(--rail-selected);
   color: var(--on-rail);
   font-weight: 700;
-  border-left-color: var(--amber-on-rail);
-  border-left-width: 4px;
-  padding-left: calc(var(--space-3) - 2px);
+  box-shadow: inset 4px 0 0 0 var(--amber-on-rail);
 }
 
 /* Sobre el relleno naranja el gris del rendimiento cae a 2,7:1 y el ambar
