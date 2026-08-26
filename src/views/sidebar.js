@@ -28,7 +28,7 @@ const SEARCH_DEBOUNCE_MS = 160;
 export const SEARCH_ID = 'search-recipes';
 
 /**
- * @param {{recipes: Array, query: string, category: string, selectedId: string|null, focusSearch: boolean}} params
+ * @param {{recipes: Array, query: string, category: string, selectedId: string|null, selectedOpen: boolean, focusSearch: boolean}} params
  * @returns {HTMLElement}
  */
 export function renderSidebar(params) {
@@ -49,7 +49,9 @@ export function renderSidebar(params) {
       attrs: { role: 'status' },
       text: `${matches.length} ${word}`,
     }),
-    matches.length === 0 ? renderEmpty(params.query) : renderList(matches, params.selectedId),
+    matches.length === 0
+      ? renderEmpty(params.query)
+      : renderList(matches, params.selectedId, params.selectedOpen),
   ]);
 }
 
@@ -242,7 +244,7 @@ function renderEmpty(query) {
   ]);
 }
 
-function renderList(recipes, selectedId) {
+function renderList(recipes, selectedId, selectedOpen) {
   const items = [];
   let lastLetter = null;
 
@@ -252,7 +254,7 @@ function renderList(recipes, selectedId) {
       items.push(el('li', { class: 'sidebar__letter', attrs: { 'aria-hidden': 'true' } }, [letter]));
       lastLetter = letter;
     }
-    items.push(el('li', null, [renderLink(recipe, selectedId)]));
+    items.push(el('li', null, [renderLink(recipe, selectedId, selectedOpen)]));
   }
 
   return el('ul', { class: 'sidebar__list' }, items);
@@ -271,11 +273,23 @@ function renderList(recipes, selectedId) {
  * teclado, en main.js) lo toma de ahi en vez de recortar la direccion, que
  * ahora lleva parametros detras.
  *
+ * LA MARCA SIGUE PUESTA AL VOLVER AL LISTADO, que es lo que hacia falta en
+ * celular y tableta: ahi la ficha ocupa la pantalla entera, asi que al volver
+ * no hay ninguna receta abierta y sin esto no quedaba ni rastro de cual se
+ * acababa de mirar.
+ *
+ * Las dos situaciones se ven IGUAL y se anuncian DISTINTO. `aria-current` dice
+ * "este es el elemento actual del conjunto" y solo es cierto con la receta
+ * abierta de verdad; al volver al listado ya no lo esta, asi que en su lugar va
+ * una nota que solo oye quien usa lector de pantalla. Sin ella, la unica pista
+ * de cual era seria el color, y el color no lo ve todo el mundo.
+ *
  * @param {object} recipe
- * @param {string|null} selectedId receta abierta ahora mismo
+ * @param {string|null} selectedId receta abierta, o la ultima que se miro
+ * @param {boolean} selectedOpen si esa receta esta abierta ahora mismo
  * @returns {HTMLElement}
  */
-function renderLink(recipe, selectedId) {
+function renderLink(recipe, selectedId, selectedOpen) {
   const { base, rinde } = splitName(recipe.nombre);
   const isActive = recipe.id === selectedId;
 
@@ -285,7 +299,7 @@ function renderLink(recipe, selectedId) {
       class: 'recipe-link' + (isActive ? ' is-active' : ''),
       href: buildHash({ ...getRoute(), name: 'detail', id: recipe.id }),
       attrs: {
-        'aria-current': isActive ? 'true' : null,
+        'aria-current': isActive && selectedOpen ? 'true' : null,
         'data-category': recipe.categoria,
         'data-id': recipe.id,
         title: recipe.nombre,
@@ -297,6 +311,9 @@ function renderLink(recipe, selectedId) {
       el('span', { class: 'recipe-link__dot', attrs: { 'aria-hidden': 'true' } }),
       el('span', { class: 'recipe-link__name', text: titleCase(base) }),
       rinde ? el('span', { class: 'recipe-link__yield', text: '×' + rinde.toLowerCase() }) : null,
+      isActive && !selectedOpen
+        ? el('span', { class: 'sr-only', text: ' (la última que abriste)' })
+        : null,
     ],
   );
 }

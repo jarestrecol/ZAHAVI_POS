@@ -17,6 +17,7 @@ import {
   desbordeHorizontal,
   abrirRecetaDesde,
   alturaDelListado,
+  contrasteDeFondos,
 } from './apoyo.js';
 
 test('la clave incorrecta no dice cual de los dos datos fallo', async ({ page }) => {
@@ -221,42 +222,11 @@ test('el filtro de categoria activo se distingue de los demas', async ({ page })
   const activo = page.locator("[data-category='PASTELERÍA'].chip");
   await expect(activo).toHaveAttribute('aria-pressed', 'true');
 
-  const contraste = await page.evaluate(() => {
-    const cifras = (valor) => valor.match(/[0-9.]+/g).map(Number);
-
-    // El fondo del boton INACTIVO es un blanco casi transparente sobre el rail
-    // oscuro, y `getComputedStyle` devuelve el color declarado CON su alfa, no
-    // el que se acaba viendo. Sin componerlo contra lo que hay detras, el
-    // inactivo se leeria como casi blanco y la medida no diria nada.
-    //
-    // Se sube por los ancestros hasta el primero que pinte de verdad, en vez de
-    // dar por hecho cual es: asi la prueba sigue valiendo si el fondo del rail
-    // cambia de elemento.
-    const detras = (nodo) => {
-      for (let n = nodo.parentElement; n; n = n.parentElement) {
-        const color = cifras(getComputedStyle(n).backgroundColor);
-        if (color.length < 4 || color[3] === 1) return color.slice(0, 3);
-      }
-      return [255, 255, 255];
-    };
-
-    const compuesto = (sel) => {
-      const nodo = document.querySelector(sel);
-      const [r, g, b, a = 1] = cifras(getComputedStyle(nodo).backgroundColor);
-      const fondo = detras(nodo);
-      return [r, g, b].map((canal, i) => canal * a + fondo[i] * (1 - a));
-    };
-
-    const canal = (v) => {
-      const c = v / 255;
-      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    };
-    const luminancia = ([r, g, b]) => 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
-
-    const a = luminancia(compuesto("[data-category='PASTELERÍA'].chip"));
-    const b = luminancia(compuesto("[data-category='PANADERÍA'].chip"));
-    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  });
+  const contraste = await contrasteDeFondos(
+    page,
+    "[data-category='PASTELERÍA'].chip",
+    "[data-category='PANADERÍA'].chip",
+  );
 
   expect(contraste).toBeGreaterThanOrEqual(3);
 });
@@ -314,7 +284,7 @@ test('el tamaño del texto cambia la receta y deja quieto el resto', async ({ pa
 test('la posicion del listado pertenece al filtro, no a la pantalla', async ({ page }) => {
   await entrar(page);
 
-  const altura = await abrirRecetaDesde(page, 900);
+  const { altura } = await abrirRecetaDesde(page, 900);
   expect(altura).toBeGreaterThan(0);
   await expect(page.locator('.sheet-view')).toBeVisible();
   await expect.poll(() => alturaDelListado(page)).toBe(altura);
@@ -322,4 +292,26 @@ test('la posicion del listado pertenece al filtro, no a la pantalla', async ({ p
   // Otro filtro es otra lista: arriba del todo.
   await page.getByRole('button', { name: /galletas/i }).click();
   await expect.poll(() => alturaDelListado(page)).toBe(0);
+});
+
+/*
+ * LA RECETA QUE SE ESTA MIRANDO TIENE QUE VERSE EN EL LISTADO.
+ *
+ * Iba con un ambar muy profundo que sobre el rail oscuro da 1,43:1, y en la
+ * tableta del obrador no se distinguia de las filas de al lado. Como con los
+ * filtros, no se fija un color: se mide contra una fila normal y se exige el
+ * 3:1 que la norma pide para que algo se lea como un objeto aparte.
+ */
+test('la receta abierta se distingue de las demas filas del listado', async ({ page }) => {
+  await entrar(page);
+  const { id } = await abrirRecetaDesde(page, 900);
+  await expect(page.locator('.sheet-view')).toBeVisible();
+  await expect(page.locator(`.recipe-link[data-id="${id}"]`)).toHaveClass(/is-active/);
+
+  const contraste = await contrasteDeFondos(
+    page,
+    '.recipe-link.is-active',
+    '.recipe-link:not(.is-active)',
+  );
+  expect(contraste).toBeGreaterThanOrEqual(3);
 });

@@ -163,7 +163,7 @@ test.describe('Celular', () => {
     await entrar(page);
     await expect(page.locator('.sidebar__list')).toBeVisible();
 
-    const altura = await abrirRecetaDesde(page, 900);
+    const { altura } = await abrirRecetaDesde(page, 900);
     expect(altura).toBeGreaterThan(0);
     await expect(page.locator('.sheet-view')).toBeVisible();
 
@@ -171,5 +171,38 @@ test.describe('Celular', () => {
     await expect(page.locator('.sidebar__list')).toBeVisible();
 
     await expect.poll(() => alturaDelListado(page)).toBe(altura);
+  });
+});
+
+test.describe('Celular', () => {
+  /*
+   * Y LA DEJA MARCADA.
+   *
+   * Conservar el sitio no basta: en una columna de 121 filas iguales, volver a
+   * la altura correcta sigue dejando la pregunta de cual de las que se ven era
+   * la que se acababa de consultar. Aqui la ficha ocupa la pantalla entera, asi
+   * que al volver no hay ninguna receta abierta y, sin memoria, no quedaba ni
+   * rastro.
+   */
+  test('volver de una receta la deja marcada en el listado', async ({ page }) => {
+    await entrar(page);
+    await expect(page.locator('.sidebar__list')).toBeVisible();
+
+    const { id } = await abrirRecetaDesde(page, 900);
+    await expect(page.locator('.sheet-view')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Volver al listado de recetas' }).click();
+    await expect(page.locator('.sidebar__list')).toBeVisible();
+
+    const fila = page.locator(`.recipe-link[data-id="${id}"]`);
+    await expect(fila).toHaveClass(/is-active/);
+
+    // Una y nada mas que una.
+    await expect(page.locator('.recipe-link.is-active')).toHaveCount(1);
+
+    // Ya no esta abierta, asi que no se anuncia como el elemento actual: en su
+    // lugar lleva la nota que solo oye quien usa lector de pantalla.
+    await expect(fila).not.toHaveAttribute('aria-current', 'true');
+    await expect(fila).toContainText('la última que abriste');
   });
 });

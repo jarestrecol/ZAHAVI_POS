@@ -76,7 +76,22 @@
    * profundos pensados para leerse sobre blanco y sobre el listado oscuro
    * desaparecerian.
    */
-  --rail-selected: #4b2d18;   /* receta abierta: ambar profundo, 11:1 */
+  /*
+   * RECETA ABIERTA. Es el naranja de marca de la casa, el mismo relleno que
+   * lleva el filtro TODAS: en las 121 filas del listado hay exactamente una
+   * pintada, y se encuentra sin leer.
+   *
+   * Era #4b2d18, un ámbar muy profundo que sobre el rail da 1,43:1. En la
+   * tableta del obrador, a contraluz, no se distinguía de las filas de al lado,
+   * y en celular no se veía nada porque al volver de una receta la fila ni
+   * siquiera quedaba marcada. Con `--brand-strong` son 3,00:1 contra el rail,
+   * que es el mínimo para leerse como un objeto, y 5,28:1 para el texto claro
+   * encima.
+   *
+   * Va por alias y no repitiendo el valor: el naranja de relleno de la casa se
+   * declara una vez y este nombre solo dice para qué se usa aquí.
+   */
+  --rail-selected: var(--brand-strong);
   --cat-pasteleria-rail: #d58fb0;
   --cat-panaderia-rail: #dda471;
   --cat-galletas-rail: #83bc96;

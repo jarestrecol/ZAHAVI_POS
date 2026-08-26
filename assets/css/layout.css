@@ -562,10 +562,19 @@
   border-left-color: var(--rail-line);
 }
 
-/* Receta abierta ahora mismo.
-   Tres senales a la vez, porque en una lista de 121 filas iguales una sola no
-   basta: fondo ambar, borde de marca y una barra naranja pegada al borde
-   izquierdo. Es la unica pieza calida de toda la columna. */
+/*
+ * LA RECETA QUE SE ESTA MIRANDO.
+ *
+ * Tres senales a la vez, porque en una lista de 121 filas iguales una sola no
+ * basta: relleno naranja de marca, texto claro en negrita y una barra mas clara
+ * pegada al borde izquierdo. Es la unica fila pintada de toda la columna.
+ *
+ * Y SIGUE PUESTA AL VOLVER DE LA RECETA. En celular y tableta el listado y la
+ * ficha no caben a la vez, asi que al volver no habia ninguna receta abierta y
+ * la fila no quedaba marcada: habia que acordarse de cual se acababa de
+ * consultar. Quien decide que fila lleva la marca es `ultimaRecetaVista`, en
+ * main.js.
+ */
 .recipe-link.is-active {
   background: var(--rail-selected);
   color: var(--on-rail);
@@ -575,14 +584,19 @@
   padding-left: calc(var(--space-3) - 2px);
 }
 
+/* Sobre el relleno naranja el gris del rendimiento cae a 2,7:1 y el ambar
+   claro a 3,1:1: los dos por debajo del 4,5:1 que pide un texto de 11 px. Pasa
+   al claro, que da 5,28:1. Que no vaya en negrita ya lo deja por detras del
+   nombre, que es lo unico que hacia el color. */
 .recipe-link.is-active .recipe-link__yield {
-  color: var(--amber-on-rail);
+  color: var(--on-rail);
 }
 
-/* El punto de la receta abierta gana un anillo del propio fondo, para que no
-   se confunda con los de las filas de al lado. */
+/* El punto gana un anillo CLARO, no del color del fondo como antes: sobre el
+   naranja, el punto ambar de panaderia se queda en 2,7:1 y se funde con la
+   fila. El anillo lo recorta y de paso lo separa de los puntos de al lado. */
 .recipe-link.is-active .recipe-link__dot {
-  box-shadow: 0 0 0 3px var(--rail-selected);
+  box-shadow: 0 0 0 2px var(--on-rail);
 }
 
 /* Punto de categoria: presente en todas las filas. */

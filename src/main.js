@@ -321,6 +321,7 @@ function paint() {
 
   // --- Recetario ---------------------------------------------------------
   const recipe = route.name === 'detail' ? repo.findById(route.id) : null;
+  if (recipe) ultimaRecetaVista = recipe.id;
 
   // Avisos que van por encima de todo: sin conexion, sin recetario compartido,
   // o cambios sin publicar.
@@ -362,7 +363,11 @@ function paint() {
         recipes: state.recetario.recipes,
         query: route.query,
         category: route.category,
-        selectedId: recipe ? recipe.id : null,
+        // Con una receta abierta manda la receta; sin ninguna, la ultima que se
+        // estuvo mirando. `selectedOpen` distingue las dos, que se ven igual
+        // pero no significan lo mismo.
+        selectedId: recipe ? recipe.id : ultimaRecetaVista,
+        selectedOpen: Boolean(recipe),
         focusSearch: searchHadFocus,
       }),
 
@@ -420,6 +425,30 @@ function paint() {
  * @type {{clave: string, top: number}}
  */
 let listaScroll = { clave: '', top: 0 };
+
+/**
+ * La ultima receta que se abrio, para dejarla marcada en el listado.
+ *
+ * POR QUE HACE FALTA
+ * ------------------
+ * En escritorio el listado y la ficha se ven a la vez, asi que la fila de la
+ * receta abierta se pinta sola: hay una receta en la ruta y ya esta. En celular
+ * y tableta no caben las dos, y al volver de la receta la ruta es el indice: no
+ * hay ninguna abierta, ninguna fila queda marcada, y despues de cada consulta
+ * hay que acordarse de cual se acababa de mirar en una columna de 121 filas
+ * iguales.
+ *
+ * Vive aqui al lado de `listaScroll` y por el mismo motivo: es memoria de
+ * pantalla del ciclo de pintado, no un dato del recetario. No se guarda en
+ * ningun sitio y se pierde al recargar, que es lo correcto: al dia siguiente
+ * nadie sigue mirando la receta de ayer.
+ *
+ * Si la receta se elimina, su codigo deja de aparecer en el listado y la marca
+ * se cae sola: no hay que limpiarla.
+ *
+ * @type {string|null}
+ */
+let ultimaRecetaVista = null;
 
 /**
  * La clave del listado QUE HAY PUESTO EN LA PANTALLA ahora mismo.

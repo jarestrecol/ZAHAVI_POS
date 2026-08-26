@@ -116,12 +116,13 @@ export function desbordeHorizontal(page) {
  * vista antes de pulsarlo, asi que pulsar asi mueve justo lo que se quiere
  * medir. Aqui se pulsa desde la propia pagina, que no desplaza nada.
  *
- * Devuelve la altura a la que quedo el listado, que es contra lo que hay que
- * comparar despues: la pedida puede no ser alcanzable si la lista es corta.
+ * Devuelve la altura a la que quedo el listado -contra la que hay que comparar
+ * despues, porque la pedida puede no ser alcanzable si la lista es corta- y el
+ * codigo de la receta que se abrio.
  *
  * @param {import('@playwright/test').Page} page
  * @param {number} alturaPedida
- * @returns {Promise<number>}
+ * @returns {Promise<{altura: number, id: string}>}
  */
 export async function abrirRecetaDesde(page, alturaPedida) {
   const lista = page.locator('.sidebar__list');
@@ -140,7 +141,7 @@ export async function abrirRecetaDesde(page, alturaPedida) {
   });
 
   await page.locator(`.recipe-link[data-id="${id}"]`).evaluate((enlace) => enlace.click());
-  return altura;
+  return { altura, id };
 }
 
 /**
@@ -151,4 +152,51 @@ export async function abrirRecetaDesde(page, alturaPedida) {
  */
 export function alturaDelListado(page) {
   return page.locator('.sidebar__list').evaluate((el) => el.scrollTop);
+}
+
+/**
+ * Contraste real entre los fondos de dos elementos.
+ *
+ * Compone el alfa contra lo que cada uno tiene detras: `getComputedStyle`
+ * devuelve el color DECLARADO con su transparencia, no el que se acaba viendo,
+ * y sin componerlo un blanco al 4 % sobre un rail oscuro se leeria como casi
+ * blanco y la medida no diria nada.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} selectorA
+ * @param {string} selectorB
+ * @returns {Promise<number>} la razon de contraste, de 1 a 21
+ */
+export function contrasteDeFondos(page, selectorA, selectorB) {
+  return page.evaluate(([a, b]) => {
+    const cifras = (valor) => valor.match(/[0-9.]+/g).map(Number);
+
+    // Se sube por los ancestros hasta el primero que pinte de verdad, en vez de
+    // dar por hecho cual es.
+    const detras = (nodo) => {
+      for (let n = nodo.parentElement; n; n = n.parentElement) {
+        const color = cifras(getComputedStyle(n).backgroundColor);
+        if (color.length < 4 || color[3] === 1) return color.slice(0, 3);
+      }
+      return [255, 255, 255];
+    };
+
+    const compuesto = (sel) => {
+      const nodo = document.querySelector(sel);
+      const [r, g, azul, alfa = 1] = cifras(getComputedStyle(nodo).backgroundColor);
+      const fondo = detras(nodo);
+      return [r, g, azul].map((canal, i) => canal * alfa + fondo[i] * (1 - alfa));
+    };
+
+    const canal = (v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    const luminancia = ([r, g, azul]) =>
+      0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(azul);
+
+    const luzA = luminancia(compuesto(a));
+    const luzB = luminancia(compuesto(b));
+    return (Math.max(luzA, luzB) + 0.05) / (Math.min(luzA, luzB) + 0.05);
+  }, [selectorA, selectorB]);
 }

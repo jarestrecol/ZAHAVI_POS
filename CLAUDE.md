@@ -526,7 +526,7 @@ Capa de datos... ok (29 comprobaciones)
 Publicacion y conflictos... ok (22 comprobaciones)
 Validacion del servidor... ok (37 comprobaciones)
 Alta y baja masiva... ok (194 comprobaciones)
-Version del proyecto... ok (v1.5.3)
+Version del proyecto... ok (v1.5.4)
 Integridad de las recetas... ok (121 recetas, 187 componentes, 1282 items, 225 KB, sha f0307204)
 ```
 
@@ -556,11 +556,11 @@ revisión pasada pasaron por delante de siete bloques en verde.
 
 | Archivo | Qué fija |
 |---|---|
-| `tests/recorrido.spec.js` | Entrar, buscar, abrir una receta, escalar la tanda, que el filtro activo se distinga de los demás, que el tamaño del texto alcance a la receta y a nada más, y que la posición del listado pertenezca al filtro |
+| `tests/recorrido.spec.js` | Entrar, buscar, abrir una receta, escalar la tanda, que el filtro activo se distinga de los demás, que el tamaño del texto alcance a la receta y a nada más, que la posición del listado pertenezca al filtro y que la receta abierta se distinga de las demás filas |
 | `tests/dialogos.spec.js` | Que el foco entre en cada ventana y el teclado del Modo Pesar responda de inmediato |
 | `tests/impresion.spec.js` | Que se imprima lo que se está mirando |
-| `tests/celular.spec.js` | Acciones al alcance del pulgar, nada inalcanzable a 320 px, que escribir en el buscador no reconstruya el campo ni le quite el foco, y que volver de una receta deje el listado donde estaba |
-| `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral, y que volver de una receta deje el listado donde estaba |
+| `tests/celular.spec.js` | Acciones al alcance del pulgar, nada inalcanzable a 320 px, que escribir en el buscador no reconstruya el campo ni le quite el foco, y que volver de una receta deje el listado donde estaba y la deje marcada |
+| `tests/tableta.spec.js` | Listado en dos columnas sin desplazamiento lateral, y que volver de una receta deje el listado donde estaba y la deje marcada |
 | `tests/unidades.spec.js` | Que las recetas de un ingrediente se separen por la unidad con que lo miden, con la minoritaria arriba |
 | `tests/resiliencia.spec.js` | La 404 con su estado y su estilo, el arranque roto que deja salida, la receta borrada que lo dice, el sitio sin servidor que lo anuncia y el recetario abriendo sin red |
 
@@ -937,7 +937,19 @@ Nace del logotipo real: naranja `#F68A1E`, dorado `#FCE00C`, blanco `#FCFCFC`.
   matiz (rosa 330°, ámbar 35°, verde 165°). Nunca son la única señal.
 - **Un único relleno de marca en toda la pantalla**: `--brand-strong` (#995107).
   El naranja pleno es máxima saturación **y** máxima claridad a la vez, y por eso
-  se leía como fluorescente aun sin degradado.
+  se leía como fluorescente aun sin degradado. Lo llevan las tres piezas que
+  significan "esta es la elegida": el filtro **Todas**, la receta que se está
+  mirando en el listado (`--rail-selected`, que es un alias de este mismo color)
+  y el tamaño de texto activo en Ajustes. No es tres decisiones: es una,
+  aplicada tres veces.
+- **La fila de la receta que se está mirando lleva ese relleno, y antes no se
+  veía.** Iba con `#4b2d18`, un ámbar profundo que sobre el rail da **1,43:1**
+  (medido, no estimado). Ahora son **3,00:1**, el mínimo que la norma pide para
+  que algo se lea como un objeto aparte, más la barra clara de 4 px del borde
+  izquierdo, que contra el rail va a 9,2:1 y es en realidad la señal más fuerte
+  de las tres. Subir más el naranja no es opción: `--brand-deep` daría 3,9:1
+  contra el rail pero dejaría el texto blanco en 4,07:1, por debajo del 4,5:1
+  que pide un renglón de 15 px. Se probó.
 - **El filtro de categoría activo va relleno con su color, y es la excepción
   buscada al punto anterior.** No es relleno *de marca*: es el color que esa
   categoría ya tiene en todo el sistema. Iba como los demás con el fondo un poco
@@ -1041,11 +1053,11 @@ cifra: **no abras `data/recipes.json`**.
 | `data/recipes.json` | 225 KB (230.598 bytes), `version: 2` |
 | `sha` de integridad | `f0307204` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
-| Versión | 1.5.3 (Fase 1). El primer número es la fase de la hoja de ruta |
-| `CACHE_VERSION` de `sw.js` | `zahavi-v39` |
+| Versión | 1.5.4 (Fase 1). El primer número es la fase de la hoja de ruta |
+| `CACHE_VERSION` de `sw.js` | `zahavi-v40` |
 | Node en el servidor | 24.x |
 | Módulos en `src/` | 38 |
-| Bloques de `verificar` / pruebas de `qa` | 12 / 76 |
+| Bloques de `verificar` / pruebas de `qa` | 12 / 79 |
 
 ---
 
@@ -1221,6 +1233,7 @@ Defectos reales, para que no vuelvan sin que nadie se dé cuenta. Todos corregid
 | **En el teléfono el teclado se cerraba y se abría con cada tecla del buscador**: el repintado sacaba del documento el campo enfocado y le devolvía el foco un fotograma después, dentro de un `requestAnimationFrame` | Uso real, reportado por el obrador |
 | **No se veía cuál de los cuatro filtros de categoría estaba puesto**: activo e inactivo se diferenciaban en 1,1:1 sobre el rail oscuro | Uso real, reportado por el obrador |
 | **En celular y tableta, volver de una receta mandaba el listado arriba del todo**: la posición se leía del propio nodo justo antes de destruirlo, y ahí la lista está en `display: none`, así que se leía 0 y se escribía en el vacío | Uso real, reportado por el obrador |
+| **Y al volver no quedaba marcada ninguna fila**: la marca dependía de que hubiera una receta en la ruta, y al volver al listado ya no la hay. En una columna de 121 filas iguales, la altura correcta sin marca sigue sin decir cuál era | Uso real, reportado por el obrador |
 | `CLAUDE.md` tenía 95 líneas con doble codificación y `verificar.mjs` imprimía `â€¦` en cada línea | Auditoría de deuda técnica |
 
 ---
