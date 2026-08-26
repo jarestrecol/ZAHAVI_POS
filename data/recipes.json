@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-08-20 19:43:43",
+  "revision": "2026-08-26 05:55:00",
   "recipes": [
     {
       "id": "R001",
@@ -8309,6 +8309,34 @@
             {
               "ingrediente": "AGUA ( CALIENTE )",
               "cantidad": "200",
+              "unidad": "GR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R122",
+      "nombre": "Julian Torta Basca X 1 UND",
+      "categoria": "GALLETAS",
+      "metodo": "",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            {
+              "ingrediente": "AZÚCAR",
+              "cantidad": "1500",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "ANTIMOHO",
+              "cantidad": "3000",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "MEZCLA ALMOJÁBANA",
+              "cantidad": "6990",
               "unidad": "GR"
             }
           ]
