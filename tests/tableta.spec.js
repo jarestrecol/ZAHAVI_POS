@@ -11,7 +11,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, desbordeHorizontal, RECETA, abrirRecetaDesde, alturaDelListado } from './apoyo.js';
+import {
+  entrar,
+  desbordeHorizontal,
+  RECETA,
+  abrirRecetaDesde,
+  alturaDelListado,
+  TOTAL_RECETAS,
+} from './apoyo.js';
 
 test.describe('Tableta', () => {
   test('el listado se reparte en dos columnas y no se va de lado', async ({ page }) => {
@@ -31,7 +38,7 @@ test.describe('Tableta', () => {
       };
     });
 
-    expect(reparto.recetas).toBe(121);
+    expect(reparto.recetas).toBe(TOTAL_RECETAS);
     expect(reparto.columnas).toBe(2);
     // Con `columns` en un contenedor de altura limitada, esto llego a ser 3.200.
     expect(reparto.desplazamientoLateral).toBe(0);

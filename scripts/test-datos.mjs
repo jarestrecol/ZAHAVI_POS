@@ -9,6 +9,12 @@ import { resolve, dirname, join } from 'node:path';
 const repoRoot = process.argv[2] || resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicado = JSON.parse(readFileSync(join(repoRoot, 'data/recipes.json'), 'utf8'));
 
+// SE CUENTA, NO SE ESCRIBE. Estaba a mano como 121 y la panaderia publico la
+// receta 122 desde el obrador: la verificacion se puso roja sin que nada
+// estuviera mal. Lo que aqui importa no es cuantas hay, sino que lleguen TODAS
+// las que estan publicadas.
+const TOTAL = publicado.recipes.length;
+
 // --- Navegador simulado ---
 const almacen = new Map();
 globalThis.window = {
@@ -38,7 +44,7 @@ function comprobar(titulo, condicion, detalle = '') {
 
 console.log('\n1. Arranque limpio: manda la version publicada');
 let estado = await repo.hydrate();
-comprobar('121 recetas', estado.recipes.length === 121, String(estado.recipes.length));
+comprobar(`${TOTAL} recetas`, estado.recipes.length === TOTAL, String(estado.recipes.length));
 comprobar('origen publicado', estado.source === 'published', estado.source);
 comprobar('sin cambios pendientes', repo.localChanges().dirty === false);
 comprobar('revision leida', repo.publishedRevision() === publicado.revision, repo.publishedRevision());
@@ -73,7 +79,7 @@ cambios = repo.localChanges();
 comprobar('1 nueva', cambios.added === 1, JSON.stringify(cambios));
 comprobar('1 eliminada', cambios.removed === 1);
 comprobar('total 3 cambios', cambios.total === 3);
-comprobar('quedan 121 recetas', repo.findAll().length === 121, String(repo.findAll().length));
+comprobar(`quedan ${TOTAL} recetas`, repo.findAll().length === TOTAL, String(repo.findAll().length));
 
 console.log('\n5. Recarga con cambios locales: se conservan');
 estado = await repo.hydrate();
@@ -103,12 +109,12 @@ repo.discardLocalChanges();
 comprobar('sin pendientes', repo.localChanges().dirty === false);
 comprobar('R001 vuelve', repo.findById('R001') !== null);
 comprobar('R005 sin el metodo local', !repo.findById('R005').metodo.includes('Paso 1'));
-comprobar('121 recetas', repo.findAll().length === 121);
+comprobar(`${TOTAL} recetas`, repo.findAll().length === TOTAL);
 
 console.log('\n9. Sin conexion: sigue funcionando');
 hayRed = false;
 estado = await repo.hydrate();
-comprobar('arranca igualmente', estado.recipes.length === 121, String(estado.recipes.length));
+comprobar('arranca igualmente', estado.recipes.length === TOTAL, String(estado.recipes.length));
 comprobar('avisa de la falta de red', Boolean(estado.warning), estado.warning || '');
 
 console.log(fallos === 0 ? '\nTODAS LAS COMPROBACIONES PASAN\n' : `\n${fallos} COMPROBACION(ES) FALLAN\n`);

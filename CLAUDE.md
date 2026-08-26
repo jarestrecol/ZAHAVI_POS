@@ -75,7 +75,7 @@ equipo de mantenimiento. La única dependencia declarada es Playwright, y es de
 desarrollo. `"type": "module"` en `package.json` existe para que Vercel trate
 `api/` como módulos ES y no avise en cada despliegue.
 
-**Por qué un archivo en git y no una base de datos.** Para 121 recetas y dos sedes
+**Por qué un archivo en git y no una base de datos.** Para 122 recetas y dos sedes
 que editan de forma esporádica, una base de datos añade un servicio que mantener,
 pagar y respaldar a cambio de resolver un problema de concurrencia que aquí casi
 no existe. Git ya aporta historial, recuperación y control de escrituras
@@ -96,7 +96,7 @@ manifest.webmanifest               Instalación como aplicación
 api/recipes.js                     Lectura y publicación contra GitHub
 api/_schema.js                     Validador del servidor (rechaza, no repara)
 
-data/recipes.json                  Recetario publicado (225 KB, NO ABRIRLO ENTERO)
+data/recipes.json                  Recetario publicado (226 KB, NO ABRIRLO ENTERO)
 
 assets/css/                        tokens.css manda: ni un color fuera de ahí
 assets/fonts/                      Tres familias auto-hospedadas (OFL)
@@ -346,7 +346,7 @@ regla se "mejora" y vuelve el defecto.
 5. **Una regla de negocio nunca vive en una vista.** Si vive, la aplica esa
    pantalla y ninguna más: así la ficha decía "Rinde 6 und" mientras el papel del
    obrador decía "Rinde 2 und" con las cantidades ya multiplicadas debajo.
-6. **El nombre base de una receta NO es único.** 14 de las 121 comparten base y
+6. **El nombre base de una receta NO es único.** 14 de las 122 comparten base y
    cuatro se llaman "Sacher Torte". Toda lista que muestre el nombre base tiene
    que mostrar también el rendimiento, o dará filas idénticas.
 7. **El cliente repara, el servidor rechaza.** Son prioridades opuestas y ambas
@@ -527,16 +527,33 @@ Publicacion y conflictos... ok (22 comprobaciones)
 Validacion del servidor... ok (37 comprobaciones)
 Alta y baja masiva... ok (194 comprobaciones)
 Version del proyecto... ok (v1.5.4)
-Integridad de las recetas... ok (121 recetas, 187 componentes, 1282 items, 225 KB, sha f0307204)
+Integridad de las recetas... ok (122 recetas, 188 componentes, 1285 items, 226 KB, sha a488c070)
 ```
 
 **Si el `sha` cambia sin que nadie haya editado una receta a propósito, para y
-averigua por qué.** Es la huella de las 121 fórmulas: cambia una cifra de un
+averigua por qué.** Es la huella de las 122 fórmulas: cambia una cifra de un
 ingrediente y cambia el `sha`.
 
-**Ningún bloque escribe su cifra a mano.** Todos cuentan lo que de verdad
-ejecutaron. Dos las tenían cableadas y las dos mentían: "Capa de datos" decía
-9 y son 29, "Validación del servidor" decía 28 y son 37.
+**Ninguna cifra se escribe a mano, ni en el resumen ni dentro de las
+comprobaciones.** La regla nació por el resumen: dos bloques tenían su cuenta
+cableada y los dos mentían ("Capa de datos" decía 9 y son 29, "Validación del
+servidor" decía 28 y son 37). Pero se quedó a medias, porque **las
+comprobaciones seguían llenas de números escritos**: el total de recetas, el
+reparto por categoría, las líneas de ingrediente, el catálogo. El 26 de agosto
+de 2026 la panadería publicó una receta desde el obrador y **la verificación se
+puso roja de golpe sin que hubiera nada roto**: cuatro scripts y seis pruebas de
+navegador esperaban 121.
+
+Ahora todas salen de `data/recipes.json`. No las convierte en tautologías: lo
+que se comprueba no es cuántas recetas hay -eso lo decide la panadería, no el
+código- sino que el listado las muestre todas, que el filtro devuelva
+exactamente las de su categoría y que el catálogo no pierda ninguna línea al
+agrupar. Donde el número era un aviso de que algo había cambiado (cuántas
+recetas admiten pedir una cantidad concreta), lo que se fija ahora es la
+propiedad -un rendimiento legible es un entero positivo- y el número solo se
+imprime.
+
+**Al añadir una comprobación nueva, cuenta; no escribas.**
 
 ### Qué comprueba cada script
 
@@ -567,7 +584,7 @@ revisión pasada pasaron por delante de siete bloques en verde.
 La suite levanta el servidor sola, con las cabeceras de producción: probar contra
 un servidor más permisivo esconde justo lo que interesa mirar. Con `npm run qa:ver`
 se ven ejecutarse. Los informes quedan en `playwright-report/`, fuera del
-repositorio. Las pruebas **leen** las 121 recetas y no escriben ninguna.
+repositorio. Las pruebas **leen** las 122 recetas y no escriben ninguna.
 
 ### Verificación manual, cuando toca
 
@@ -576,10 +593,10 @@ comportamiento del teclado con una báscula delante.
 
 > **Regla que no se rompe nunca**: las pruebas manuales se hacen sobre recetas
 > creadas para la prueba, con el prefijo `QA-TEST-`, y se borran al terminar. Las
-> 121 recetas reales están auditadas: no se abren para editar, no se modifican y
+> 122 recetas reales están auditadas: no se abren para editar, no se modifican y
 > no se eliminan.
 
-Al terminar: borrar las `QA-TEST-`, comprobar que vuelven a ser 121, y volver a
+Al terminar: borrar las `QA-TEST-`, comprobar que vuelven a ser 122, y volver a
 ejecutar `npm run verificar` confirmando que el `sha` sigue siendo el mismo.
 
 **Antes de dar algo por terminado**: las dos capas en verde, ninguna receta real
@@ -637,7 +654,7 @@ devuelve error y no escribe, para que nunca entre basura al archivo compartido.
 **Los dos esquemas reconstruyen la receta con una lista blanca de campos.** Un
 campo nuevo lo descarta en silencio cualquier equipo que aún tenga el código
 antiguo en caché, y basta con que ese equipo publique una vez para borrarlo de las
-121. Por eso el orden de una migración de esquema no admite atajos:
+122. Por eso el orden de una migración de esquema no admite atajos:
 
 1. Que ambos esquemas (`core/schema.js` y `api/_schema.js`) acepten el campo.
 2. Desplegar y **subir `CACHE_VERSION`**.
@@ -658,7 +675,7 @@ antiguo en caché, y basta con que ese equipo publique una vez para borrarlo de 
 
 **El contenido es público para quien tenga el enlace.**
 `curl https://<el-sitio>/api/recipes` y `curl https://<el-sitio>/data/recipes.json`
-devuelven las 121 fórmulas completas **sin ninguna clave**. Es una decisión
+devuelven las 122 fórmulas completas **sin ninguna clave**. Es una decisión
 consciente, no un descuido. Si algún día las fórmulas pasan a considerarse secreto
 industrial, la respuesta no es endurecer la clave de acceso: hay que poner una
 puerta delante de todo el sitio (protección de despliegue de Vercel, de pago) o
@@ -908,7 +925,7 @@ ese equipo**. Pregunta antes si los hay.
 
 ### Hay que dejar el recetario en manos de otro proveedor
 
-Todo lo necesario está en el repositorio y no hay nada más: las 121 fórmulas en
+Todo lo necesario está en el repositorio y no hay nada más: las 122 fórmulas en
 JSON legible, el programa entero sin compilar ni ofuscar, y esta documentación. No
 hay base de datos que exportar ni servicios de terceros que traspasar más allá de
 la cuenta de Vercel y el repositorio de GitHub. Clonar y declarar las cuatro
@@ -1030,10 +1047,10 @@ distancia de brazo y con posible reflejo.
 | JavaScript `src/` (sin comprimir) | ~355 KB (37 módulos) |
 | CSS | ~169 KB (10 hojas) |
 | Tipografías (subconjunto latino) | ~145 KB (7 archivos) |
-| Datos | 225 KB |
+| Datos | 226 KB |
 | Paso de compilación | Ninguno |
 
-El repintado reconstruye el árbol completo en cada cambio: con 121 recetas son unos
+El repintado reconstruye el árbol completo en cada cambio: con 122 recetas son unos
 cientos de nodos y el navegador lo resuelve sin esfuerzo. La única excepción son los
 diálogos, que se conservan montados para no borrar lo que alguien está escribiendo;
 y dentro de ellos, el campo de tandas del plan, que se actualiza sobre sí mismo.
@@ -1042,16 +1059,16 @@ y dentro de ellos, el campo de tandas del plan, que se actualiza sobre sí mismo
 
 ## 12. Datos verificados
 
-Medidos el 25 de agosto de 2026. Para recontar, un `node -e` que imprima solo la
+Medidos el 26 de agosto de 2026. Para recontar, un `node -e` que imprima solo la
 cifra: **no abras `data/recipes.json`**.
 
 | Dato | Valor |
 |---|---|
-| Recetas | 121 (Pastelería 66, Panadería 34, Galletas 21) |
-| Componentes / líneas de ingrediente | 187 / 1.282 |
+| Recetas | 122 (Pastelería 66, Panadería 34, Galletas 22) |
+| Componentes / líneas de ingrediente | 188 / 1.285 |
 | Catálogo de ingredientes | 159 |
-| `data/recipes.json` | 225 KB (230.598 bytes), `version: 2` |
-| `sha` de integridad | `f0307204` |
+| `data/recipes.json` | 226 KB (231.280 bytes), `version: 2` |
+| `sha` de integridad | `a488c070` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
 | Versión | 1.5.4 (Fase 1). El primer número es la fase de la hoja de ruta |
 | `CACHE_VERSION` de `sw.js` | `zahavi-v40` |
@@ -1068,15 +1085,15 @@ cifra: **no abras `data/recipes.json`**.
 | Limitación | Impacto | Cuándo actuar |
 |---|---|---|
 | El contenido es visible para quien tenga el enlace | La clave de acceso no protege el contenido | Si las fórmulas pasan a ser secreto industrial |
-| La API de contenidos de GitHub corta a 1 MB | Hoy son 225 KB | La verificación avisa a los 700 KB |
+| La API de contenidos de GitHub corta a 1 MB | Hoy son 226 KB | La verificación avisa a los 700 KB |
 | El almacenamiento del navegador ronda los 5 MB | Suficiente para texto, no para imágenes | Si se añaden fotografías de producto |
 | Una sola clave para todo el equipo | No se sabe quién entró | Si hiciera falta trazabilidad por persona |
 | Los ingredientes se referencian por nombre, no por código | Un cambio de nombre no propaga | Antes del costeo (Fase 2) |
 | 15 ingredientes se miden de más de una forma | Sin unidad única no se les puede poner precio | **La pantalla de Ingredientes ya dice en qué recetas se mide de cada forma.** Queda decidir cada caso |
 | Borrar los datos de navegación borra los cambios sin publicar | Lo publicado se recupera al recargar. La publicación automática reduce la ventana pero no la cierra | Formar al equipo: publicar al empezar la jornada |
 | La clave de edición vive solo en la sesión | La primera publicación de cada sesión es manual | Deliberado: guardarla en disco dejaría la llave del repositorio en el mostrador |
-| Ninguna de las 121 recetas tiene método escrito | El campo existe y está vacío en origen | Trabajo de contenido, no técnico |
-| 34 de las 121 no declaran rendimiento legible | Para esas solo se ofrece el multiplicador | Se puede completar desde el editor |
+| Ninguna de las 122 recetas tiene método escrito | El campo existe y está vacío en origen | Trabajo de contenido, no técnico |
+| 34 de las 122 no declaran rendimiento legible | Para esas solo se ofrece el multiplicador | Se puede completar desde el editor |
 | En 15 el rendimiento está **dentro** del nombre pero no al final | El separador no lo encuentra | El editor avisa al abrirlas |
 | 14 recetas comparten nombre base | Se distinguen solo por el rendimiento | Al normalizar nombres, si se hace |
 
@@ -1088,7 +1105,7 @@ Corregir una fórmula es una decisión del negocio, no de quien migró los datos
   (126 → 630 → 756), así que lo esperable sería `1008`. Son nueve kilos de
   diferencia: un cero de más al teclear. Es también el mejor argumento de por qué
   existe el escalado, porque esa variante se escribió a mano.
-- `BERLINAS` mide la leche en `MG`. Es la **única línea en MG de las 1.282**;
+- `BERLINAS` mide la leche en `MG`. Es la **única línea en MG de las 1.285**;
   160 mg son 0,16 g, imposible para 18 berlinas. Casi con seguridad debería ser
   `ML`. Visible desde la pantalla de Ingredientes.
 
@@ -1106,7 +1123,7 @@ Corregir una fórmula es una decisión del negocio, no de quien migró los datos
 
 El techo no es el número de recetas: es el **tamaño del archivo**.
 
-- Llenar los 121 métodos lo deja entre 330 y 470 KB. **No revienta el límite.**
+- Llenar los 122 métodos lo deja entre 330 y 470 KB. **No revienta el límite.**
 - Con la forma actual y métodos escritos, el techo llega hacia las 300 recetas.
 - Lo que sí lo revienta es el **histórico de precios** de la Fase 2: 159
   ingredientes con captura diaria llegan a 1 MB en unos dos meses.
@@ -1149,12 +1166,12 @@ Trabajos que no se pueden decidir desde el código:
    sedes; con más gente, cada baja obliga a rotarla para todos. Con costes de por
    medio, saber quién cambió un margen deja de ser opcional. Es también la vía para
    sustituir la clave cruda en `sessionStorage` por un testigo de corta vida.
-3. **Escribir los métodos.** Las 121 tienen el campo vacío.
+3. **Escribir los métodos.** Las 122 tienen el campo vacío.
 4. **Reunir los precios.** 159 ingredientes, de los cuales 64 se usan en una sola
    receta: ese coste operativo conviene medirlo antes de comprometerse.
 5. **Unificar las unidades de 15 ingredientes** que hoy se miden de dos o tres
    formas distintas (la leche llega a tener tres). Son **67 líneas repartidas en
-   47 de las 121 recetas**. Sin eso no se les puede asignar un precio único.
+   47 de las 122 recetas**. Sin eso no se les puede asignar un precio único.
 
    **La herramienta ya está**: en Ingredientes, al desplegar uno de esos 15, las
    recetas salen agrupadas por unidad, con la minoritaria arriba y cada fila
@@ -1233,7 +1250,8 @@ Defectos reales, para que no vuelvan sin que nadie se dé cuenta. Todos corregid
 | **En el teléfono el teclado se cerraba y se abría con cada tecla del buscador**: el repintado sacaba del documento el campo enfocado y le devolvía el foco un fotograma después, dentro de un `requestAnimationFrame` | Uso real, reportado por el obrador |
 | **No se veía cuál de los cuatro filtros de categoría estaba puesto**: activo e inactivo se diferenciaban en 1,1:1 sobre el rail oscuro | Uso real, reportado por el obrador |
 | **En celular y tableta, volver de una receta mandaba el listado arriba del todo**: la posición se leía del propio nodo justo antes de destruirlo, y ahí la lista está en `display: none`, así que se leía 0 y se escribía en el vacío | Uso real, reportado por el obrador |
-| **Y al volver no quedaba marcada ninguna fila**: la marca dependía de que hubiera una receta en la ruta, y al volver al listado ya no la hay. En una columna de 121 filas iguales, la altura correcta sin marca sigue sin decir cuál era | Uso real, reportado por el obrador |
+| **Publicar una receta desde el obrador puso la verificación en rojo**: cuatro scripts y seis pruebas de navegador llevaban escritos a mano el total (121), el reparto por categoría (66/34/21), las líneas de ingrediente (1.282) y el catálogo (159/64/15/86). No había nada roto: solo había una receta más | Publicación real desde la panadería |
+| **Y al volver no quedaba marcada ninguna fila**: la marca dependía de que hubiera una receta en la ruta, y al volver al listado ya no la hay. En una columna de 122 filas iguales, la altura correcta sin marca sigue sin decir cuál era | Uso real, reportado por el obrador |
 | `CLAUDE.md` tenía 95 líneas con doble codificación y `verificar.mjs` imprimía `â€¦` en cada línea | Auditoría de deuda técnica |
 
 ---

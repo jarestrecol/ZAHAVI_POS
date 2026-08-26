@@ -6,6 +6,53 @@
  * la misma regla que sigue la verificacion manual.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+/** El recetario publicado, para armar con el las cifras que las pruebas esperan. */
+const PUBLICADO = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../data/recipes.json', import.meta.url)), 'utf8'),
+);
+
+/**
+ * Cuantas recetas hay publicadas ahora mismo.
+ *
+ * SE CUENTA DEL ARCHIVO, NO SE ESCRIBE. Estaba a mano como 121 en cinco
+ * pruebas, y la panaderia publico la receta 122 desde el obrador: las cinco se
+ * pusieron rojas de golpe sin que nada estuviera roto. Lo que estas pruebas
+ * comprueban no es cuantas recetas hay -eso lo decide la panaderia, no el
+ * codigo- sino que el listado las muestre TODAS.
+ */
+export const TOTAL_RECETAS = PUBLICADO.recipes.length;
+
+/**
+ * Nombre accesible del boton de un filtro de categoria, tal y como lo escribe
+ * `views/sidebar.js`: "galletas (22 recetas)".
+ *
+ * SE ARMA CON LA CIFRA REAL. Estaba escrito a mano -"galletas (21 recetas)"- en
+ * dos pruebas, y bastó con que la panaderia publicara una galleta desde el
+ * obrador para que las dos dejaran de encontrar el boton. Lo que se quiere
+ * comprobar es que el filtro EXISTE y dice cuantas hay, no cuantas hay.
+ *
+ * @param {string} categoria en mayusculas, como viene en los datos
+ * @returns {string}
+ */
+export function filtro(categoria) {
+  const total = cuantasEn(categoria);
+  return `${categoria.toLowerCase()} (${total} ${total === 1 ? 'receta' : 'recetas'})`;
+}
+
+/**
+ * Cuantas recetas publicadas hay en una categoria. `TODAS` devuelve el total.
+ *
+ * @param {string} categoria en mayusculas, como viene en los datos
+ * @returns {number}
+ */
+export function cuantasEn(categoria) {
+  if (categoria === 'TODAS') return PUBLICADO.recipes.length;
+  return PUBLICADO.recipes.filter((r) => r.categoria === categoria).length;
+}
+
 /** La clave de instalación, con la que arranca un equipo que nunca ha entrado. */
 export const CLAVE = 'zahavi2026';
 

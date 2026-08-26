@@ -17,7 +17,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, CLAVE } from './apoyo.js';
+import { entrar, CLAVE, TOTAL_RECETAS } from './apoyo.js';
 
 /* ===========================================================================
  *  1. LA DIRECCION NO EXISTE
@@ -372,7 +372,7 @@ test.describe('Copia local ilegible', () => {
     expect(rescatado).toContain('{"dirty":true');
 
     // El recetario sigue usable con la versión publicada.
-    await expect(page.locator('nav [role=status]')).toHaveText('121 recetas');
+    await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
   });
 });
 

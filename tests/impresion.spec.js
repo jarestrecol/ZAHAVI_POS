@@ -14,7 +14,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, interceptarImpresion, hojaImpresa, RECETA } from './apoyo.js';
+import {
+  entrar,
+  interceptarImpresion,
+  hojaImpresa,
+  RECETA,
+  filtro,
+  cuantasEn,
+} from './apoyo.js';
 
 test('el plan del dia imprime el plan, no la receta abierta', async ({ page }) => {
   await entrar(page, `#/receta/${RECETA}`);
@@ -61,10 +68,10 @@ test('la ficha escalada se imprime escalada', async ({ page }) => {
 
 test('sin receta abierta se imprime el indice, con el filtro puesto', async ({ page }) => {
   await entrar(page);
-  await page.getByRole('button', { name: 'galletas (21 recetas)' }).click();
+  await page.getByRole('button', { name: filtro('GALLETAS') }).click();
 
   const hoja = page.locator('#print-root .sheet');
   await expect(hoja.locator('.sheet__title')).toHaveText('Índice de recetas');
-  await expect(hoja).toContainText('21 recetas');
+  await expect(hoja).toContainText(`${cuantasEn('GALLETAS')} recetas`);
   await expect(hoja).toContainText('galletas');
 });

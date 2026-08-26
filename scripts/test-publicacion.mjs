@@ -34,6 +34,10 @@ import { resolve, dirname, join } from 'node:path';
 const repoRoot = process.argv[2] || resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicado = JSON.parse(readFileSync(join(repoRoot, 'data/recipes.json'), 'utf8'));
 
+// Se cuenta del archivo real: la cifra a mano se rompe cada vez que la
+// panaderia publica una receta nueva.
+const TOTAL = publicado.recipes.length;
+
 /* ===========================================================================
  *  NAVEGADOR Y SERVIDOR SIMULADOS
  * ======================================================================== */
@@ -146,7 +150,7 @@ function receta(id, nombre) {
 
 console.log('\n1. Con servidor y sha, la publicacion llega de verdad');
 let estado = await repo.hydrate();
-comprobar('lee del recetario compartido', estado.recipes.length === 121, String(estado.recipes.length));
+comprobar('lee del recetario compartido', estado.recipes.length === TOTAL, String(estado.recipes.length));
 comprobar('puede publicar', repo.canPublishToAll() === true);
 
 repo.save(receta('R900', 'PRUEBA PUBLICACION X 1 UND'));

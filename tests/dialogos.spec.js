@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, RECETA } from './apoyo.js';
+import { entrar, RECETA, TOTAL_RECETAS } from './apoyo.js';
 
 test.describe('Modo Pesar', () => {
   test.beforeEach(async ({ page }) => {
@@ -123,6 +123,6 @@ test.describe('Las demas ventanas', () => {
     await page.keyboard.press('Escape');
 
     await expect(page.locator('[role=dialog]')).toHaveCount(0);
-    await expect(page.locator('nav [role=status]')).toHaveText('121 recetas');
+    await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
   });
 });

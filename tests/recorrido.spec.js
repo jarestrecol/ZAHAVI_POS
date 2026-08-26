@@ -18,6 +18,8 @@ import {
   abrirRecetaDesde,
   alturaDelListado,
   contrasteDeFondos,
+  TOTAL_RECETAS,
+  filtro,
 } from './apoyo.js';
 
 test('la clave incorrecta no dice cual de los dos datos fallo', async ({ page }) => {
@@ -45,21 +47,21 @@ test('la clave de instalacion no se anuncia y no deja quedarse con ella', async 
   await expect(page.locator('nav[aria-label="Listado de recetas"]')).toHaveCount(0);
 });
 
-test('con la clave correcta aparecen las 121 recetas', async ({ page }) => {
+test(`con la clave correcta aparecen las ${TOTAL_RECETAS} recetas`, async ({ page }) => {
   await entrar(page);
-  await expect(page.locator('nav [role=status]')).toHaveText('121 recetas');
+  await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
 
   // Los cuatro filtros tienen que sumar el total, o alguno se esta perdiendo
   // recetas por el camino.
-  await expect(page.getByRole('button', { name: 'pastelería (66 recetas)' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'panadería (34 recetas)' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'galletas (21 recetas)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: filtro('PASTELERÍA') })).toBeVisible();
+  await expect(page.getByRole('button', { name: filtro('PANADERÍA') })).toBeVisible();
+  await expect(page.getByRole('button', { name: filtro('GALLETAS') })).toBeVisible();
 });
 
 test('la sesion sobrevive a recargar', async ({ page }) => {
   await entrar(page);
   await page.reload();
-  await expect(page.locator('nav [role=status]')).toHaveText('121 recetas');
+  await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
   await expect(page.getByRole('textbox', { name: 'clave' })).toHaveCount(0);
 });
 
@@ -120,7 +122,7 @@ test('la busqueda filtra por nombre, por codigo y sin acentos', async ({ page })
   await buscador.fill('xyzzy');
   await expect(page.getByText('Ninguna receta coincide')).toBeVisible();
   await page.getByRole('button', { name: 'Borrar búsqueda' }).click();
-  await expect(contador).toHaveText('121 recetas');
+  await expect(contador).toHaveText(`${TOTAL_RECETAS} recetas`);
 });
 
 test('abrir una receta del final no manda el listado al principio', async ({ page }) => {

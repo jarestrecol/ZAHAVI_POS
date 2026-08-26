@@ -17,6 +17,10 @@ import { validatePayload } from '../api/_schema.js';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const real = JSON.parse(readFileSync(join(root, 'data/recipes.json'), 'utf8'));
 
+// Se cuenta del archivo real, no a mano: lo que se comprueba es que el
+// validador no PIERDA ninguna, sea cual sea el numero de recetas publicadas.
+const TOTAL = real.recipes.length;
+
 let fallos = 0;
 function comprobar(titulo, condicion, detalle = '') {
   console.log(`  ${condicion ? 'OK  ' : 'FALLA'} ${titulo}${detalle ? ' -> ' + detalle : ''}`);
@@ -35,9 +39,9 @@ const buena = {
 console.log('\n1. El recetario real pasa sin alterarse');
 {
   const r = validatePayload(real.recipes, real.ingredientes);
-  comprobar('acepta las 121 recetas', r.ok, r.ok ? '' : r.error);
+  comprobar(`acepta las ${TOTAL} recetas`, r.ok, r.ok ? '' : r.error);
   if (r.ok) {
-    comprobar('conserva el numero de recetas', r.value.recipes.length === 121, String(r.value.recipes.length));
+    comprobar('conserva el numero de recetas', r.value.recipes.length === TOTAL, String(r.value.recipes.length));
     comprobar('conserva los ingredientes', r.value.ingredientes.length === 159, String(r.value.ingredientes.length));
     const origen = JSON.stringify(real.recipes);
     const salida = JSON.stringify(r.value.recipes);

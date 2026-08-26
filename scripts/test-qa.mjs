@@ -252,7 +252,15 @@ comprobar(
 );
 
 const conCategoria = busqueda.filterRecipes(todas, { query: '', category: 'GALLETAS' });
-comprobar('el filtro de categoria sigue funcionando', conCategoria.length === 21, String(conCategoria.length));
+// Contra el recuento CRUDO del archivo, no contra un numero escrito aqui: lo
+// que se comprueba es que el filtro devuelva exactamente las de esa categoria,
+// y eso sigue siendo cierto el dia que la panaderia publique una galleta mas.
+const galletasReales = publicado.recipes.filter((r) => r.categoria === 'GALLETAS').length;
+comprobar(
+  'el filtro de categoria sigue funcionando',
+  conCategoria.length === galletasReales,
+  `${conCategoria.length} de ${galletasReales}`,
+);
 comprobar('y todas son de esa categoria', conCategoria.every((r) => r.categoria === 'GALLETAS'));
 
 /* ---------------------------------------------------------------------------
@@ -327,14 +335,27 @@ if (conCm) {
 comprobar('lee el rendimiento del nombre', escala.rendimientoBase('TORTA DE BANANO X 2 UND') === 2);
 comprobar('sin rendimiento declarado devuelve null', escala.rendimientoBase('PAN SIN CANTIDAD') === null);
 
-// Cuantas recetas admiten pedir "quiero N unidades". Las demas solo pueden
-// usar el multiplicador, que funciona para las 121 sin excepcion. Se fija el
-// numero para enterarnos si un cambio en la lectura del nombre lo mueve.
-const conRinde = repo.findAll().filter((r) => escala.rendimientoBase(r.nombre) !== null).length;
+// Cuantas recetas admiten pedir "quiero N unidades". Las demas solo pueden usar
+// el multiplicador, que funciona para todas sin excepcion.
+//
+// AQUI HABIA UN 87 ESCRITO A MANO, y se rompio en cuanto la panaderia publico la
+// receta 122 desde el obrador: la cifra subio a 88 y la verificacion se puso
+// roja sin que nada estuviera mal. El numero absoluto mezclaba dos causas -que
+// cambie la lectura del nombre y que entre una receta nueva- y solo la primera
+// es un fallo.
+//
+// Lo que se fija ahora es la PROPIEDAD, que no depende de cuantas haya: un
+// rendimiento legible es siempre un entero positivo. Y la red de verdad para un
+// cambio en el analisis del nombre esta mas abajo, donde se exige que las dos
+// funciones que lo leen coincidan en TODAS las recetas.
+const conRinde = repo.findAll().filter((r) => escala.rendimientoBase(r.nombre) !== null);
 comprobar(
-  '87 recetas admiten pedir una cantidad concreta',
-  conRinde === 87,
-  `${conRinde} de ${RECETAS_ORIGINALES}`,
+  'el rendimiento legible es siempre un entero positivo',
+  conRinde.every((r) => {
+    const rinde = escala.rendimientoBase(r.nombre);
+    return Number.isInteger(rinde) && rinde > 0;
+  }),
+  `${conRinde.length} de ${RECETAS_ORIGINALES} admiten pedir una cantidad concreta`,
 );
 comprobar(
   'y el multiplicador funciona para las 121',
@@ -351,21 +372,82 @@ comprobar(
 
 console.log('\n5e. Catalogo de ingredientes');
 const ings = await import(pathToFileURL(repoRoot + '/src/core/ingredients.js').href);
+const formato = await import(pathToFileURL(repoRoot + '/src/lib/format.js').href);
 const catalogo = ings.catalogoIngredientes(repo.findAll());
 const resumenIng = ings.resumenCatalogo(catalogo);
 
-comprobar('159 ingredientes distintos', resumenIng.distintos === 159, String(resumenIng.distintos));
-comprobar('cubre las 1282 lineas', resumenIng.lineas === 1282, String(resumenIng.lineas));
-comprobar('64 se usan en una sola receta', resumenIng.enUnaSolaReceta === 64, String(resumenIng.enUnaSolaReceta));
+/*
+ * LAS CIFRAS SE CUENTAN DEL ARCHIVO, NO SE ESCRIBEN AQUI.
+ *
+ * Estaban a mano -159, 1282, 64, 86, 15- y se cayeron todas juntas en cuanto la
+ * panaderia publico la receta 122 desde el obrador. La verificacion se puso roja
+ * y no habia nada roto: solo habia una receta mas. Es el mismo defecto que ya
+ * documenta CLAUDE.md para dos bloques de `verificar.mjs`, que decian 9 y 28
+ * cuando eran 29 y 37.
+ *
+ * Contarlas aparte NO las convierte en una tautologia. Lo que se comprueba es la
+ * AGRUPACION, que es el trabajo del modulo: que no pierda lineas, que junte cada
+ * producto una sola vez y que reparta bien las unidades. La unica pieza que se
+ * comparte es `normalize`, porque agrupar "AZUCAR" y la misma palabra con tilde
+ * por separado seria comparar dos cosas distintas.
+ */
+const claveIngrediente = (nombre) => formato.normalize(String(nombre).trim()).replace(/\s+/g, ' ');
+
+const porIngredienteCrudo = new Map();
+for (const receta of publicado.recipes) {
+  for (const componente of receta.componentes || []) {
+    for (const item of componente.items || []) {
+      const nombre = String(item.ingrediente || '').trim();
+      if (!nombre) continue;
+
+      const clave = claveIngrediente(nombre);
+      if (!porIngredienteCrudo.has(clave)) {
+        porIngredienteCrudo.set(clave, { lineas: 0, recetas: new Set(), unidades: new Set() });
+      }
+
+      const entrada = porIngredienteCrudo.get(clave);
+      entrada.lineas += 1;
+      entrada.recetas.add(receta.id);
+      entrada.unidades.add(String(item.unidad || '').trim().toUpperCase() || '—');
+    }
+  }
+}
+
+const crudos = [...porIngredienteCrudo.values()];
+const lineasReales = crudos.reduce((n, e) => n + e.lineas, 0);
+const distintosReales = porIngredienteCrudo.size;
+const enUnaSolaRecetaReales = crudos.filter((e) => e.recetas.size === 1).length;
+const conVariasUnidadesReales = crudos.filter((e) => e.unidades.size > 1).length;
+
+comprobar(
+  `${distintosReales} ingredientes distintos`,
+  resumenIng.distintos === distintosReales,
+  String(resumenIng.distintos),
+);
+comprobar(
+  `cubre las ${lineasReales} lineas`,
+  resumenIng.lineas === lineasReales,
+  String(resumenIng.lineas),
+);
+comprobar(
+  `${enUnaSolaRecetaReales} se usan en una sola receta`,
+  resumenIng.enUnaSolaReceta === enUnaSolaRecetaReales,
+  String(resumenIng.enUnaSolaReceta),
+);
 comprobar(
   'ninguno se pierde por el camino',
-  catalogo.reduce((n, i) => n + i.lineas, 0) === 1282,
+  catalogo.reduce((n, i) => n + i.lineas, 0) === lineasReales,
 );
 
 // El mas usado del recetario.
 const harinaCat = catalogo.find((i) => /HARINA DE TRIGO/i.test(i.nombre));
 comprobar('encuentra la harina de trigo', Boolean(harinaCat));
-comprobar('la sitúa en 86 recetas', harinaCat && harinaCat.recetas === 86, harinaCat ? String(harinaCat.recetas) : '');
+const harinaReal = porIngredienteCrudo.get(claveIngrediente('HARINA DE TRIGO'));
+comprobar(
+  `la sitúa en ${harinaReal ? harinaReal.recetas.size : 0} recetas`,
+  harinaCat && harinaReal && harinaCat.recetas === harinaReal.recetas.size,
+  harinaCat ? String(harinaCat.recetas) : '',
+);
 comprobar(
   'sale de primera al ordenar por uso',
   ings.ordenarPorUso(catalogo)[0].nombre === harinaCat.nombre,
@@ -379,7 +461,11 @@ comprobar(
 );
 const lecheCat = catalogo.find((i) => i.nombre.toUpperCase() === 'LECHE');
 comprobar('la leche aparece con tres unidades', lecheCat && lecheCat.totales.length === 3, lecheCat ? lecheCat.totales.map((t) => t.unidad).join('/') : '');
-comprobar('15 ingredientes con varias unidades', resumenIng.conVariasUnidades === 15, String(resumenIng.conVariasUnidades));
+comprobar(
+  `${conVariasUnidadesReales} ingredientes con varias unidades`,
+  resumenIng.conVariasUnidades === conVariasUnidadesReales,
+  String(resumenIng.conVariasUnidades),
+);
 
 // Comprobacion aritmetica contra los datos crudos.
 const harinaEnGr = repo
@@ -643,7 +729,6 @@ comprobar('y normalizarFactor recorta hasta ellos', escalador.normalizarFactor(5
  * ------------------------------------------------------------------------ */
 
 console.log('\n5g. Rendimiento en el editor');
-const formato = await import(pathToFileURL(repoRoot + '/src/lib/format.js').href);
 
 /** Reproduce lo que hace el editor entre abrir y guardar sin tocar nada. */
 function abrirYGuardarSinTocar(nombre) {
