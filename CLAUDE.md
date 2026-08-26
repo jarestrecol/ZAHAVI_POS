@@ -547,8 +547,8 @@ Capa de datos... ok (29 comprobaciones)
 Publicacion y conflictos... ok (22 comprobaciones)
 Validacion del servidor... ok (37 comprobaciones)
 Alta y baja masiva... ok (194 comprobaciones)
-Version del proyecto... ok (v1.5.5)
-Integridad de las recetas... ok (122 recetas, 188 componentes, 1285 items, 226 KB, sha a488c070)
+Version del proyecto... ok (v1.5.6)
+Integridad de las recetas... ok (121 recetas, 187 componentes, 1282 items, 225 KB, sha f0307204)
 Cifras de CLAUDE.md... ok (9 cifras cuadran con la realidad)
 ```
 
@@ -1024,6 +1024,58 @@ Nace del logotipo real: naranja `#F68A1E`, dorado `#FCE00C`, blanco `#FCFCFC`.
 | **Lora** | Marca y títulos de receta | Carácter editorial al nombre del producto |
 | **IBM Plex Mono** | Cifras | Tabular: las cantidades se alinean siempre en columna |
 
+### Iconos y pantalla de arranque
+
+Hay **dos trabajos distintos** y por eso hay dos imágenes distintas, aunque las
+dos midan 512.
+
+| Archivo | Dónde se usa | Qué lleva |
+|---|---|---|
+| `icon-maskable-512.png` | Pantalla de inicio de Android | El monograma: cuadro naranja, Z blanca |
+| `icon-192.png` · `apple-touch-icon.png` | Pantalla de inicio en tamaños pequeños, y iOS | El monograma |
+| `icon-512.png` | **Pantalla de arranque de Android** | El logotipo completo sobre el naranja de marca |
+| `favicon.svg` | Pestaña del navegador | El monograma |
+
+**Por qué el logotipo NO va en el icono de la pantalla de inicio.** Es un
+imagotipo horizontal, proporción 3,3 a 1, con la línea "PANADERÍA · REPOSTERÍA ·
+CAFÉ" debajo. A los 48 px de una pantalla de inicio esa línea es una mancha, y
+Android recorta el icono a círculo, así que le cortaría la Z y la I. El monograma
+existe justamente para ese tamaño.
+
+**Cómo se consigue que sea el logotipo el que se amplía al abrir.** Android usa el
+icono `maskable` para la pantalla de inicio y el normal para la de arranque, así
+que se reparten el trabajo: el monograma va como `maskable` y el logotipo como
+`any`. **Es la mejor palanca disponible, no una garantía**: la especificación no
+tiene un propósito "solo para el arranque" y la selección de Chrome es
+heurística. Se comprueba en un teléfono real en dos minutos.
+
+**Por qué el SVG salió del manifiesto.** Estaba declarado con `sizes: "any"`, que
+lo hace candidato a cualquier tamaño, incluido el del arranque, y eso volvía el
+resultado impredecible. Sigue siendo el icono de la pestaña por el
+`<link rel="icon">` de `index.html`, que no depende del manifiesto.
+
+**El logotipo original mide 254 × 78**, así que en `icon-512.png` va ampliado 1,57
+veces con Lanczos. Aguanta porque es texto blanco de alto contraste sobre plano, y
+porque en el teléfono se dibuja a un tamaño parecido o menor. **El día que
+aparezca el logotipo en vectorial hay que rehacer ese archivo**: es un solo
+comando y queda perfecto.
+
+```bash
+ffmpeg -f lavfi -i "color=c=0xF58B21:s=512x512" -i assets/logo-zahavi.png \
+  -filter_complex "[1]scale=400:-1:flags=lanczos[l];[0][l]overlay=(W-w)/2:(H-h)/2" \
+  -frames:v 1 -y assets/icon-512.png
+```
+
+El naranja `#F58B21` es el del propio archivo del logotipo, muestreado, y no el
+token `--brand`: se elige así para que el rectángulo que el logotipo trae
+incrustado se funda con el lienzo en vez de verse como una calcomanía pegada.
+
+**iOS no usa nada de esto.** Safari ignora el manifiesto para el arranque. Tener
+pantalla propia ahí exige `apple-touch-startup-image` con una imagen por
+resolución de dispositivo, entre quince y veinte archivos, todos al precache. Se
+decidió no hacerlo: esa pantalla dura menos de un segundo, porque no hay
+compilación y el service worker sirve todo desde el aparato.
+
 ### Accesibilidad
 
 Objetivo **WCAG 2.2 AA**, con AAA en el texto de lectura porque se lee de pie, a
@@ -1111,14 +1163,14 @@ cifra: **no abras `data/recipes.json`**.
 
 | Dato | Valor |
 |---|---|
-| Recetas | 122 (Pastelería 66, Panadería 34, Galletas 22) |
-| Componentes / líneas de ingrediente | 188 / 1.285 |
+| Recetas | 121 (Pastelería 66, Panadería 34, Galletas 21) |
+| Componentes / líneas de ingrediente | 187 / 1.282 |
 | Catálogo de ingredientes | 159 |
-| `data/recipes.json` | 226 KB (231.280 bytes), `version: 2` |
-| `sha` de integridad | `a488c070` |
+| `data/recipes.json` | 225 KB (230.598 bytes), `version: 2` |
+| `sha` de integridad | `f0307204` |
 | Techo real | 1 MB (API de contenidos de GitHub). Umbral de acción: 700 KB, y la verificación falla ahí |
-| Versión | 1.5.5 (Fase 1). El primer número es la fase de la hoja de ruta |
-| `CACHE_VERSION` de `sw.js` | `zahavi-v42` |
+| Versión | 1.5.6 (Fase 1). El primer número es la fase de la hoja de ruta |
+| `CACHE_VERSION` de `sw.js` | `zahavi-v43` |
 | Node en el servidor | 24.x |
 | Módulos en `src/` | 43 |
 | Bloques de `verificar` / pruebas de `qa` | 14 / 79 |
