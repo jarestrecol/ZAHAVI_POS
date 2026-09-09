@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-08-26 06:41:41",
+  "revision": "2026-09-09 15:22:52",
   "recipes": [
     {
       "id": "R001",
@@ -1716,7 +1716,7 @@
     },
     {
       "id": "R030",
-      "nombre": "DEVILIS FOOD CAKE X 1 UND",
+      "nombre": "DEVIL’S FOOD CAKE X 1 UND",
       "categoria": "PASTELERÍA",
       "metodo": "",
       "componentes": [
