@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "revision": "2026-09-09 15:22:52",
+  "revision": "2026-09-09 15:57:39",
   "recipes": [
     {
       "id": "R001",
@@ -8309,6 +8309,74 @@
             {
               "ingrediente": "AGUA ( CALIENTE )",
               "cantidad": "200",
+              "unidad": "GR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R122",
+      "nombre": "Cranberries muffins X 12 UND",
+      "categoria": "PASTELERÍA",
+      "metodo": "",
+      "componentes": [
+        {
+          "nombre": "PRINCIPAL",
+          "items": [
+            {
+              "ingrediente": "HARINA DE TRIGO",
+              "cantidad": "240",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "POLVO DE HORNEAR",
+              "cantidad": "8",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "SAL",
+              "cantidad": "1",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "AZÚCAR",
+              "cantidad": "200",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "RALLADURA DE NARANJA",
+              "cantidad": "5",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "ACEITE VEGETAL",
+              "cantidad": "120",
+              "unidad": "ML"
+            },
+            {
+              "ingrediente": "LECHE",
+              "cantidad": "120",
+              "unidad": "ML"
+            },
+            {
+              "ingrediente": "HUEVOS",
+              "cantidad": "2",
+              "unidad": "UND"
+            },
+            {
+              "ingrediente": "NARANJA EN JUGO",
+              "cantidad": "60",
+              "unidad": "ML"
+            },
+            {
+              "ingrediente": "VAINILLA",
+              "cantidad": "4",
+              "unidad": "GR"
+            },
+            {
+              "ingrediente": "CRAMBERRIES",
+              "cantidad": "160",
               "unidad": "GR"
             }
           ]
