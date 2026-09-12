@@ -17,7 +17,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, CLAVE, TOTAL_RECETAS } from './apoyo.js';
+import { entrar, abrirAjustes, CLAVE, TOTAL_RECETAS } from './apoyo.js';
 
 /* ===========================================================================
  *  1. LA DIRECCION NO EXISTE
@@ -32,7 +32,7 @@ test.describe('Página no encontrada', () => {
     expect(respuesta.status()).toBe(404);
 
     await expect(page.locator('.fallo__title')).toHaveText('Esta dirección no existe');
-    await expect(page.locator('.fallo__brand')).toContainText('Zahavi');
+    await expect(page.locator('.fallo__brand')).toContainText('ZAHAVI POS');
     await expect(page.locator('.fallo__code')).toContainText('404');
   });
 
@@ -124,7 +124,10 @@ test.describe('Receta inexistente', () => {
     await page.getByRole('button', { name: 'Volver al listado' }).click();
 
     await expect(page.locator('.welcome__stats')).toBeVisible();
-    expect(await page.evaluate(() => window.location.hash)).toBe('#/');
+    // `#/recetario` y no `#/`: la raiz es el menu de modulos desde que el
+    // sistema dejo de ser solo el recetario. Volver al listado es volver al
+    // modulo, no salirse de el.
+    expect(await page.evaluate(() => window.location.hash)).toBe('#/recetario');
   });
 });
 
@@ -148,7 +151,7 @@ test.describe('Sin recetario compartido', () => {
 
   test('Ajustes lo explica en una línea', async ({ page }) => {
     await entrar(page);
-    await page.getByRole('button', { name: 'Ajustes' }).click();
+    await abrirAjustes(page);
 
     const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
     // "Sitio" se cambio por "No configurado": en una panaderia un sitio es una
@@ -173,7 +176,7 @@ test.describe('Sin recetario compartido', () => {
     );
 
     await entrar(page);
-    await page.getByRole('button', { name: 'Ajustes' }).click();
+    await abrirAjustes(page);
 
     const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
     await expect(fila.locator('.diag__value')).toHaveText('Responde con error');
@@ -195,7 +198,7 @@ test.describe('Sin recetario compartido', () => {
     );
 
     await entrar(page);
-    await page.getByRole('button', { name: 'Ajustes' }).click();
+    await abrirAjustes(page);
 
     const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
     await expect(fila.locator('.diag__value')).toHaveText('Responde con error');

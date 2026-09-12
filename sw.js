@@ -13,7 +13,7 @@
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v44';
+const CACHE_VERSION = 'zahavi-v47';
 const DATA_URL = 'data/recipes.json';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
@@ -33,10 +33,13 @@ const SHELL = [
   './assets/css/layout.css',
   './assets/css/sheet.css',
   './assets/css/views.css',
+  './assets/css/inicio.css',
+  './assets/css/pantalla.css',
   './assets/css/dialogs.css',
   './assets/css/print.css',
   './assets/css/fallback.css',
   './assets/css/responsive.css',
+  './assets/css/almacen.css',
   './assets/fonts/plus-jakarta-sans-400.woff2',
   './assets/fonts/lora-500i.woff2',
   './assets/fonts/lora-600.woff2',
@@ -46,16 +49,23 @@ const SHELL = [
   './assets/fonts/ibm-plex-mono-700.woff2',
   './src/main.js',
   './src/dialogs.js',
+  './src/pantallas.js',
   './src/memoria-pantalla.js',
   './src/shortcuts.js',
   './src/salvavidas.js',
   './src/app/commands.js',
   './src/app/sync.js',
+  './src/app/almacen.js',
   './src/views/portada.js',
+  './src/views/inicio.js',
   './src/lib/dom.js',
   './src/lib/format.js',
   './src/lib/a11y.js',
   './src/lib/paint.js',
+  './src/lib/combobox.js',
+  './src/lib/dictado.js',
+  './src/lib/csv.js',
+  './src/lib/iconos.js',
   './src/core/storage.js',
   './src/core/schema.js',
   './src/core/repository.js',
@@ -69,7 +79,10 @@ const SHELL = [
   './src/core/ingredients.js',
   './src/core/version.js',
   './src/core/preferencias.js',
+  './src/core/almacen.js',
+  './src/core/costeo.js',
   './src/views/window.js',
+  './src/views/pantalla.js',
   './src/views/login.js',
   './src/views/header.js',
   './src/views/sidebar.js',
@@ -87,6 +100,8 @@ const SHELL = [
   './src/views/production.js',
   './src/views/plan.js',
   './src/views/ingredients.js',
+  './src/views/almacen.js',
+  './src/views/costeo.js',
   './data/recipes.json',
 ];
 self.addEventListener('install', (event) => {

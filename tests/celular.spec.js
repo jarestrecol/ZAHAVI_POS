@@ -11,7 +11,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, desbordeHorizontal, RECETA, abrirRecetaDesde, alturaDelListado } from './apoyo.js';
+import {
+  entrar,
+  abrirModulo,
+  desbordeHorizontal,
+  RECETA,
+  abrirRecetaDesde,
+  alturaDelListado,
+} from './apoyo.js';
 
 test.describe('Celular', () => {
   test('las acciones de la receta llegan abajo, al pulgar', async ({ page }) => {
@@ -84,19 +91,32 @@ test.describe('Celular', () => {
     await expect(page.locator('.facts')).toContainText('4 und');
   });
 
-  test('las ventanas suben desde el borde inferior', async ({ page }) => {
+  test('una pantalla de módulo ocupa el teléfono entero, sin dejar bordes', async ({ page }) => {
+    /*
+     * Esta prueba medía una ventana modal subiendo desde el borde inferior. El
+     * plan ya no es una ventana: es una pantalla, y lo que hay que exigirle es
+     * mas, no menos. Tiene que cubrir la pantalla EXACTA -ni menos, que dejaria
+     * ver el recetario por los bordes y haria dudar de donde se esta, ni mas,
+     * que sacaria los botones del pie fuera del alcance del pulgar.
+     */
     await entrar(page);
-    await page.getByRole('button', { name: 'Plan del día', exact: true }).click();
+    await abrirModulo(page, 'plan');
 
-    const hoja = await page.locator('[role=dialog]').evaluate((el) => {
+    const caja = await page.locator('.pantalla').evaluate((el) => {
       const r = el.getBoundingClientRect();
       return {
+        arriba: Math.round(r.top),
         alFondo: Math.round(window.innerHeight - r.bottom),
         ocupaElAncho: r.width >= document.documentElement.clientWidth - 2,
       };
     });
-    expect(hoja.alFondo).toBeLessThanOrEqual(1);
-    expect(hoja.ocupaElAncho).toBe(true);
+    expect(caja.arriba).toBe(0);
+    expect(caja.alFondo).toBeLessThanOrEqual(1);
+    expect(caja.ocupaElAncho).toBe(true);
+
+    // Y el pie con «Imprimir la lista» se ve sin desplazar: es lo que se venia
+    // a hacer, y estaba al final de la lista.
+    await expect(page.getByRole('button', { name: 'Imprimir la lista' })).toBeInViewport();
   });
 });
 

@@ -46,7 +46,7 @@ export function renderPortada() {
         width: LOGO_ANCHO,
         height: LOGO_ALTO,
       }),
-      el('p', { class: 'portada__estado', text: 'Cargando recetario…' }),
+      el('p', { class: 'portada__estado', text: 'Cargando ZAHAVI POS…' }),
     ],
   );
 }

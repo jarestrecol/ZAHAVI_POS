@@ -930,7 +930,10 @@
  * ========================================================================== */
 
 .ings {
-  padding: var(--space-5);
+  /* Mismo `--gutter` que el resto del sistema desde que esto es una pantalla
+     completa y no el cuerpo de una ventana modal: la ventana ya ponia su propio
+     margen a los cuatro lados y aqui no hay ninguno que herede. */
+  padding: var(--space-5) var(--gutter) var(--space-7);
 }
 
 /* Cifras de cabecera: cuantos productos distintos se manejan de verdad. */
@@ -1434,4 +1437,228 @@
   background: var(--surface-sunk);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+}
+
+/* ===========================================================================
+ *  SUGERENCIAS DENTRO DE LA PAGINA (combobox)
+ * ========================================================================
+ *
+ *  Sustituyen al `<datalist>` nativo. El porque completo esta en
+ *  `src/lib/combobox.js`, y en corto: el navegador del telefono pinta las
+ *  sugerencias de un `<datalist>` DENTRO DE LA BARRA DEL TECLADO, cuyo alto lo
+ *  decide el tamano de letra que cada persona tenga configurado en el aparato.
+ *  Con letra grande no caben y no se ven. Esa barra no pertenece a la pagina,
+ *  asi que no habia CSS que pudiera arreglarlo.
+ */
+
+/* La caja de referencia de la lista. `position: relative` y NO `fixed` en la
+   lista: el dialogo lleva `backdrop-filter`, y eso lo convierte en el bloque
+   contenedor de sus descendientes fijos (regla 21). Una lista `fixed` se
+   colocaria contra el dialogo y no contra la pantalla. */
+.combo {
+  position: relative;
+  min-width: 0;
+}
+
+.combo__lista {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 60;
+  /* Ocho filas y a desplazar. Mas que eso deja de ser una ayuda y pasa a ser
+     otra lista que hay que leer. */
+  max-height: calc(var(--tap-min) * 8);
+  overflow-y: auto;
+  /* El rebote de la lista no arrastra al dialogo de detras. */
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--surface-card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Hacia arriba cuando el teclado del telefono ocuparia lo de abajo. */
+.combo__lista--arriba {
+  top: auto;
+  bottom: calc(100% + var(--space-1));
+}
+
+.combo__opcion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  /* El objetivo tactil completo: estas filas se tocan con el pulgar y con las
+     manos ocupadas. */
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.combo__opcion:hover {
+  background: var(--surface-hover);
+}
+
+/*
+ * La fila elegida lleva el UNICO relleno de marca del sistema
+ * (`--brand-strong`, blanco a 5,9:1), que es lo que en esta aplicacion
+ * significa "esta es la elegida": el filtro Todas, la receta abierta y el
+ * tamano de texto activo usan el mismo.
+ *
+ * La marca lateral va con `inset box-shadow` y NUNCA con `border-left`: un
+ * borde forma parte del modelo de caja, ensancharia esta fila y desplazaria su
+ * texto respecto a las demas al moverse con las flechas. Es la regla 14, que ya
+ * se corrigio tres veces por separado antes de escribirse.
+ */
+.combo__opcion.is-active {
+  background: var(--brand-strong);
+  color: #fff;
+  box-shadow: inset 3px 0 0 0 var(--amber);
+}
+
+.combo__nombre {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* El tramo que coincide con lo escrito. Solo peso: cambiarle el color aqui lo
+   dejaria ilegible sobre el relleno de la fila activa. */
+.combo__match {
+  font-weight: 700;
+}
+
+/*
+ * La unidad con la que se mide ese ingrediente.
+ *
+ * No es decoracion: `CLAUDE.md` seccion 13 documenta que 15 ingredientes se
+ * miden hoy de dos o tres formas distintas y que eso es lo que bloquea el
+ * costeo. Verla al elegir ayuda a no crear la cuarta variante sin darse cuenta.
+ * `--ink-4` da 5,7:1 sobre blanco.
+ */
+.combo__unidad {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-4);
+}
+
+.combo__opcion.is-active .combo__unidad {
+  /* Sobre el relleno de marca, la tinta apagada no llegaria al contraste. */
+  color: #fff;
+}
+
+/* Ninguna coincidencia. No se puede elegir, asi que no lleva cursor de mano ni
+   resalte al pasar por encima: es un aviso, no una opcion. */
+.combo__vacio {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--ink-4);
+}
+
+/* ===========================================================================
+ *  DICTADO DEL METODO
+ * ======================================================================== */
+
+.dictado {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.dictado__estado {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-control);
+}
+
+/*
+ * ESCUCHANDO VA EN AMBAR, NO EN ROJO.
+ *
+ * La convencion de otros programas es el punto rojo de grabacion, pero en este
+ * sistema el rojo ya significa una cosa muy concreta y muy distinta: "este
+ * equipo NO puede publicar" (ver la tabla de avisos del manual). Meter aqui un
+ * rojo obligaria al obrador a distinguir dos rojos que no se parecen en nada.
+ * El ambar es lo que este sistema ya usa para "algo esta en curso".
+ *
+ * `--amber-text` da 5,2:1 sobre blanco, y el fondo `--amber-soft` apenas lo
+ * mueve. El estado NO se comunica solo con color: lleva su texto al lado.
+ */
+.dictado__estado--escuchando {
+  color: var(--amber-text);
+  background: var(--amber-soft);
+}
+
+.dictado__estado--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.dictado__punto {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--amber-mark);
+  /* La duracion sale de la variable que `prefers-reduced-motion` ya deja en
+     0ms, asi que con movimiento reducido el punto se queda quieto sin
+     necesidad de una media query propia aqui. */
+  animation: dictado-latido var(--dur-slow) var(--ease) infinite alternate;
+}
+
+@keyframes dictado-latido {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * El tramo que el reconocedor aun no da por bueno.
+ *
+ * Vive FUERA del textarea a proposito: un `<textarea>` no admite formato
+ * dentro, asi que no habria forma de distinguir lo provisional de lo
+ * confirmado, y mezclarlos es exactamente como esta API acaba escribiendo cada
+ * palabra dos veces.
+ */
+.dictado__parcial {
+  margin-top: var(--space-2);
+  padding: 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink-4);
+}
+
+.dictado__confirmar,
+.dictado__deshacer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
 }

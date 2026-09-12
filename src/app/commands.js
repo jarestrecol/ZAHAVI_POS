@@ -116,7 +116,7 @@ export function saveRecipe(recipe) {
   announce('Receta guardada.');
   // El permiso muere con la accion: volver a editar vuelve a pedir la clave.
   setState({ autorizacion: null });
-  navigate({ name: 'detail', id: recipe.id });
+  navigate({ modulo: 'recetario', name: 'detail', id: recipe.id });
   publicarEnSegundoPlano();
   pedirClaveSiEsLoUnicoQueFalta();
 
@@ -154,7 +154,7 @@ export function deleteRecipe(id) {
     'success',
   );
   announce('Receta eliminada.');
-  navigate({ name: 'index', id: null });
+  navigate({ modulo: 'recetario', name: 'index', id: null });
   publicarEnSegundoPlano();
   pedirClaveSiEsLoUnicoQueFalta();
 
@@ -221,7 +221,10 @@ export function discardChanges() {
   setState({ settingsOpen: false });
   notify(`Se descartaron los cambios. Vuelves a la versión publicada (${result.value} recetas).`, 'info');
   announce('Cambios locales descartados.');
-  navigate({ name: 'index', id: null, query: '', category: ALL_CATEGORIES });
+  // Al recetario y no al modulo que estuviera abierto: descartar cambios
+  // recarga las recetas publicadas, asi que lo que hay que enseñar es el
+  // listado que acaba de cambiar.
+  navigate({ modulo: 'recetario', name: 'index', id: null, query: '', category: ALL_CATEGORIES });
 
   return result;
 }
@@ -258,8 +261,6 @@ const SESION_CERRADA = Object.freeze({
   recetario: Object.freeze({
     confirmDelete: null,
     production: null,
-    planOpen: false,
-    ingredientsOpen: false,
     planPrint: null,
     factor: 1,
   }),

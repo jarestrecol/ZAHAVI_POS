@@ -297,7 +297,13 @@ function renderLink(recipe, selectedId, selectedOpen) {
     'a',
     {
       class: 'recipe-link' + (isActive ? ' is-active' : ''),
-      href: buildHash({ ...getRoute(), name: 'detail', id: recipe.id }),
+      // `modulo` se fija a mano y no se hereda de la ruta actual. El listado
+      // se sigue viendo por debajo cuando estan abiertos el plan, el catalogo
+      // o el almacen, y ahi la ruta vigente es la de ESE modulo: heredarla
+      // habria construido `#/plan?r=R010` y pulsar una receta no habria abierto
+      // ninguna receta. El resto de la ruta si se hereda, que es lo que
+      // conserva el filtro y la busqueda.
+      href: buildHash({ ...getRoute(), modulo: 'recetario', name: 'detail', id: recipe.id }),
       attrs: {
         'aria-current': isActive && selectedOpen ? 'true' : null,
         'data-category': recipe.categoria,

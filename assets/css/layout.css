@@ -3,11 +3,62 @@
  * trabajo. La barra oscura enmarca; el trabajo ocurre sobre superficie clara.
  */
 
+/*
+ * EL CONTENEDOR DE LA APLICACION, QUE NO TENIA NI UNA REGLA.
+ *
+ * Ese hueco es el que provocaba los dos defectos que reporto el obrador desde
+ * el telefono, y cuesta verlo porque el culpable no esta en el CSS sino en lo
+ * que `main.js` mete aqui dentro:
+ *
+ *     #app
+ *       |- p.context-badge      "sin conexion" / "cambios sin publicar"
+ *       `- div.app              la maqueta, que media 100dvh ella sola
+ *
+ * Los avisos van FUERA de `.app`, encima. Con `.app` midiendo una pantalla
+ * entera por su cuenta, cada aviso empujaba el total por encima del alto
+ * disponible: medido en un Pixel 5, `#app` acababa en 963px sobre una pantalla
+ * de 851, o sea 112px de sobra, que son exactamente los del aviso.
+ *
+ * De ahi salen los dos sintomas, que parecian cosas distintas y eran el mismo:
+ *
+ *   1. "no se ajusta a la pantalla y toca disminuir su tamano": el documento
+ *      mide mas que la pantalla, asi que el navegador la deja desplazarse y da
+ *      la sensacion de que la aplicacion no cabe.
+ *   2. "scroll infinito de fondo blanco": al desplazar, `.app` sube y debajo
+ *      queda el `body` al descubierto.
+ *
+ * Y no era un caso raro: en el obrador los avisos de sin conexion y de cambios
+ * sin publicar salen a diario. La aplicacion se rompia justo cuando mas se usa.
+ *
+ * El arreglo es estructural y no un parche de altura: la caja de tamano fijo
+ * pasa a ser ESTE contenedor, y dentro se reparte. Los avisos ocupan lo suyo y
+ * `.app` se queda con lo que sobre, que es lo que siempre debio pasar.
+ */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/*
+ * Los avisos conservan su alto natural y no se comprimen: son texto, y
+ * apretarlos los dejaria cortados. Lo que cede es la maqueta.
+ */
+#app > .context-badge {
+  flex: 0 0 auto;
+}
+
 .app {
   display: grid;
   grid-template-rows: auto 1fr;
-  height: 100vh;
-  height: 100dvh;
+  /* La altura ya no se fija aqui: se recibe del contenedor. `min-height: 0` es
+     obligatorio para que un hijo de flex pueda encogerse por debajo de su
+     contenido, que es lo que permite que el listado tenga su propio
+     desplazamiento en vez de estirar la pagina. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
   background: var(--surface);
 }

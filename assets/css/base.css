@@ -18,6 +18,34 @@ body {
      aplicacion que se usa de pie no puede permitirse descubrirlo en el
      obrador. */
   overflow-x: hidden;
+
+  /*
+   * EL REBOTE DEL DOCUMENTO, CORTADO EN LA RAIZ.
+   *
+   * Esto es el "scroll infinito de fondo blanco" que reporto el obrador. El
+   * listado ya declara `overscroll-behavior: contain`, y POR ESO el defecto
+   * sobrevivio tanto: lo que rebotaba no era el listado sino el DOCUMENTO, y
+   * eso solo se corta aqui. Al llegar al final de la lista, el gesto seguia
+   * encadenando a la pagina, despegaba la maqueta y dejaba ver el fondo del
+   * cuerpo durante unos segundos.
+   *
+   * `none` y no `contain` porque ademas apaga el "tirar para recargar" de
+   * Android. En una pantalla que se usa con las manos llenas y a la que se le
+   * da de baja el pulgar constantemente, recargar sin querer es un sobresalto
+   * que no aporta nada: el recetario ya se refresca solo.
+   */
+  overscroll-behavior-y: none;
+
+  /*
+   * iOS infla el texto por su cuenta al girar el telefono ("text autosizing"),
+   * y lo hace sobre bloques concretos y no sobre la pagina entera: el resultado
+   * es una tabla de ingredientes con dos tamanos de letra distintos. Aqui el
+   * tamano ya se ajusta a proposito desde Ajustes, por aparato, asi que no hay
+   * nada que el navegador tenga que adivinar.
+   */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+
   background: var(--surface);
   color: var(--ink);
   /* La interfaz va en sans: es lo que la separa de un libro de cocina y la

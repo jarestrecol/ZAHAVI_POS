@@ -1,0 +1,733 @@
+/*
+ * =============================================================================
+ *  ALMACEN (BODEGA)
+ * =============================================================================
+ *
+ *  La pantalla de lo que hay comprado. Sigue el material del resto del
+ *  proyecto: la linea manda, los fondos se reservan a las cabeceras, y el color
+ *  solo aparece donde significa algo.
+ *
+ *  LAS COLUMNAS SE DECLARAN UNA VEZ (regla 15). El encabezado y las filas
+ *  comparten `--almacen-cols`, asi que no pueden descuadrarse: cambiar el
+ *  reparto en un sitio los cambia en los dos.
+ */
+
+/*
+ * POR QUE LA ULTIMA COLUMNA NO PUEDE SER `auto`, Y ES LA CAUSA DEL DESORDEN
+ * ------------------------------------------------------------------------
+ * La regla 15 dice que el encabezado y las filas comparten la variable de
+ * columnas, y la compartian: `--almacen-cols` acababa en `auto`. La regla
+ * estaba cumplida al pie de la letra y la tabla salia torcida igual.
+ *
+ * El motivo es que `.almacen__head` y `.almacen__fila` son rejillas DISTINTAS,
+ * y `auto` se resuelve dentro de cada una con lo que esa rejilla tenga dentro.
+ * En el encabezado la ultima celda es un `<span>` vacio, o sea 0 px; en la fila
+ * son «Editar» y la equis, o sea unos 100. Esos 100 px de diferencia salen del
+ * reparto de los `fr`, asi que TODAS las columnas del encabezado quedaban mas
+ * anchas que las de las filas y ningun rotulo caia sobre su dato. Cuanto mas a
+ * la derecha, mas se notaba.
+ *
+ * Con una medida fija no hay nada que resolver: las dos rejillas dan el mismo
+ * resultado porque ya no dependen de su contenido.
+ */
+.almacen {
+  /* Lo que miden «Editar» y la equis juntas, con su hueco. */
+  --almacen-acciones: 8.5rem;
+  /* ingrediente | presentacion | compra | costo/und | existencia | vence | acciones */
+  --almacen-cols: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr)
+    minmax(0, 1fr) minmax(0, 1.1fr) var(--almacen-acciones);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* El relleno lo pone la pantalla del modulo, no la carcasa: `.pantalla__cuerpo`
+     va a sangre para que el plan pueda repartir sus dos mitades de borde a
+     borde. Aqui si hace falta, y sale del mismo `--gutter` que el resto. */
+  padding: var(--space-5) var(--gutter) var(--space-7);
+}
+
+/* ---- Resumen de cabecera ---- */
+
+.almacen__resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.almacen__dato {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.almacen__dato-cifra {
+  font-family: var(--font-num);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.almacen__dato-rotulo {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* ---- Barra de herramientas ---- */
+
+.almacen__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.almacen__barra .field {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.almacen__orden {
+  display: flex;
+  /* El grupo redondea a sus hijos, asi que recorta. Por eso los botones de
+     dentro llevan el foco hacia adentro (ver base.css). */
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+}
+
+.almacen__orden-btn {
+  min-height: var(--tap-min);
+  padding: 0 var(--space-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--surface-card);
+  border: none;
+  border-left: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.almacen__orden-btn:first-child {
+  border-left: none;
+}
+
+.almacen__orden-btn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.almacen__orden-btn[aria-pressed='true'] {
+  color: #fff;
+  background: var(--brand-strong); /* blanco a 5,9:1 */
+}
+
+.almacen__orden-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.almacen__contador {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* ---- La tabla ---- */
+
+.almacen__tabla {
+  display: flex;
+  flex-direction: column;
+}
+
+.almacen__head {
+  display: grid;
+  grid-template-columns: var(--almacen-cols);
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+/*
+ * El rotulo de una columna de cifras se alinea como las cifras: a la derecha.
+ *
+ * Antes esto se conseguia poniendole al `<span>` del encabezado la clase
+ * `almacen__num`, que ademas trae la tipografia monoespaciada y un tamaño mayor
+ * que el del encabezado. El resultado eran seis rotulos de dos tipografias y
+ * dos tamaños en la misma linea, que es media parte del «desorden»: la otra
+ * media era el descuadre de las columnas. Esta clase alinea y no toca nada mas.
+ */
+.almacen__head-num {
+  text-align: right;
+}
+
+.almacen__fila {
+  display: grid;
+  grid-template-columns: var(--almacen-cols);
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--tap-row);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line-cell);
+}
+
+.almacen__fila:hover {
+  background: var(--surface-hover);
+}
+
+.almacen__ing {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.almacen__nombre {
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* La marca y el codigo de lote: lo que identifica el saco en la estanteria. */
+.almacen__marca {
+  font-size: var(--text-2xs);
+  color: var(--ink-4); /* 5,7:1 sobre blanco */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.almacen__celda {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * El rótulo de cada dato: sobra mientras haya encabezado, hace falta en cuanto
+ * no lo hay. Se esconde con `display: none` y no con una clase de solo lectura
+ * porque en pantalla ancha el encabezado ya lo dice, y repetirlo en cada fila
+ * sería leer «compra» dieciséis veces seguidas.
+ */
+.almacen__rotulo {
+  display: none;
+}
+
+.almacen__num {
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/*
+ * EL COSTO POR UNIDAD LLEVA SU UNIDAD ESCRITA, Y NO ES UN ADORNO.
+ *
+ * La columna decia «valor / und» y la celda un numero suelto. La pregunta que
+ * eso provoca -«¿valor de que unidad?»- la hizo la panaderia, que es la señal
+ * de que la etiqueta no servia. Ahora la celda contesta sola: `$4,8` arriba y
+ * `por 1 GR` debajo, con la unidad de ESE lote, que es la del bulto comprado.
+ *
+ * Va apilada y no en una linea porque la unidad cambia de fila a fila (GR, ML,
+ * UND) y escrita detras del numero desalinearia la columna entera, que es
+ * tabular a proposito: en una lista de precios, comparar de un vistazo depende
+ * de que las cifras caigan a plomo.
+ */
+.almacen__unitario {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.almacen__unitario-und {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-4); /* 5,7:1 sobre blanco */
+}
+
+.almacen__vence {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+}
+
+/*
+ * El estado NUNCA se comunica solo con color: lleva su texto dentro, porque
+ * esta pantalla se lee en una tableta a contraluz en el obrador y porque el
+ * color no llega a todo el mundo.
+ */
+.almacen__estado {
+  align-self: flex-start;
+  padding: 1px var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-sm);
+}
+
+.almacen__estado--vencido {
+  color: var(--stock-vencido);
+  background: var(--stock-vencido-soft);
+}
+
+.almacen__estado--proximo {
+  color: var(--stock-proximo);
+  background: var(--stock-proximo-soft);
+}
+
+.almacen__estado--ok {
+  color: var(--stock-ok);
+  background: var(--stock-ok-soft);
+}
+
+.almacen__estado--sinfecha {
+  color: var(--ink-4);
+  background: var(--surface-sunk);
+}
+
+.almacen__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+/* ---- Vacio y sin resultados ---- */
+
+.almacen__vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  text-align: left;
+  background: var(--surface-sunk);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+
+.almacen__vacio-nota {
+  max-width: 44ch;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.almacen__sin-resultados {
+  padding: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+}
+
+/* ---- Alta y edicion ---- */
+
+.almacen__form-host:empty {
+  display: none;
+}
+
+.almacen__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+}
+
+.almacen__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.almacen__campo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.almacen__form-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* La confirmacion de baja aparece donde estaba la fila, no en otra ventana
+   encima: el almacen ya es una ventana modal. */
+.almacen__confirmar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+}
+
+/* ===========================================================================
+ *  EN PANTALLA ESTRECHA, LA TABLA DEJA DE SER UNA TABLA
+ * ========================================================================
+ *
+ *  Siete columnas no caben en un telefono, y apretarlas dejaria cada cifra en
+ *  dos caracteres. Cada lote pasa a ser una tarjeta con sus datos rotulados,
+ *  que es como se lee un inventario con el aparato en la mano.
+ */
+@media (max-width: 61.9375rem) {
+  .almacen__head {
+    /* Sin rejilla no hay encabezado que valga: cada dato lleva su rotulo. */
+    display: none;
+  }
+
+  .almacen__fila {
+    /* Aqui SI vale `auto`: no hay encabezado con el que cuadrar, cada fila es
+       una tarjeta suelta y las acciones ocupan lo que midan. */
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-2);
+  }
+
+  .almacen__ing {
+    grid-column: 1;
+  }
+
+  .almacen__acciones {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /*
+   * En tarjeta cada dato es un renglón de dos mitades: el rótulo a la
+   * izquierda y el valor a la derecha, como una ficha técnica. Sin el rótulo
+   * eran tres cifras en la misma unidad, una debajo de otra, y no habia forma
+   * de saber cual era lo que trae el bulto y cual lo que queda.
+   */
+  .almacen__celda,
+  .almacen__num,
+  .almacen__vence {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    text-align: right;
+  }
+
+  .almacen__rotulo {
+    display: block;
+    flex: 0 0 auto;
+    font-family: var(--font-ui);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-4); /* 5,7:1 sobre blanco */
+  }
+
+  /* En tarjeta la cifra y su unidad caben en una linea, y apiladas dejarian la
+     tarjeta de un lote con siete renglones. La cifra empuja: asi el rotulo se
+     queda pegado a la izquierda y el valor completo al otro extremo, como en
+     los demas renglones de la tarjeta. */
+  .almacen__unitario {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-1);
+  }
+
+  .almacen__unitario > :nth-child(2) {
+    margin-left: auto;
+  }
+
+  /* El vencimiento lleva fecha y estado: la fila vuelve a ser horizontal -en
+     tabla es una columna- y las dos piezas del valor se agrupan al final. */
+  .almacen__vence {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .almacen__vence > :nth-child(2) {
+    margin-left: auto;
+  }
+
+  .almacen__campos {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===========================================================================
+ *  COSTO DE LA PRODUCCION (dentro del plan del dia)
+ * ========================================================================
+ *
+ *  Las columnas se declaran UNA VEZ y las comparten el encabezado y las filas
+ *  (regla 15): cambiar el reparto en un sitio lo cambia en los dos.
+ */
+
+.costeo {
+  /* ingrediente | necesita | en bodega | falta | precio/und | costo | estado */
+  --costeo-cols: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr)
+    minmax(0, 1fr) minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-strong);
+}
+
+.costeo__vacio {
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-3);
+  background: var(--surface-sunk);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+
+.costeo__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.costeo__total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* La cifra que se viene a buscar: es la mas grande de la pantalla. */
+.costeo__total-cifra {
+  font-family: var(--font-num);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.costeo__total-rotulo {
+  max-width: 34ch;
+  font-size: var(--text-xs);
+  color: var(--ink-4); /* 5,7:1 sobre --surface-sunk */
+}
+
+.costeo__datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+
+.costeo__dato {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.costeo__dato-cifra {
+  font-family: var(--font-num);
+  font-size: var(--text-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.costeo__dato-rotulo {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/*
+ * Los avisos que permiten LEER BIEN la cifra: lotes vencidos que no se cuentan,
+ * y lineas sin precio por no coincidir la unidad. Sin ellos el total parece
+ * mentir, y un total del que se desconfia no sirve para nada.
+ */
+.costeo__aviso {
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--stock-bajo);
+  background: var(--stock-bajo-soft);
+  border-radius: var(--radius-sm);
+}
+
+.costeo__head {
+  display: grid;
+  grid-template-columns: var(--costeo-cols);
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-1);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.costeo__lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.costeo__linea {
+  display: grid;
+  grid-template-columns: var(--costeo-cols);
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--tap-row);
+  padding: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line-cell);
+}
+
+.costeo__ing {
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.costeo__num {
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.costeo__costo {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.costeo__estado {
+  padding: 1px var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+}
+
+.costeo__estado--ok {
+  color: var(--stock-ok);
+  background: var(--stock-ok-soft);
+}
+
+.costeo__estado--parcial {
+  color: var(--stock-bajo);
+  background: var(--stock-bajo-soft);
+}
+
+/* "Sin precio" NO es un error: es que ese ingrediente no esta en el almacen con
+   esa unidad. Va en neutro a proposito, para no leerse como una alarma. */
+.costeo__estado--sinprecio {
+  color: var(--ink-4);
+  background: var(--surface-sunk);
+}
+
+.costeo__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.costeo__nota {
+  flex: 1 1 18rem;
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+}
+
+.costeo__confirmar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--amber-soft);
+  border: 1px solid var(--amber-mark);
+  border-radius: var(--radius);
+}
+
+.costeo__hecho {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--stock-ok);
+  background: var(--stock-ok-soft);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 61.9375rem) {
+  .costeo__head {
+    display: none;
+  }
+
+  .costeo__linea {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .costeo__ing {
+    grid-column: 1;
+  }
+
+  .costeo__estado {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .costeo__num {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+}

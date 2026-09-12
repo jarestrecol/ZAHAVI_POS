@@ -214,3 +214,59 @@ function groupByCategory(recipes) {
   if (rest.length) groups.push({ category: 'OTRAS', items: rest });
   return groups;
 }
+
+/**
+ * Hoja del catalogo de ingredientes.
+ *
+ * Existe porque la lista se usa FUERA de la pantalla: para ir al proveedor, para
+ * repartir el trabajo de reunir precios y para revisar a mano los ingredientes
+ * que se miden de dos formas distintas.
+ *
+ * Cada ingrediente lleva sus totales POR UNIDAD, nunca sumados entre si: es la
+ * misma regla que en pantalla y en el plan, y en papel importa mas todavia
+ * porque nadie va a poder preguntar.
+ *
+ * @param {Array<object>} catalogo
+ * @returns {HTMLElement}
+ */
+export function renderIngredientsSheet(catalogo) {
+  const fecha = new Date().toLocaleDateString('es', { day: '2-digit', month: 'long', year: 'numeric' });
+  const lista = catalogo || [];
+  const conVarias = lista.filter((i) => i.totales.length > 1).length;
+
+  return el('div', { class: 'sheet' }, [
+    el('header', { class: 'sheet__head' }, [
+      el('div', { class: 'sheet__meta' }, [
+        el('span', { text: 'Zahavi \u00b7 Ingredientes' }),
+        el('span', { text: fecha }),
+      ]),
+      el('h1', { class: 'sheet__title', text: 'Cat\u00e1logo de ingredientes' }),
+      el('p', {
+        class: 'sheet__yield',
+        text: `${lista.length} ingredientes distintos`,
+      }),
+    ]),
+    el('hr', { class: 'sheet__rule' }),
+
+    el('section', { class: 'sheet__component' }, [
+      el('h2', { class: 'sheet__section', text: 'Lo que se usa, y cu\u00e1nto' }),
+      ...lista.map((ingrediente) =>
+        el('div', { class: 'sheet__item' }, [
+          el('span', { class: 'sheet__item-name', text: titleCase(ingrediente.nombre) }),
+          el('span', { class: 'sheet__item-qty' }, [
+            ingrediente.totales.map((t) => `${formatQty(t.total)} ${t.unidad.toLowerCase()}`).join(' / '),
+          ]),
+        ]),
+      ),
+    ]),
+
+    // El aviso viaja con el papel: la hoja se lleva al proveedor y alli ya no
+    // hay nada que lo explique.
+    conVarias > 0
+      ? el('p', {
+          class: 'sheet__empty',
+          text: `${conVarias} ingredientes se miden de m\u00e1s de una forma y aparecen con dos cifras separadas por barra: no se pueden sumar entre s\u00ed.`,
+        })
+      : null,
+  ]);
+}

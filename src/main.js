@@ -36,6 +36,7 @@ import {
   recetaMarcada,
 } from './memoria-pantalla.js';
 import { renderDialogs } from './dialogs.js';
+import { renderPantallas, cerrarPantallas } from './pantallas.js';
 import { handleShortcuts } from './shortcuts.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice, recetario } from './core/store.js';
@@ -51,12 +52,20 @@ import {
   cerrarSesion,
 } from './app/commands.js';
 import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
+import { cargarAlmacen } from './app/almacen.js';
 import { renderLogin } from './views/login.js';
-import { renderHeader, renderBadges } from './views/header.js';
+import { renderBarra, renderBadges } from './views/header.js';
+import { ICON_NUEVA } from './lib/iconos.js';
 import { renderSidebar, SEARCH_ID, restaurarFocoBusqueda } from './views/sidebar.js';
 import { renderDetail, renderPlaceholder, renderNotFound } from './views/detail.js';
 import { renderPortada } from './views/portada.js';
-import { renderRecipeSheet, renderIndexSheet, renderPlanSheet } from './views/print.js';
+import { renderInicio } from './views/inicio.js';
+import {
+  renderRecipeSheet,
+  renderIndexSheet,
+  renderPlanSheet,
+  renderIngredientsSheet,
+} from './views/print.js';
 
 /** Contenedor donde se pinta la aplicacion. */
 const app = document.getElementById('app');
@@ -125,6 +134,15 @@ async function boot() {
   // `hydrate` avisa cuando algo no salio como esperaba: sin conexion, sin
   // recetas, o cambios locales danados que hubo que apartar.
   if (loaded.warning) notify(loaded.warning, 'info');
+
+  // El almacen de este aparato. Va aqui, con el resto de la carga y antes de
+  // `subscribe`, para que el primer pintado ya salga con los lotes puestos y no
+  // haga falta un repintado extra.
+  //
+  // No se publica ni viaja a la otra sede: ver la cabecera de `core/almacen.js`.
+  // Que falle no puede impedir abrir el recetario, y por eso `leerAlmacen` no
+  // devuelve un error sino un aviso.
+  cargarAlmacen();
 
   // Tamano del texto de las recetas, elegido en Ajustes y propio de este
   // aparato. Va ANTES de `subscribe`, asi que no provoca un repintado extra: el
@@ -268,11 +286,34 @@ function render() {
 }
 
 /**
- * Hay tres pantallas posibles:
+ * Los avisos de contexto: sin conexion, sin recetario compartido, o cambios sin
+ * publicar.
+ *
+ * Van en su propia funcion porque se pintan en DOS pantallas, el menu y el
+ * recetario, y son justo los avisos que no pueden depender de en cual se este:
+ * quien entra por la mañana y se queda en el menu tiene que ver igual que no
+ * hay conexion.
+ *
+ * @param {object} state
+ * @returns {Array<HTMLElement>}
+ */
+function avisosDeContexto(state) {
+  return renderBadges({
+    changes: repo.localChanges(),
+    online: state.online,
+    server: repo.serverDiagnosis(),
+    sync: estadoSincronizacion(),
+    onOpenSettings: () => setState({ settingsOpen: true }),
+  });
+}
+
+/**
+ * Hay cuatro pantallas posibles:
  *
  *      cargando   -> esqueleto, mientras se leen las recetas
  *      entrada    -> si nadie ha iniciado sesion en este equipo
- *      recetario  -> lo normal: barra, listado y receta
+ *      menu       -> a donde se entra: los modulos del sistema
+ *      modulo     -> barra, listado y receta, con su ventana si toca
  */
 function paint() {
   const state = getState();
@@ -314,6 +355,9 @@ function paint() {
 
   // --- Pantalla de entrada -----------------------------------------------
   if (!state.authed) {
+    // Si alguien cierra sesion con un modulo abierto, ese modulo no puede
+    // quedarse encima enseñando lo que hay comprado.
+    cerrarPantallas();
     renderDialogs(null);
     app.appendChild(
       renderLogin({
@@ -326,21 +370,63 @@ function paint() {
     return;
   }
 
-  // --- Recetario ---------------------------------------------------------
+  /*
+   * --- Pantallas de modulo ------------------------------------------------
+   *
+   * Produccion, ingredientes y almacen son pantallas COMPLETAS, no ventanas
+   * encima del recetario. Cuelgan del `body` y no de `#app` para que este
+   * repintado no las destruya: llevan por dentro lo que la persona esta
+   * haciendo -la seleccion del plan, el formulario de un lote a medio
+   * rellenar- y sacarlas del documento borraria eso y el foco.
+   *
+   * Se llama SIEMPRE, no solo cuando toca una: es lo que retira la anterior al
+   * salir del modulo.
+   */
+  const pantalla = renderPantallas(state, route, avisosDeContexto(state));
+  if (pantalla) {
+    // Ajustes se puede abrir desde el aviso de «cambios sin publicar», que vive
+    // dentro de la propia pantalla, asi que hay que poder dejarla inerte.
+    renderDialogs(pantalla);
+    // Lo que se imprime desde un modulo se monta despues de salir de el, ya en
+    // el recetario. Aqui no hay nada que imprimir.
+    clear(printRoot);
+    return;
+  }
+
+  // --- El menu de modulos -------------------------------------------------
+  //
+  // Es la pantalla a la que se entra. Va antes que el recetario porque desde
+  // aqui ya no se cae en el listado por defecto: se elige.
+  if (route.modulo === 'inicio') {
+    for (const badge of avisosDeContexto(state)) app.appendChild(badge);
+
+    const menu = renderInicio({
+      recipes: state.recetario.recipes,
+      lotes: state.almacen.lotes,
+      recetaDeFondo: route.id,
+      onSettings: () => setState({ settingsOpen: true }),
+    });
+    app.appendChild(menu);
+
+    if (state.notice) app.appendChild(renderNotice(state));
+
+    // Ajustes se puede abrir desde aqui, asi que el menu tambien tiene que
+    // poder quedarse inerte por debajo de la ventana.
+    renderDialogs(menu);
+
+    // Sin receta abierta no hay nada que imprimir, y dejar la hoja anterior
+    // montada haria que Ctrl+P sacara lo ultimo que se estuvo mirando.
+    clear(printRoot);
+    return;
+  }
+
+  // --- Un modulo ----------------------------------------------------------
   const recipe = route.name === 'detail' ? repo.findById(route.id) : null;
   if (recipe) recordarRecetaVista(recipe.id);
 
   // Avisos que van por encima de todo: sin conexion, sin recetario compartido,
   // o cambios sin publicar.
-  for (const badge of renderBadges({
-    changes: repo.localChanges(),
-    online: state.online,
-    server: repo.serverDiagnosis(),
-    sync: estadoSincronizacion(),
-    onOpenSettings: () => setState({ settingsOpen: true }),
-  })) {
-    app.appendChild(badge);
-  }
+  for (const badge of avisosDeContexto(state)) app.appendChild(badge);
 
   // En pantallas estrechas no caben el listado y la receta a la vez, asi que se
   // muestra uno u otro. Este atributo es lo que lo decide desde el CSS
@@ -356,12 +442,40 @@ function paint() {
 
   const shell = el('div', { class: 'app', dataset: { view: vista } }, [
     // Barra superior: marca, buscador y acciones.
-    renderHeader({
-      canEdit: true,
-      onNewRecipe: () => navigate({ name: 'new', id: null }),
-      onPlan: () => setState({ recetario: { planOpen: true } }),
-      onIngredients: () => setState({ recetario: { ingredientsOpen: true } }),
-      onSettings: () => setState({ settingsOpen: true }),
+    // Los modulos se abren NAVEGANDO, no encendiendo una bandera del estado.
+    //
+    // `core/store.js` ya decia en su cabecera que la vista activa vive en el
+    // hash y no en el estado, y sin embargo el plan, los ingredientes y el
+    // almacen eran tres booleanos ahi dentro. Eso significaba que no se podian
+    // enlazar, que no sobrevivian a una recarga y que el menu no tenia a donde
+    // apuntar. Ahora son direcciones como cualquier otra pantalla.
+    /*
+     * La barra del recetario se queda con DOS botones: volver al menu y crear
+     * una receta.
+     *
+     * Los de produccion, ingredientes y almacen se fueron al menu, que es de
+     * donde cuelgan. Mientras eran ventanas que se abrian encima tenia sentido
+     * tenerlos aqui; desde que cada uno es una pantalla completa, tener sus
+     * botones dentro del recetario decia que el recetario es la aplicacion y
+     * los demas accesorios suyos, que es justo lo que este sistema ya no es.
+     *
+     * Ajustes tambien se fue, y ademas gana algo: detras de ese boton estan
+     * publicar, descartar cambios y la clave del equipo, y no tiene por que
+     * estar a un toque desde la pantalla en la que se pesa.
+     */
+    renderBarra({
+      subtitulo: 'recetario',
+      // Sin `id: null`: la receta que se esta leyendo viaja al menu y de alli a
+      // cualquier modulo, para poder volver a ella. Ver `buildHash`.
+      onMenu: () => navigate({ modulo: 'inicio', name: 'index' }),
+      acciones: [
+        {
+          label: 'Nueva receta',
+          icon: ICON_NUEVA,
+          variant: 'btn--accent',
+          onClick: () => navigate({ modulo: 'recetario', name: 'new', id: null }),
+        },
+      ],
     }),
 
     el('div', { class: 'workspace' }, [
@@ -481,6 +595,13 @@ function renderPrint(state, route, recipe) {
   // persona acaba de pedir de forma explicita.
   if (state.recetario.planPrint) {
     printRoot.appendChild(renderPlanSheet(state.recetario.planPrint));
+    return;
+  }
+
+  // Lo mismo para el catalogo de ingredientes: lo acaba de pedir una persona de
+  // forma explicita, asi que manda sobre la receta que hubiera abierta detras.
+  if (state.recetario.ingredientesPrint) {
+    printRoot.appendChild(renderIngredientsSheet(state.recetario.ingredientesPrint));
     return;
   }
 

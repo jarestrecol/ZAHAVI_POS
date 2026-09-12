@@ -150,3 +150,29 @@ function appendAll(parent, children) {
     parent.appendChild(child instanceof Node ? child : text(child));
   }
 }
+
+/**
+ * Deja un campo de texto mostrando su final.
+ *
+ * POR QUE VIVE AQUI Y NO EN LA VISTA QUE LO USA
+ * ---------------------------------------------
+ * `scripts/verificar.mjs` prohibe que una vista lea `scrollTop` o
+ * `scrollHeight`, y la prohibicion esta bien puesta: mide el DOM para RECORDAR
+ * algo, y de ahi salio el defecto de que la posicion del listado se perdiera en
+ * cada consulta desde el telefono (regla 16).
+ *
+ * Esto no es eso. No recuerda nada ni se lee despues: es un gesto de pintado,
+ * del mismo orden que pedir el foco. Lo usa el dictado por voz, donde el texto
+ * crece solo mientras la persona habla y sin esto el parrafo nuevo se escribe
+ * fuera de la parte visible del campo, asi que da la sensacion de que no esta
+ * pasando nada.
+ *
+ * Se resuelve aqui, en una utilidad sin estado, en vez de abrirle un agujero a
+ * la frontera.
+ *
+ * @param {HTMLElement} node campo con desplazamiento propio
+ */
+export function desplazarAlFinal(node) {
+  if (!node) return;
+  node.scrollTop = node.scrollHeight;
+}

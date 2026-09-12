@@ -21,6 +21,7 @@
   #app,
   .no-print,
   .overlay,
+  .pantalla,
   .notice,
   .skip-link {
     display: none !important;

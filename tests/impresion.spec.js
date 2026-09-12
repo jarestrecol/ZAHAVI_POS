@@ -18,6 +18,7 @@ import {
   entrar,
   interceptarImpresion,
   hojaImpresa,
+  abrirModulo,
   RECETA,
   filtro,
   cuantasEn,
@@ -27,7 +28,7 @@ test('el plan del dia imprime el plan, no la receta abierta', async ({ page }) =
   await entrar(page, `#/receta/${RECETA}`);
   await interceptarImpresion(page);
 
-  await page.getByRole('button', { name: 'Plan del día', exact: true }).click();
+  await abrirModulo(page, 'plan');
   await page.getByRole('searchbox', { name: 'Buscar receta para añadir' }).fill('berlinas');
   await page.getByRole('button', { name: /^Berlinas/ }).click();
   await page.getByRole('button', { name: 'Imprimir la lista' }).click();
@@ -43,11 +44,12 @@ test('y despues vuelve la ficha, para el siguiente Ctrl+P', async ({ page }) => 
   await entrar(page, `#/receta/${RECETA}`);
   await interceptarImpresion(page);
 
-  await page.getByRole('button', { name: 'Plan del día', exact: true }).click();
+  await abrirModulo(page, 'plan');
   await page.getByRole('searchbox', { name: 'Buscar receta para añadir' }).fill('berlinas');
   await page.getByRole('button', { name: /^Berlinas/ }).click();
   await page.getByRole('button', { name: 'Imprimir la lista' }).click();
-  await expect(page.locator('[role=dialog]')).toHaveCount(0);
+  // Imprimir sale del modulo: la hoja se monta ya en el recetario.
+  await expect(page.locator('.pantalla')).toHaveCount(0);
 
   // Un plan que se quedara pendiente saldria en la siguiente impresion, cuando
   // ya nadie lo espera.

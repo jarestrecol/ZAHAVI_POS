@@ -76,10 +76,15 @@ export const RECETA = 'R016';
  * el codigo que se acaba de tocar, no el que quedo en la cache. Hay una prueba
  * aparte para el modo sin conexion.
  *
+ * DESDE QUE HAY MENU DE MODULOS, entrar deja en el menu y no en el recetario.
+ * Por eso el valor por defecto es `#/recetario` y no `#/`: casi todas las
+ * pruebas quieren el listado, y hacerlas pasar por el menu a mano solo anadiria
+ * ruido. La que quiera comprobar el menu pide `#/` explicitamente.
+ *
  * @param {import('@playwright/test').Page} page
  * @param {string} [hash] a donde ir despues de entrar
  */
-export async function entrar(page, hash = '#/') {
+export async function entrar(page, hash = '#/recetario') {
   await page.addInitScript(() => {
     if (navigator.serviceWorker) {
       navigator.serviceWorker.register = () => Promise.reject(new Error('sin sw en pruebas'));
@@ -101,12 +106,110 @@ export async function entrar(page, hash = '#/') {
   await page.getByLabel('repetir la clave nueva').fill(CLAVE_NUEVA);
   await page.getByRole('button', { name: 'Guardar y entrar' }).click();
 
-  await page.locator('nav[aria-label="Listado de recetas"]').waitFor();
+  // Lo primero que aparece es el menu de modulos.
+  await page.locator('.inicio').waitFor();
 
   if (hash && hash !== '#/') {
     await page.evaluate((h) => { window.location.hash = h; }, hash);
-    await page.locator('.panel').waitFor();
+    /*
+     * Se espera a la carcasa del modulo, y SOLO a ella.
+     *
+     * Hubo aqui un `('.app, .inicio').first()` para cubrir tambien las
+     * direcciones ilegibles, que caen en el menu. Era una carrera: el menu
+     * sigue en el documento unos milisegundos despues de cambiar el hash
+     * -el repintado va detras de la transicion de vista-, asi que `.first()`
+     * resolvia sobre el menu viejo y devolvia el control antes de tiempo. Las
+     * pruebas de movil median entonces una pantalla a medio cambiar y fallaban
+     * las cuatro.
+     *
+     * Quien necesite comprobar una direccion que no se entiende, que entre al
+     * menu y cambie el hash por su cuenta: son dos lineas y no obligan a que
+     * este ayudante adivine.
+     *
+     * Cual sea la carcasa depende del modulo, y por eso se deduce del hash en
+     * vez de aceptar las dos: produccion, ingredientes y almacen son pantallas
+     * completas (`.pantalla`) y ya no cuelgan de `.app`. Esperar `.app,
+     * .pantalla` seria volver al `.first()` que hubo aqui y a su carrera.
+     */
+    await page.locator(carcasaDe(hash)).waitFor();
   }
+}
+
+/**
+ * Que nodo anuncia que la pantalla de una direccion ya esta puesta.
+ *
+ * @param {string} hash
+ * @returns {string} un selector
+ */
+function carcasaDe(hash) {
+  // `[/?]` y no un limite de palabra: la direccion de un modulo puede traer
+  // el parametro de la receta de fondo (`#/plan?r=R010`).
+  const visto = /^#\/(plan|ingredientes|almacen)(?:[/?]|$)/.exec(hash);
+  return visto ? `.pantalla[data-modulo="${visto[1]}"]` : '.app';
+}
+
+/**
+ * Abre un modulo COMO SE ABRE DE VERDAD: por su tarjeta del menu.
+ *
+ * Antes cada prueba pulsaba el boton que ese modulo tenia en la barra del
+ * recetario. Esos botones ya no existen -produccion, ingredientes y almacen
+ * dejaron de ser ventanas que se abrian encima del recetario para ser pantallas
+ * propias-, y el camino real pasa por el menu. Que las pruebas hagan el mismo
+ * recorrido que una persona es justamente lo que hace que sirvan.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {'plan'|'ingredientes'|'almacen'} modulo
+ */
+export async function abrirModulo(page, modulo) {
+  /*
+   * SE PREGUNTA SI YA SE ESTA EN EL MENU, NO SI HAY UN BOTON DE «Menú».
+   *
+   * Mirar el boton parece lo natural y es una carrera: con una transicion de
+   * vista por medio, la barra anterior sigue en el documento unos milisegundos
+   * despues de que el hash haya cambiado, asi que se encuentra un boton que se
+   * esta yendo y pulsarlo falla con «element was detached from the DOM». Es el
+   * mismo fallo fantasma que ya dio aqui el `('.app, .inicio').first()`.
+   *
+   * Y desde una pantalla de modulo «Menú» esta en su barra, desde el recetario
+   * en la suya: el mismo boton en el mismo sitio, que es lo que se gano al
+   * unificar la barra.
+   */
+  if (!(await page.locator('.inicio').count())) {
+    await page.getByRole('button', { name: 'Menú', exact: true }).first().click();
+  }
+
+  const tarjeta = page.locator(`.inicio .modulo[data-tono="${modulo}"]`);
+  await tarjeta.waitFor();
+  await tarjeta.click();
+  await page.locator(`.pantalla[data-modulo="${modulo}"]`).waitFor();
+}
+
+/**
+ * Sale del modulo que este abierto y espera a que se haya ido.
+ *
+ * Escape es la salida, la misma que respetaban las ventanas modales.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function salirDelModulo(page) {
+  await page.keyboard.press('Escape');
+  await page.locator('.pantalla').waitFor({ state: 'detached' });
+}
+
+/**
+ * Abre Ajustes, que vive en el menu desde que la barra del recetario se quedo
+ * con lo justo: volver al menu y crear una receta.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function abrirAjustes(page) {
+  // La misma pregunta que en `abrirModulo`, por el mismo motivo.
+  if (!(await page.locator('.inicio').count())) {
+    await page.getByRole('button', { name: 'Menú', exact: true }).first().click();
+  }
+
+  await page.locator('.inicio').waitFor();
+  await page.getByRole('button', { name: 'Ajustes' }).click();
 }
 
 /**

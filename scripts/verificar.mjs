@@ -44,8 +44,8 @@ function walk(dir, filter, out = []) {
   return out;
 }
 
-function run(script) {
-  return execFileSync(process.execPath, [join(root, 'scripts', script)], {
+function run(script, args = []) {
+  return execFileSync(process.execPath, [join(root, 'scripts', script), ...args], {
     cwd: root,
     encoding: 'utf8',
     stdio: 'pipe',
@@ -192,10 +192,21 @@ function comprobarArquitectura() {
     // Composicion: decide QUE dialogo toca y lo monta. Vive fuera de `app/`
     // porque construye pantallas, y fuera de `views/` porque decide cual.
     'src/dialogs.js',
+    // Lo mismo, para las pantallas completas de modulo: decide CUAL toca y la
+    // monta. Escribe estado por una sola razon, y conviene que este dicha aqui:
+    // el plan y el catalogo dejan lo que se va a imprimir en `planPrint` /
+    // `ingredientesPrint` antes de salir, porque la hoja la construye
+    // `renderPrint` y no la vista que la pidio. Ninguna de las tres vistas
+    // escribe: reciben callbacks, que es la regla 12.
+    'src/pantallas.js',
     'src/app/commands.js',
     // `sync.js` refresca el recetario tras publicar en segundo plano: es un caso
     // de uso, vive en `app/`, y no construye ninguna pantalla.
     'src/app/sync.js',
+    // Los casos de uso del almacen: dar de alta un lote, corregirlo, darlo de
+    // baja y descontar del inventario lo que se va a producir. Vive en `app/`,
+    // no construye pantallas, y es el unico sitio que escribe el modulo.
+    'src/app/almacen.js',
     // `store.js` es donde `setState` se declara: `notify` lo usa por dentro.
     'src/core/store.js',
   ];
@@ -203,7 +214,10 @@ function comprobarArquitectura() {
     const ruta = relative(root, file).replace(/\\/g, '/');
     if (escritores.includes(ruta)) continue;
     if (/\bsetState\s*\(/.test(readFileSync(file, 'utf8'))) {
-      problemas.push(`${ruta} escribe estado (setState): eso lo decide app/commands.js o main.js`);
+      problemas.push(
+        `${ruta} escribe estado (setState): solo escriben los casos de uso de app/ y la capa ` +
+          'de composicion, y cada uno esta declarado en la lista `escritores` de este archivo',
+      );
     }
   }
 
@@ -238,12 +252,32 @@ function comprobarArquitectura() {
  * propaga en silencio hasta que alguien mira la pantalla del obrador.
  */
 function comprobarCodificacion() {
-  const carpetas = ['src', 'api', 'scripts', 'tests', 'assets/css'];
-  const sueltos = ['sw.js', 'index.html', '404.html', '500.html', 'README.md', 'vercel.json'];
+  /*
+   * `CLAUDE.md`, `MANUAL.md` y `docs/` ENTRAN AQUI, y antes no entraban.
+   *
+   * La regla 23 afirmaba que este bloque cubre la documentacion, y la lista de
+   * abajo no incluia `CLAUDE.md`: o sea, el unico archivo del proyecto que YA se
+   * corrompio -95 lineas- era justo el que nadie miraba. Una comprobacion que no
+   * ve lo que dice vigilar es peor que no tenerla, porque ademas tranquiliza.
+   *
+   * Al partir la documentacion en `docs/` esto pasa de ser un descuido a ser
+   * urgente: son diez archivos de prosa acentuada en vez de uno.
+   */
+  const carpetas = ['src', 'api', 'scripts', 'tests', 'assets/css', 'docs'];
+  const sueltos = [
+    'sw.js',
+    'index.html',
+    '404.html',
+    '500.html',
+    'README.md',
+    'vercel.json',
+    'CLAUDE.md',
+    'MANUAL.md',
+  ];
   const problemas = [];
 
   const archivos = [
-    ...carpetas.flatMap((c) => walk(join(root, c), (n) => /\.(js|mjs|css|html)$/.test(n))),
+    ...carpetas.flatMap((c) => walk(join(root, c), (n) => /\.(js|mjs|css|html|md)$/.test(n))),
     ...sueltos.map((n) => join(root, n)),
   ];
 
@@ -466,6 +500,39 @@ paso('Alta y baja masiva', () => {
 // poder leerla sin red, y se repite en package.json porque npm la exige ahi. Dos
 // sitios son dos oportunidades de que se separen, y una version equivocada en la
 // pantalla es peor que ninguna: se usa para saber si dos sedes miran lo mismo.
+// El modulo de almacen: FEFO, la regla de las unidades, el costo lote a lote y
+// que descontar no deje existencias en negativo. Es donde el recetario empieza a
+// manejar dinero, asi que va con su propio bloque.
+paso('Almacen y costeo', () => {
+  const out = run('test-almacen.mjs');
+  return `${(out.match(/^\s+OK\s/gm) || []).length} comprobaciones`;
+});
+
+// Las fronteras del ESQUEMA de base de datos, y va aqui y no en un comando
+// aparte por el mismo motivo que las demas: una regla que hay que acordarse de
+// ejecutar no es una frontera, es un consejo. No abre ninguna conexion -lee las
+// migraciones como texto, igual que los otros bloques leen el codigo-, asi que
+// cuesta milisegundos y funciona sin Docker.
+//
+// Lo que NO puede comprobar desde aqui es el comportamiento: que una politica
+// exista y este bien escrita no dice que cubra el caso que se creia. Eso lo
+// comprueba `npm run probar-sql`, que si necesita un PostgreSQL levantado.
+paso('Fronteras del esquema SQL', () => {
+  let salida;
+  try {
+    salida = run('verificar-sql.mjs');
+  } catch (error) {
+    // `execFileSync` deja el informe en `stdout`, no en el mensaje. Sin
+    // rescatarlo, un fallo del esquema se veria como "Command failed" y habria
+    // que volver a ejecutarlo a mano para saber que se rompio.
+    const texto = String(error.stdout || '');
+    const fallas = (texto.match(/^\s+FALLA .*/gm) || []).map((l) => l.trim());
+    throw new Error(fallas.length ? fallas.join('\n') : texto.slice(-400));
+  }
+  const migraciones = (salida.match(/(\d+) archivos/) || [, '?'])[1];
+  return `${(salida.match(/^\s+OK\s/gm) || []).length} comprobaciones, ${migraciones} migraciones`;
+});
+
 paso('Version del proyecto', () => {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const fuente = readFileSync(join(root, 'src/core/version.js'), 'utf8');
@@ -645,6 +712,26 @@ paso('Cifras de CLAUDE.md', () => {
       `${componentes} / ${miles(items)}`,
     ],
     ['Catálogo de ingredientes', filaDeCLAUDE(doc, 'Catálogo de ingredientes'), String(catalogo.size)],
+    /*
+     * Los ingredientes que se miden de mas de una forma.
+     *
+     * La cifra NO se calcula aqui: se le pide a `sembrar-recetas.mjs`, que es
+     * quien tiene la regla de la unidad base. Calcularla dos veces seria tener
+     * dos respuestas posibles a la misma pregunta.
+     *
+     * Esta fila existe porque estas cifras ya envejecieron una vez sin que
+     * nadie lo notara: CLAUDE.md decia 15 ingredientes en 67 lineas de 47
+     * recetas, que era cierto con 121 recetas. Al publicarse la 122 pasaron a
+     * ser 16, 71 y 48, y el documento siguio diciendo lo de antes.
+     */
+    [
+      'Ingredientes con más de una unidad',
+      filaDeCLAUDE(doc, 'Ingredientes con más de una unidad'),
+      (() => {
+        const cifras = JSON.parse(run('sembrar-recetas.mjs', ['--cifras']));
+        return `${cifras.ambiguos}, en ${cifras.minoritarias} líneas de ${cifras.recetasAfectadas} recetas`;
+      })(),
+    ],
     ['sha de integridad', filaDeCLAUDE(doc, 'sha de integridad'), sha],
     [
       'data/recipes.json',
@@ -682,6 +769,155 @@ paso('Cifras de CLAUDE.md', () => {
   }
 
   return `${duras.length + blandas.length} cifras cuadran con la realidad`;
+});
+
+/*
+ * LA DOCUMENTACION PARTIDA SIGUE SIENDO UNA SOLA COSA.
+ *
+ * POR QUE EXISTE ESTE BLOQUE
+ * --------------------------
+ * `CLAUDE.md` llego a 2.099 lineas -unos 38.000 tokens- porque cada linea que
+ * alguien anadia tenia razon por separado. Se partio en un nucleo y `docs/`, y
+ * la objecion evidente es que las partes acaben contradiciendose.
+ *
+ * La objecion seria decisiva si un solo archivo lo evitara, y no lo evita: hoy
+ * mismo `README.md` lleva cifras falsas al lado de un `CLAUDE.md` correcto. Lo
+ * unico que ha contenido la deriva en este repositorio dos veces es una
+ * comprobacion automatica: el `SHELL` de `sw.js` contra los archivos reales, y
+ * las cifras de la seccion 2 contra los datos.
+ *
+ * El indice es a `docs/` lo que `SHELL` es a los archivos reales: mismo patron,
+ * mismo tipo de fallo, misma solucion. Se comprueba EN LOS DOS SENTIDOS.
+ *
+ * QUE NO COMPRUEBA, DICHO CLARO
+ * -----------------------------
+ * Que la prosa de una referencia siga siendo CIERTA. Eso no lo cubria el archivo
+ * unico y tampoco lo cubre esto. Comprueba el esqueleto -que las partes existan,
+ * se citen, se encuentren, quepan y no se pisen-, no el contenido.
+ */
+
+/** Las etiquetas de la seccion 2 que `filaDeCLAUDE` busca por su nombre. */
+const ETIQUETAS_VIGILADAS = [
+  'Recetas',
+  'Componentes / líneas de ingrediente',
+  'Catálogo de ingredientes',
+  'data/recipes.json',
+  'sha de integridad',
+  'Versión',
+  'CACHE_VERSION de sw.js',
+  'Módulos en src/',
+  'Bloques de verificar / pruebas de qa',
+  'Ingredientes con más de una unidad',
+];
+
+const TOPE_LINEAS = 420;
+const TOPE_BYTES = 24000;
+
+paso('Documentacion', () => {
+  const problemas = [];
+  const nucleo = readFileSync(join(root, 'CLAUDE.md'), 'utf8');
+
+  // --- 1. EL PRESUPUESTO ----------------------------------------------------
+  //
+  // Es la parte que de verdad sostiene todo lo demas. Sin un numero que ponga
+  // esto en rojo, el nucleo vuelve a crecer sin que nadie lo decida: el tope
+  // convierte "anadir al nucleo" en un acto que obliga a quitar otra cosa.
+  const lineas = nucleo.split('\n').length;
+  const bytes = Buffer.byteLength(nucleo);
+  if (lineas > TOPE_LINEAS || bytes > TOPE_BYTES) {
+    problemas.push(
+      `CLAUDE.md: ${lineas} lineas / ${bytes} bytes (tope ${TOPE_LINEAS} / ${TOPE_BYTES}). ` +
+        'Lo que sobra va a docs/, no al final del archivo.',
+    );
+  }
+
+  // --- 2. EL INDICE, EN LOS DOS SENTIDOS ------------------------------------
+  const declaradas = new Map();
+  for (const m of nucleo.matchAll(/\*\*\[([^\]]+\.md)\]\([^)]+\)\s*·\s*([\d.]+)\s*líneas\*\*/g)) {
+    declaradas.set(m[1], Number(m[2].replace('.', '')));
+  }
+
+  const reales = readdirSync(join(root, 'docs'))
+    .filter((n) => n.endsWith('.md'))
+    .map((n) => `docs/${n}`);
+
+  for (const f of reales) {
+    if (!declaradas.has(f)) problemas.push(`${f} existe y el indice no lo cita: nadie lo abrira`);
+  }
+  for (const f of declaradas.keys()) {
+    if (f !== 'MANUAL.md' && !reales.includes(f)) {
+      problemas.push(`el indice cita ${f} y no existe`);
+    }
+  }
+
+  // --- 3. EL PRECIO NO MIENTE -----------------------------------------------
+  //
+  // Cada entrada declara su tamano para que la decision de abrirla sea
+  // coste/beneficio y no un impulso. Se tolera un 25 %: por debajo de eso el
+  // numero sigue informando igual, y un CI que se pone rojo por tres lineas se
+  // acaba ignorando, que es justo lo que este bloque viene a evitar.
+  for (const [archivo, dice] of declaradas) {
+    const real = readFileSync(join(root, archivo), 'utf8').split('\n').length;
+    if (Math.abs(real - dice) > real * 0.25) {
+      problemas.push(`el indice dice que ${archivo} son ${dice} lineas y son ${real}`);
+    }
+  }
+
+  // --- 4. TODO ENLACE RESUELVE ----------------------------------------------
+  const documentos = [['CLAUDE.md', nucleo], ...reales.map((f) => [f, readFileSync(join(root, f), 'utf8')])];
+  for (const [archivo, texto] of documentos) {
+    for (const m of texto.matchAll(/\]\((?!https?:)([^)#\s]+\.md)(?:#[^)]*)?\)/g)) {
+      const destino = resolve(root, dirname(archivo), m[1]);
+      try {
+        statSync(destino);
+      } catch {
+        problemas.push(`${archivo} enlaza a ${m[1]}, que no existe`);
+      }
+    }
+  }
+
+  // --- 5. UN HECHO, UN DUENO ------------------------------------------------
+  //
+  // Dos cosas de una: prohibe copiar una cifra de la seccion 2 a otra tabla, y
+  // protege literalmente a `filaDeCLAUDE()`, que se queda con la PRIMERA fila
+  // que encaje. Una tabla nueva mas arriba con la misma etiqueta secuestraria
+  // la comprobacion de cifras sin que nada avisara.
+  const etiquetasDe = (texto) =>
+    texto
+      .split('\n')
+      .filter((l) => l.startsWith('|'))
+      .map((l) => (l.split('|')[1] || '').replace(/`/g, '').trim());
+
+  for (const etiqueta of ETIQUETAS_VIGILADAS) {
+    const enNucleo = etiquetasDe(nucleo).filter((e) => e === etiqueta).length;
+    if (enNucleo > 1) {
+      problemas.push(`"${etiqueta}" aparece ${enNucleo} veces en CLAUDE.md: la cifra tendria dos duenos`);
+    }
+    for (const f of reales) {
+      if (etiquetasDe(readFileSync(join(root, f), 'utf8')).includes(etiqueta)) {
+        problemas.push(`${f} repite la cifra "${etiqueta}" de la seccion 2: citala, no la copies`);
+      }
+    }
+  }
+
+  // --- 6. EL README DICE LA VERSION DE VERDAD -------------------------------
+  //
+  // Es la unica cifra que queda escrita a mano en la presentacion publica, y ya
+  // mintio: anunciaba la 1.5.1 con el proyecto en la 2.0.0, junto a cuatro
+  // recuentos igual de viejos. Los recuentos se quitaron -viven en la seccion 2,
+  // que si se comprueba-; esta se queda porque un README sin version no dice
+  // nada, asi que se comprueba.
+  const readme = readFileSync(join(root, 'README.md'), 'utf8');
+  const anunciada = readme.match(/\*\*Versión\s+(\d+\.\d+\.\d+)/);
+  const real = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+  if (!anunciada) {
+    problemas.push('README.md ya no anuncia ninguna version');
+  } else if (anunciada[1] !== real) {
+    problemas.push(`README.md anuncia la ${anunciada[1]} y el proyecto va por la ${real}`);
+  }
+
+  if (problemas.length) throw new Error(problemas.slice(0, 8).join('\n'));
+  return `nucleo ${lineas}/${TOPE_LINEAS} lineas y ${Math.round(bytes / 1024)} KB, ${declaradas.size} referencias`;
 });
 
 console.log(

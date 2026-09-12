@@ -20,6 +20,7 @@ import {
   contrasteDeFondos,
   TOTAL_RECETAS,
   filtro,
+  abrirAjustes,
 } from './apoyo.js';
 
 test('la clave incorrecta no dice cual de los dos datos fallo', async ({ page }) => {
@@ -253,13 +254,22 @@ test('el tamaño del texto cambia la receta y deja quieto el resto', async ({ pa
   await expect(page.locator('.item__name').first()).toBeVisible();
   const antes = await medir();
 
-  await page.getByRole('button', { name: 'Ajustes' }).click();
+  // Ajustes se mudo al menu: detras de ese boton estan publicar, descartar
+  // cambios y la clave del equipo, y no tienen por que estar a un toque desde
+  // la pantalla en la que se pesa. Eso obliga a salir de la ficha y a volver,
+  // que es exactamente lo que hace quien cambia el tamaño de verdad.
+  await abrirAjustes(page);
   await page.getByRole('button', { name: 'Pequeño' }).click();
   await page.keyboard.press('Escape');
 
   // El repintado va dentro de una transicion de vista, asi que no es sincrono:
   // se espera a que el atributo de la raiz refleje la eleccion (regla 20).
   await expect(page.locator('html')).toHaveAttribute('data-escala', 'pequeno');
+
+  // De vuelta a la ficha, que es lo que hay que medir. El menu la lleva consigo
+  // (`#/?r=...`), asi que esto no es un atajo de la prueba: es el camino.
+  await page.evaluate((id) => { window.location.hash = `#/recetario/receta/${id}`; }, RECETA);
+  await expect(page.locator('.item__name').first()).toBeVisible();
 
   // Se ESPERA a que el tamaño cambie, no se mide una vez y se cruzan los dedos.
   // Poner el atributo en la raiz y recalcular el estilo son dos cosas distintas,

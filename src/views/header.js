@@ -1,129 +1,119 @@
 /**
- * Barra superior: marca y acciones.
+ * =============================================================================
+ *  LA BARRA SUPERIOR, UNA PARA TODOS LOS MODULOS
+ * =============================================================================
  *
- * El buscador ya no vive aqui: se movio al listado, justo debajo de los
- * filtros de categoria (ver `views/sidebar.js`). Buscar y filtrar son la misma
- * tarea, acotar el listado, asi que sus dos controles van juntos y encima de
- * lo que afectan, en vez de repartidos en dos zonas distintas de la pantalla.
+ *  Antes esta barra era la del recetario y llevaba dentro los botones de los
+ *  otros tres modulos: Plan del dia, Ingredientes y Almacen. Eso tenia sentido
+ *  cuando eran ventanas que se abrian ENCIMA del recetario. Desde que cada uno
+ *  es una pantalla completa por derecho propio, tener sus botones dentro de otro
+ *  modulo decia lo contrario de lo que el sistema es: que el recetario es la
+ *  aplicacion y los demas son accesorios suyos.
+ *
+ *  Ahora la barra es una sola pieza y cada modulo la llama con lo suyo:
+ *
+ *      subtitulo   que modulo se esta mirando  (ZAHAVI · almacén)
+ *      acciones    lo que ESE modulo deja hacer, y nada mas
+ *      Menú        siempre, y siempre en el mismo sitio
+ *
+ *  De donde se sale y a donde se vuelve no cambia segun donde estes: el boton
+ *  de Menú esta en la misma posicion en los cuatro modulos. Eso es lo que
+ *  convierte cuatro pantallas en un sistema.
+ *
+ *  AJUSTES YA NO ESTA AQUI. Vive en el menu, que es de donde cuelga todo lo
+ *  demas. Detras de Ajustes estan publicar, descartar cambios y la clave del
+ *  equipo: lo mas destructivo que hay, y no tiene por que estar a un toque desde
+ *  la pantalla en la que se pesa.
+ *
+ *  El buscador tampoco vive aqui: se movio al listado, justo debajo de los
+ *  filtros de categoria (ver `views/sidebar.js`). Buscar y filtrar son la misma
+ *  tarea -acotar el listado-, asi que sus dos controles van juntos y encima de
+ *  lo que afectan.
  */
 
 import { el, svg } from '../lib/dom.js';
 import { APP_VERSION } from '../core/version.js';
+import { ICON_MENU } from '../lib/iconos.js';
 
 /*
- * Iconos de la barra. Mismo lienzo de 24x24 y mismo grosor que los de la ficha
- * (`views/detail.js`), para que se lean como una familia.
+ * Los trazados de los iconos viven en `lib/iconos.js` desde que el menu de
+ * modulos enseña los mismos simbolos. Tenerlos aqui dentro significaba que el
+ * saco de los ingredientes se dibujaba dos veces, y dos dibujos del mismo
+ * simbolo se separan en cuanto alguien retoca uno.
  *
- * En celular la barra se queda SOLO con los iconos: cuatro botones con texto
- * mas la marca miden unos 430px y no caben en una pantalla de 360, y como
- * `.topbar__actions` no cede ancho, lo que sobraba se salia por el borde. De
- * ahi venia el texto perdido en los bordes de Android. El nombre no se pierde:
- * va en `aria-label` y en `title`.
+ * En celular la barra se queda SOLO con los iconos: los botones con texto mas la
+ * marca no caben en una pantalla de 360, y como `.topbar__actions` no cede
+ * ancho, lo que sobraba se salia por el borde. De ahi venia el texto perdido en
+ * los bordes de Android. El nombre no se pierde: va en `aria-label` y en
+ * `title`.
  */
-
-/** Calendario: el plan del dia. */
-const ICON_PLAN = [
-  'M8 2v4', 'M16 2v4', 'M3 10h18',
-  'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
-];
-
-/** Saco con etiqueta: el catalogo de ingredientes. */
-const ICON_INGREDIENTES = [
-  'M6 2h12l2 6a8 8 0 0 1-8 14 8 8 0 0 1-8-14z',
-  'M9 2v3', 'M15 2v3', 'M8 12h8',
-];
-
-/** Mas dentro de un documento: receta nueva. */
-const ICON_NUEVA = [
-  'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z',
-  'M14 2v6h6', 'M12 11v6', 'M9 14h6',
-];
-
-/** Engranaje: ajustes. */
-const ICON_AJUSTES = [
-  'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
-  'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
-];
 
 /**
+ * @typedef {{label: string, icon: Array<string>, variant?: string,
+ *            soloIcono?: boolean, onClick: () => void}} AccionDeBarra
+ */
+
+/**
+ * La barra superior de un modulo.
+ *
  * @param {Object} options
- * @param {boolean} options.canEdit
- * @param {() => void} options.onNewRecipe
- * @param {() => void} options.onPlan
- * @param {() => void} options.onIngredients
- * @param {() => void} options.onSettings
+ * @param {string} options.subtitulo el nombre del modulo: `recetario`, `almacén`…
+ * @param {() => void} options.onMenu
+ * @param {Array<AccionDeBarra|null>} [options.acciones]
  * @returns {HTMLElement}
  */
-export function renderHeader(options) {
+export function renderBarra(options) {
+  const acciones = (options.acciones || []).filter(Boolean);
+
   return el('header', { class: 'topbar no-print' }, [
     // La marca en la barra va en tipografia, no como imagen: el logo completo
     // es un bloque naranja con su propio fondo, y sobre la barra oscura quedaba
-    // como un recorte pegado encima. El logo entero se reserva para la entrada y
-    // la bienvenida, donde si funciona como pieza de marca.
-    el('a', { class: 'topbar__brand', href: '#/', attrs: { 'aria-label': 'Zahavi, recetario' } }, [
-      el('span', { class: 'topbar__marca' }, [
-        el('span', { class: 'topbar__wordmark', text: 'ZAHAVI' }),
-        el('span', { class: 'topbar__dot', attrs: { 'aria-hidden': 'true' } }),
-        el('span', { class: 'topbar__sub', text: 'recetario' }),
-      ]),
+    // como un recorte pegado encima. El logo entero se reserva para el menu y
+    // la entrada, donde si funciona como pieza de marca.
+    //
+    // Lleva al menu, y se dice en el nombre accesible: un enlace que se llama
+    // "Zahavi, recetario" y lleva a otro sitio es una promesa rota para quien no
+    // ve la pantalla.
+    el(
+      'a',
+      {
+        class: 'topbar__brand',
+        href: '#/',
+        attrs: { 'aria-label': 'Zahavi. Ir al menú de módulos' },
+      },
+      [
+        el('span', { class: 'topbar__marca' }, [
+          el('span', { class: 'topbar__wordmark', text: 'ZAHAVI' }),
+          el('span', { class: 'topbar__dot', attrs: { 'aria-hidden': 'true' } }),
+          // El nombre del modulo, que es lo unico que cambia de una pantalla a
+          // otra. Sirve tambien para contestar por telefono "¿dónde estás?".
+          el('span', { class: 'topbar__sub', text: options.subtitulo }),
+        ]),
 
-      // La version, debajo y en letra pequeña. Esta en la barra porque es lo
-      // que se ve desde cualquier pantalla del recetario, no solo al entrar:
-      // cuando una sede dice que algo no le aparece, la primera pregunta es si
-      // las dos miran lo mismo, y asi se contesta sin salir de donde se este.
-      el('span', { class: 'topbar__version', text: `v${APP_VERSION}` }),
-    ]),
+        // La version, debajo y en letra pequeña. Esta en la barra porque es lo
+        // que se ve desde cualquier pantalla, no solo al entrar: cuando una sede
+        // dice que algo no le aparece, la primera pregunta es si las dos miran
+        // lo mismo, y asi se contesta sin salir de donde se este.
+        el('span', { class: 'topbar__version', text: `v${APP_VERSION}` }),
+      ],
+    ),
 
-    // Empuja las acciones al extremo derecho, ahora que el buscador ya no
-    // ocupa el centro de la barra.
+    // Empuja las acciones al extremo derecho.
     el('span', { class: 'topbar__spacer' }),
 
     el('div', { class: 'topbar__actions' }, [
-      // Planear el dia y consultar los ingredientes son tareas de jornada, no
-      // de receta: por eso viven en la barra y no dentro de una ficha.
+      // Volver al menu, SIEMPRE el primero de la derecha y siempre igual. El
+      // logotipo tambien lleva, pero eso solo lo encuentra quien ya sabe que es
+      // pulsable; este lo dice.
       accionBarra({
-        label: 'Plan del día',
-        icon: ICON_PLAN,
-        variant: 'btn--dark-ghost',
-        onClick: options.onPlan,
-      }),
-
-      // "Ingredientes" y no "Validador": el boton dice a donde se va, no que
-      // hace el modulo por dentro. Quien busca en que recetas entra la harina
-      // no piensa "voy a validar".
-      accionBarra({
-        label: 'Ingredientes',
-        icon: ICON_INGREDIENTES,
-        variant: 'btn--dark-ghost',
-        onClick: options.onIngredients,
-      }),
-
-      options.canEdit
-        ? accionBarra({
-            label: 'Nueva receta',
-            icon: ICON_NUEVA,
-            variant: 'btn--accent',
-            onClick: options.onNewRecipe,
-          })
-        : null,
-      // Ajustes va SOLO como engranaje, en las tres versiones.
-      //
-      // Detras de este boton estan publicar, descartar cambios y administrar
-      // usuarios: lo mas destructivo de la aplicacion. Con la palabra al lado
-      // pesaba igual que "Plan del dia" o "Ingredientes", que son consulta pura
-      // y se usan a diario, e invitaba a entrar a curiosear. El engranaje es la
-      // convencion que todo el mundo reconoce para "configuracion", se sigue
-      // alcanzando en un toque, y deja de competir por la atencion.
-      //
-      // El nombre no se pierde: va en `aria-label` y en el `title`, asi que lo
-      // anuncia el lector de pantalla y aparece al dejar el cursor encima.
-      accionBarra({
-        label: 'Ajustes',
-        icon: ICON_AJUSTES,
+        label: 'Menú',
+        icon: ICON_MENU,
         variant: 'btn--dark-ghost btn--solo-icono',
         soloIcono: true,
-        onClick: options.onSettings,
+        onClick: options.onMenu,
       }),
+
+      ...acciones.map(accionBarra),
     ]),
   ]);
 }
@@ -136,7 +126,7 @@ export function renderHeader(options) {
  * siempre en `aria-label`, asi que ocultarlo no deja el boton sin nombre. El
  * `title` da la misma pista con el cursor encima en escritorio.
  *
- * @param {{label: string, icon: Array<string>, variant: string, soloIcono?: boolean, onClick: () => void}} options
+ * @param {AccionDeBarra} options
  * @returns {HTMLElement}
  */
 function accionBarra(options) {
@@ -144,7 +134,7 @@ function accionBarra(options) {
     'button',
     {
       type: 'button',
-      class: 'btn ' + options.variant,
+      class: 'btn ' + (options.variant || 'btn--dark-ghost'),
       attrs: { 'aria-label': options.label, title: options.label },
       on: { click: options.onClick },
     },

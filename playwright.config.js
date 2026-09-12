@@ -44,8 +44,16 @@ export default defineConfig({
   projects: [
     {
       name: 'escritorio',
-      testMatch: /(recorrido|dialogos|impresion|resiliencia|publicacion|editor|unidades)\.spec\.js/,
+      testMatch: /(recorrido|dialogos|impresion|resiliencia|publicacion|editor|unidades|almacen|exportar|inicio)\.spec\.js/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+    },
+    {
+      // El ajuste a la pantalla del telefono. Este archivo declara sus propios
+      // tamaños dentro, uno por aparato real, asi que aqui no se fija ninguno:
+      // lo que se comprueba es que la maqueta quepa en TODOS, no en uno.
+      name: 'movil',
+      testMatch: /movil-[a-z-]+\.spec\.js/,
+      use: { ...devices['Desktop Chrome'], hasTouch: true },
     },
     {
       // El obrador entra desde el telefono: es donde aparecieron cuatro de los

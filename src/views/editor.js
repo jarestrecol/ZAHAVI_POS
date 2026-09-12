@@ -45,17 +45,24 @@
  *  alguien escribe le movería el cursor.
  */
 
-import { el, clear } from '../lib/dom.js';
+import { el, clear, desplazarAlFinal } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
+import { comboboxIngrediente } from '../lib/combobox.js';
+import { dictadoDisponible, crearDictado } from '../lib/dictado.js';
 import { splitYield, composeName, yieldUnitList } from '../lib/format.js';
 import { CATEGORIES, UNITS, validateRecipe } from '../core/schema.js';
 import { createWindow } from './window.js';
 
-/** Id del datalist compartido por todos los campos de ingrediente. */
-const CATALOG_ID = 'catalogo-ingredientes';
-
-/** Id del datalist de unidades. */
-const UNITS_ID = 'catalogo-unidades';
+/*
+ * Ya no hay `<datalist>`.
+ *
+ * Las sugerencias de ingrediente y de unidad las pinta `lib/combobox.js` DENTRO
+ * de la pagina. El motivo esta entero en la cabecera de ese archivo, y en corto
+ * es este: el navegador del telefono no dibuja un `<datalist>` sobre la pagina
+ * sino dentro de la barra del teclado, cuyo alto depende del tamano de letra
+ * que cada persona tenga configurado en el aparato. Con letra grande, las
+ * sugerencias no caben y NO SE VEN. Lo reporto el obrador.
+ */
 
 /**
  * Unidades de rendimiento que ofrece la lista.
@@ -123,7 +130,36 @@ export function openEditor(options) {
   const errorBox = el('p', { class: 'form-error', attrs: { role: 'alert' } });
   const componentsHost = el('div', { class: 'editor__components' });
 
+  /*
+   * LAS LISTAS DE SUGERENCIAS VIVAS AHORA MISMO.
+   *
+   * Se apuntan FUERA del DOM, en este array, porque `redrawItems` y
+   * `redrawComponents` hacen `clear()` sin avisar a nadie: sin este registro
+   * quedarian oyentes colgando de campos que ya no estan en el documento, uno
+   * por cada linea anadida o quitada, durante toda la edicion.
+   *
+   * Es la regla 16 del proyecto aplicada a algo que no es el foco: lo que hay
+   * que recordar de un nodo no se le pregunta al nodo justo antes de destruirlo.
+   */
+  const combos = [];
+
+  /** Apunta una lista recien creada junto al campo al que acompana. */
+  function registrarCombo(input, combo) {
+    combos.push({ input, combo });
+  }
+
+  /** Suelta las listas de todos los campos que haya dentro de `host`. */
+  function soltarCombosDe(host) {
+    for (let i = combos.length - 1; i >= 0; i -= 1) {
+      if (host.contains(combos[i].input)) {
+        combos[i].combo.destruir();
+        combos.splice(i, 1);
+      }
+    }
+  }
+
   const redrawComponents = () => {
+    soltarCombosDe(componentsHost);
     clear(componentsHost);
     draft.componentes.forEach((component, index) => {
       componentsHost.appendChild(renderComponent(component, index));
@@ -149,6 +185,7 @@ export function openEditor(options) {
     const itemsHost = el('div', { class: 'rows' });
 
     const redrawItems = () => {
+      soltarCombosDe(itemsHost);
       clear(itemsHost);
       component.items.forEach((item, itemIndex) => {
         itemsHost.appendChild(renderItemRow(item, componentIndex, itemIndex, component, redrawItems));
@@ -241,7 +278,8 @@ export function openEditor(options) {
       class: 'field',
       value: item.unidad,
       placeholder: 'gr',
-      attrs: { list: UNITS_ID, 'aria-label': 'Unidad' },
+      dataset: { campo: 'unidad' },
+      attrs: { 'aria-label': 'Unidad' },
       on: {
         input: (event) => {
           item.unidad = event.target.value.toUpperCase();
@@ -249,29 +287,82 @@ export function openEditor(options) {
       },
     });
 
-    return el('div', { class: 'row' }, [
-      el('input', {
-        type: 'text',
-        id: rowId + '-i',
-        class: 'field',
-        value: item.ingrediente,
-        placeholder: 'Ingrediente',
-        attrs: { list: CATALOG_ID, 'aria-label': 'Ingrediente' },
-        on: {
-          input: (event) => {
-            item.ingrediente = event.target.value.toUpperCase();
-          },
-          // Al elegir un ingrediente conocido se propone su unidad habitual,
-          // solo si la casilla de unidad sigue vacia.
-          change: (event) => {
-            const suggested = unitByIngredient.get(event.target.value.toUpperCase());
-            if (suggested && unitInput.value.trim() === '') {
-              unitInput.value = suggested;
-              item.unidad = suggested;
-            }
-          },
+    /**
+     * Propone la unidad habitual del ingrediente, sin pisar lo ya escrito.
+     *
+     * Solo rellena si la casilla esta vacia: quien ya puso una unidad a mano
+     * sabe por que, y corregirsela seria decidir por el obrador sobre algo que
+     * `CLAUDE.md` §13 declara que es una decision del negocio.
+     */
+    const proponerUnidad = (nombre) => {
+      const sugerida = unitByIngredient.get(String(nombre || '').toUpperCase());
+      if (sugerida && unitInput.value.trim() === '') {
+        unitInput.value = sugerida;
+        item.unidad = sugerida;
+      }
+    };
+
+    const ingInput = el('input', {
+      type: 'text',
+      id: rowId + '-i',
+      class: 'field',
+      value: item.ingrediente,
+      placeholder: 'Ingrediente',
+      // El foco tras "+ ingrediente" se busca por este `data-*`. Antes se
+      // buscaba por `input[list=...]`, y al quitar el datalist ese selector
+      // habria dejado de encontrar nada EN SILENCIO: el boton seguiria
+      // anadiendo la fila y el cursor ya no iria a ella.
+      dataset: { campo: 'ingrediente' },
+      attrs: { 'aria-label': 'Ingrediente' },
+      on: {
+        input: (event) => {
+          item.ingrediente = event.target.value.toUpperCase();
+        },
+        // Escribir el nombre entero a mano y salir del campo tambien propone la
+        // unidad. Elegir de la lista pasa por `onElegir`, aqui abajo.
+        change: (event) => proponerUnidad(event.target.value),
+      },
+    });
+
+    // Cada campo va dentro de su propia caja `position: relative`: es de donde
+    // cuelga la lista de sugerencias. Sin ella la lista se posicionaria contra
+    // el dialogo entero, que ademas lleva `backdrop-filter` (regla 21).
+    const cajaIngrediente = el('div', { class: 'combo' }, [ingInput]);
+    const cajaUnidad = el('div', { class: 'combo' }, [unitInput]);
+
+    registrarCombo(
+      ingInput,
+      comboboxIngrediente({
+        input: ingInput,
+        contenedor: cajaIngrediente,
+        opciones: options.ingredientes,
+        onElegir: (opcion) => {
+          ingInput.value = String(opcion.nombre).toUpperCase();
+          item.ingrediente = ingInput.value;
+          proponerUnidad(opcion.nombre);
         },
       }),
+    );
+
+    // La unidad usa la MISMA lista y no un `<select>`, a proposito. Un
+    // desplegable cerrado impediria escribir una unidad que no este en las
+    // cinco canonicas, y eso es quitar una capacidad que hoy existe: no es una
+    // decision que corresponda tomar de paso mientras se arregla otra cosa.
+    registrarCombo(
+      unitInput,
+      comboboxIngrediente({
+        input: unitInput,
+        contenedor: cajaUnidad,
+        opciones: UNITS.map((unidad) => ({ nombre: unidad })),
+        onElegir: (opcion) => {
+          unitInput.value = String(opcion.nombre).toUpperCase();
+          item.unidad = unitInput.value;
+        },
+      }),
+    );
+
+    return el('div', { class: 'row' }, [
+      cajaIngrediente,
       el('input', {
         type: 'text',
         inputMode: 'decimal',
@@ -286,7 +377,7 @@ export function openEditor(options) {
           },
         },
       }),
-      unitInput,
+      cajaUnidad,
       el('button', {
         type: 'button',
         class: 'btn-icon',
@@ -312,7 +403,286 @@ export function openEditor(options) {
   redrawComponents();
 
   /* =======================================================================
-   *  3. LA VENTANA COMPLETA
+   *  3. EL METODO, QUE ADEMAS SE PUEDE DICTAR
+   * ==================================================================== */
+
+  /**
+   * El panel derecho: el texto del metodo y, si el navegador sabe, el dictado.
+   *
+   * POR QUE ESTO IMPORTA MAS DE LO QUE PARECE
+   * -----------------------------------------
+   * Las 122 recetas tienen el metodo VACIO (`CLAUDE.md` seccion 13) y esta
+   * anotado como trabajo de contenido pendiente. La razon real es que en el
+   * obrador no hay tiempo de teclear media pagina con las manos en la masa.
+   * Esto es lo que lo desbloquea.
+   *
+   * LA DECISION QUE SOSTIENE TODO LO DEMAS
+   * --------------------------------------
+   * Lo PROVISIONAL no entra en el textarea. Va en una linea aparte debajo, y
+   * solo se vuelca cuando el reconocedor lo da por bueno. Un `<textarea>` no
+   * admite formato dentro, asi que no habria forma de distinguir lo confirmado
+   * de lo que aun puede cambiar: mezclarlos es exactamente como esta API acaba
+   * escribiendo cada palabra dos veces. Con lo provisional fuera, el textarea
+   * contiene SIEMPRE texto confirmado y se puede seguir editando a mano
+   * mientras se dicta, sin pelearse con el reconocedor.
+   *
+   * @returns {HTMLElement}
+   */
+  function construirPanelMetodo() {
+    const metodo = el('textarea', {
+      id: 'recipe-method',
+      class: 'field field--method',
+      rows: 20,
+      value: draft.metodo || '',
+      placeholder: dictadoDisponible()
+        ? 'Escribe el método paso a paso, o pulsa Dictar y cuéntalo en voz alta.'
+        : 'Escribe aquí paso a paso el método de preparación…',
+      on: {
+        input: (event) => {
+          draft.metodo = event.target.value;
+          // Escribir a mano da por cerrada la posibilidad de deshacer el
+          // borrado: lo que hay ahora ya no es lo que se borro.
+          olvidarBorrado();
+          refrescarBorrar();
+        },
+      },
+    });
+
+    const etiqueta = el('label', {
+      class: 'section-label',
+      for: 'recipe-method',
+      text: 'Método de preparación',
+    });
+
+    // Sin soporte NO se pinta el boton, ni un hueco, ni una explicacion: el
+    // panel se ve exactamente como antes. Un control muerto invita a tocarlo y
+    // a preguntarse que pasa.
+    if (!dictadoDisponible()) {
+      return el('section', { class: 'editor__pane' }, [etiqueta, metodo]);
+    }
+
+    /*
+     * Lo que habia antes de "Borrar todo".
+     *
+     * Va aqui, en una variable, y no leyendose del propio textarea cuando haga
+     * falta: para entonces ya se habria borrado. Es la regla 16.
+     */
+    let borrado = null;
+
+    /** Palabras que habia al empezar, para poder decir cuantas entraron. */
+    let palabrasAlEmpezar = 0;
+
+    const parcial = el('p', { class: 'dictado__parcial' });
+    parcial.hidden = true;
+
+    const estado = el('p', { class: 'dictado__estado', attrs: { role: 'status' } });
+    estado.hidden = true;
+
+    const deshacer = el('div', { class: 'dictado__deshacer' }, [
+      el('span', { text: 'Método borrado. ' }),
+      el('button', {
+        type: 'button',
+        class: 'btn-link',
+        text: 'Deshacer',
+        on: {
+          click: () => {
+            if (borrado === null) return;
+            metodo.value = borrado;
+            draft.metodo = borrado;
+            olvidarBorrado();
+            refrescarBorrar();
+            metodo.focus();
+            announce('Método restaurado.');
+          },
+        },
+      }),
+    ]);
+    deshacer.hidden = true;
+
+    const confirmar = el('div', { class: 'dictado__confirmar' }, [
+      el('span', { text: '¿Borrar todo el método? Se puede deshacer.' }),
+      el('button', {
+        type: 'button',
+        class: 'btn btn--danger',
+        text: 'Borrar todo',
+        on: {
+          click: () => {
+            borrado = metodo.value;
+            metodo.value = '';
+            draft.metodo = '';
+            confirmar.hidden = true;
+            deshacer.hidden = false;
+            refrescarBorrar();
+            metodo.focus();
+            announce('Método borrado. Se puede deshacer.', 'assertive');
+          },
+        },
+      }),
+      el('button', {
+        type: 'button',
+        class: 'btn btn--quiet',
+        text: 'Conservar lo escrito',
+        on: {
+          click: () => {
+            confirmar.hidden = true;
+            metodo.focus();
+          },
+        },
+      }),
+    ]);
+    confirmar.hidden = true;
+
+    const botonBorrar = el('button', {
+      type: 'button',
+      class: 'btn btn--quiet',
+      text: 'Borrar todo',
+      on: {
+        click: () => {
+          // Se pregunta AQUI DENTRO y no con un `confirm()` del navegador ni
+          // con otro dialogo encima: el editor ya es una ventana modal, y
+          // apilar otra para una pregunta de una linea desorienta.
+          confirmar.hidden = false;
+          deshacer.hidden = true;
+        },
+      },
+    });
+
+    /** El boton de borrar no se ofrece si no hay nada que borrar. */
+    function refrescarBorrar() {
+      const vacio = metodo.value.trim() === '';
+      botonBorrar.disabled = vacio;
+      if (vacio) confirmar.hidden = true;
+    }
+
+    function olvidarBorrado() {
+      borrado = null;
+      deshacer.hidden = true;
+    }
+
+    /**
+     * Vuelca al textarea un tramo que el reconocedor ya dio por bueno.
+     *
+     * Se anade AL FINAL y no en la posicion del cursor: mientras se dicta nadie
+     * esta tecleando, y que el texto aparezca a mitad de una frase que se
+     * corrigio hace dos minutos es justo lo que nadie espera.
+     */
+    function escribirConfirmado(texto) {
+      if (!texto) return;
+      const actual = metodo.value;
+      const separador = actual === '' || /\s$/.test(actual) ? '' : ' ';
+      metodo.value = actual + separador + texto;
+      draft.metodo = metodo.value;
+      // El campo se queda ensenando el final: sin esto, lo que se acaba de
+      // dictar se escribe fuera de la parte visible y parece que no pasa nada.
+      desplazarAlFinal(metodo);
+      olvidarBorrado();
+      refrescarBorrar();
+    }
+
+    function mostrarEstado(texto, variante) {
+      estado.classList.remove('dictado__estado--escuchando', 'dictado__estado--error');
+      clear(estado);
+      if (!texto) {
+        estado.hidden = true;
+        return;
+      }
+      if (variante) estado.classList.add('dictado__estado--' + variante);
+      if (variante === 'escuchando') {
+        estado.appendChild(el('span', { class: 'dictado__punto', attrs: { 'aria-hidden': 'true' } }));
+      }
+      estado.appendChild(el('span', { text: texto }));
+      estado.hidden = false;
+    }
+
+    const contarPalabras = (texto) => (texto.trim() === '' ? 0 : texto.trim().split(/\s+/).length);
+
+    const dictado = crearDictado({
+      onTexto: escribirConfirmado,
+      onParcial: (texto) => {
+        parcial.textContent = texto;
+        parcial.hidden = texto === '';
+      },
+      onEstado: (fase) => {
+        if (fase === 'pidiendo') {
+          botonDictar.disabled = true;
+          botonDictar.textContent = 'Pidiendo permiso…';
+          return;
+        }
+        if (fase === 'escuchando') {
+          botonDictar.disabled = false;
+          botonDictar.textContent = 'Detener';
+          botonDictar.setAttribute('aria-label', 'Detener el dictado');
+          mostrarEstado('Escuchando… Habla con calma.', 'escuchando');
+          return;
+        }
+        // Detenido.
+        botonDictar.disabled = false;
+        botonDictar.textContent = 'Dictar';
+        botonDictar.setAttribute('aria-label', 'Dictar el método por voz');
+        parcial.hidden = true;
+        parcial.textContent = '';
+        // Un error ya dejo su propio mensaje puesto: no se pisa.
+        if (!estado.classList.contains('dictado__estado--error')) mostrarEstado('');
+        const entraron = contarPalabras(metodo.value) - palabrasAlEmpezar;
+        if (entraron > 0) announce('Dictado detenido. ' + entraron + ' palabras escritas.');
+        // El foco vuelve al texto, al final, que es donde se va a corregir.
+        metodo.focus();
+        metodo.setSelectionRange(metodo.value.length, metodo.value.length);
+      },
+      onError: (mensaje) => {
+        mostrarEstado(mensaje, 'error');
+        announce(mensaje, 'assertive');
+      },
+    });
+
+    const botonDictar = el('button', {
+      type: 'button',
+      class: 'btn btn--quiet',
+      text: 'Dictar',
+      attrs: { 'aria-label': 'Dictar el método por voz' },
+      on: {
+        click: () => {
+          if (dictado.activo()) {
+            dictado.detener();
+            return;
+          }
+          palabrasAlEmpezar = contarPalabras(metodo.value);
+          mostrarEstado('');
+          // EL TECLADO SE QUITA DE EN MEDIO.
+          //
+          // Si el foco se queda en el textarea, el teclado del sistema sigue
+          // abierto tapando media pantalla y quien dicta no ve crecer su propio
+          // texto. Al detener se devuelve el foco, unas lineas mas arriba.
+          metodo.blur();
+          dictado.iniciar();
+          announce('Escuchando. Habla ahora.');
+        },
+      },
+    });
+
+    refrescarBorrar();
+
+    return el('section', { class: 'editor__pane' }, [
+      el('div', { class: 'editor__pane-head' }, [
+        etiqueta,
+        el('div', { class: 'dictado' }, [botonDictar, botonBorrar]),
+      ]),
+      metodo,
+      parcial,
+      estado,
+      confirmar,
+      deshacer,
+      // PERMANENTE, y no solo al activar el dictado. Quien va a hablarle al
+      // telefono tiene derecho a saber esto ANTES, no despues.
+      el('p', {
+        class: 'field-hint',
+        text: 'El dictado necesita conexión: el navegador envía tu voz a un servicio externo para convertirla en texto.',
+      }),
+    ]);
+  }
+
+  /* =======================================================================
+   *  4. LA VENTANA COMPLETA
    * ==================================================================== */
 
   /**
@@ -445,24 +815,8 @@ export function openEditor(options) {
         ]),
         componentsHost,
       ]),
-      el('section', { class: 'editor__pane' }, [
-        el('label', { class: 'section-label', for: 'recipe-method', text: 'Método de preparación' }),
-        el('textarea', {
-          id: 'recipe-method',
-          class: 'field field--method',
-          rows: 20,
-          value: draft.metodo || '',
-          placeholder: 'Escribe aquí paso a paso el método de preparación…',
-          on: {
-            input: (event) => {
-              draft.metodo = event.target.value;
-            },
-          },
-        }),
-      ]),
+      construirPanelMetodo(),
     ]),
-    buildDatalist(CATALOG_ID, options.ingredientes.map((i) => i.nombre)),
-    buildDatalist(UNITS_ID, UNITS),
   ]);
 
   /**
@@ -571,25 +925,6 @@ function yieldUnitOptions(selected) {
 }
 
 /**
- * Lista de sugerencias para un campo (`<datalist>`).
- *
- * Se usa para los 159 ingredientes del catalogo y para las unidades. A
- * diferencia de un `<select>`, deja escribir un valor que no este en la lista:
- * hace falta para poder dar de alta un ingrediente nuevo.
- *
- * @param {string} id identificador al que apunta el atributo `list` del campo
- * @param {Array<string>} values
- * @returns {HTMLElement}
- */
-function buildDatalist(id, values) {
-  return el(
-    'datalist',
-    { id },
-    values.map((value) => el('option', { value })),
-  );
-}
-
-/**
  * Indice de ingrediente a su unidad habitual.
  *
  * Sirve para proponer la unidad al elegir un ingrediente conocido y ahorrar
@@ -615,7 +950,7 @@ function buildUnitLookup(ingredientes) {
  * @param {HTMLElement} host contenedor de las filas del componente
  */
 function focusLastIngredient(host) {
-  const inputs = host.querySelectorAll('input[list="' + CATALOG_ID + '"]');
+  const inputs = host.querySelectorAll('input[data-campo="ingrediente"]');
   const last = inputs[inputs.length - 1];
   if (last) last.focus();
 }

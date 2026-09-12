@@ -195,3 +195,33 @@ export function indexLetter(nombre) {
 export function byName(a, b) {
   return a.nombre.localeCompare(b.nombre, 'es');
 }
+
+/**
+ * Pesos colombianos, sin decimales.
+ *
+ * Sin decimales a proposito: en pesos, los centavos no existen en la practica y
+ * arrastrarlos por la pantalla solo aporta ruido a cifras que ya son largas.
+ * El redondeo se hace UNA vez, al presentar, y nunca dentro de los calculos:
+ * redondear a mitad de una suma es como un total deja de cuadrar con las lineas
+ * que lo forman.
+ *
+ * @param {number|string} valor
+ * @returns {string}
+ */
+export function pesos(valor) {
+  const n = typeof valor === 'number' ? valor : parseFloat(String(valor).replace(',', '.'));
+  if (!Number.isFinite(n)) return '—';
+  return '$' + Math.round(n).toLocaleString('es-CO');
+}
+
+/**
+ * Una fecha `YYYY-MM-DD` escrita como se lee en el obrador.
+ *
+ * @param {string} iso
+ * @returns {string}
+ */
+export function fechaCorta(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return '—';
+  const [a, m, d] = String(iso).split('-');
+  return `${d}/${m}/${a}`;
+}

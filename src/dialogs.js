@@ -22,7 +22,6 @@
  */
 
 import { setInert } from './lib/a11y.js';
-import { trasPintar } from './lib/paint.js';
 import * as repo from './core/repository.js';
 import { getState, setState, recetario } from './core/store.js';
 import { getRoute, navigate } from './core/router.js';
@@ -43,8 +42,6 @@ import { openPublicar } from './views/publicar.js';
 import { openDesbloquear } from './views/desbloquear.js';
 import { openConfirmDelete } from './views/confirm.js';
 import { openProduction } from './views/production.js';
-import { openPlan } from './views/plan.js';
-import { openIngredients } from './views/ingredients.js';
 
 /**
  * Dialogo abierto en este momento, o null si no hay ninguno.
@@ -163,22 +160,6 @@ const DIALOGOS = [
     monta: () => buildPublicar(),
   },
   {
-    // Clave fija a proposito: el plan lleva su propia seleccion por dentro y se
-    // repinta solo. Si la clave cambiara, cualquier repintado de la aplicacion
-    // lo reconstruiria y se perderia lo que se llevara elegido.
-    nombre: 'plan',
-    activo: (state) => state.recetario.planOpen,
-    clave: () => 'plan',
-    monta: (state) => buildPlan(state),
-  },
-  {
-    // Lo mismo: el catalogo guarda su busqueda y su orden por dentro.
-    nombre: 'ingredientes',
-    activo: (state) => state.recetario.ingredientsOpen,
-    clave: () => 'ingredientes',
-    monta: (state) => buildIngredients(state),
-  },
-  {
     nombre: 'ajustes',
     activo: (state) => state.settingsOpen,
     // El estado del servidor forma parte de la clave porque el bloque de
@@ -201,7 +182,8 @@ const DIALOGOS = [
   },
   {
     nombre: 'editor',
-    activo: (state, route) => route.name === 'new' || route.name === 'edit',
+    activo: (state, route) =>
+      route.modulo === 'recetario' && (route.name === 'new' || route.name === 'edit'),
     puerta: (state, route) => [route.name, route.id],
     clave: (state, route) => (route.name === 'new' ? 'new' : 'edit:' + route.id),
     monta: (state, route) => buildEditor(route),
@@ -259,48 +241,6 @@ function buildProduction(state) {
     recipe: escalarReceta(recipe, state.recetario.factor),
     factor: state.recetario.factor,
     onClose: () => setState({ recetario: { production: null } }),
-  });
-}
-
-/**
- * Plan de produccion del dia.
- *
- * Al pedir imprimir se guarda el plan en el estado y se cierra la ventana: la
- * hoja se genera en `renderPrint` y `window.print()` se llama despues del
- * repintado, para que el navegador encuentre la hoja ya montada. Sin esa
- * espera se imprimiria lo que hubiera antes.
- *
- * Esa espera es `trasPintar`, y no un `requestAnimationFrame`: el cuadro llega
- * antes que el pintado cuando hay una View Transition por medio. El trabajo se
- * apunta antes de `setState` porque sin transiciones el repintado ocurre
- * dentro de esa misma llamada.
- */
-function buildPlan(state) {
-  return openPlan({
-    recipes: state.recetario.recipes,
-    onClose: () => setState({ recetario: { planOpen: false, planPrint: null } }),
-    onPrint: (plan) => {
-      trasPintar(() => {
-        window.print();
-        // El plan deja de estar pendiente en cuanto se manda a imprimir: si
-        // se quedara, la siguiente impresion sacaria el plan en vez de la
-        // receta que se estuviera viendo.
-        setState({ recetario: { planPrint: null } });
-      });
-      setState({ recetario: { planOpen: false, planPrint: plan } });
-    },
-  });
-}
-
-/**
- * Catalogo de ingredientes.
- *
- * Solo lee el recetario: no cambia nada ni guarda nada.
- */
-function buildIngredients(state) {
-  return openIngredients({
-    recipes: state.recetario.recipes,
-    onClose: () => setState({ recetario: { ingredientsOpen: false } }),
   });
 }
 

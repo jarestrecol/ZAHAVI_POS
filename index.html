@@ -17,8 +17,25 @@
 <html lang="es" translate="no">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Zahavi · Recetario</title>
+    <!--
+      `viewport-fit=cover` no es un adorno: es lo que hace que `env(safe-area-inset-*)`
+      valga algo. Sin el, en un iPhone con el recetario instalado en la pantalla de
+      inicio esas variables devuelven 0, y las seis reglas que ya las usan se quedan
+      sin el margen que pedian: la barra flotante de acciones y el boton de volver
+      (`responsive.css`) y el `--gutter` de los tres tamanos (`tokens.css` y
+      `responsive.css`). Es decir, el CSS ya estaba escrito para el recorte de
+      pantalla y la plataforma no se lo estaba dando.
+
+      LA ESCALA NO SE TOCA, y es una decision, no un olvido. Anadir
+      `maximum-scale=1` o `user-scalable=no` dejaria la interfaz sin poder
+      ampliarse con los dedos, y eso incumple el criterio WCAG 2.2 AA 1.4.4, que
+      este proyecto declara como objetivo. Lo que se pidio es que NO HAGA FALTA
+      pellizcar para ver la aplicacion entera, no que este prohibido: eso se
+      arregla quitando el desbordamiento horizontal en el CSS, no atando el zoom.
+      Atarlo, ademas, solo esconderia el desbordamiento sin quitarlo.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ZAHAVI POS</title>
     <meta
       name="description"
       content="Recetario de panadería y pastelería. Funciona sin conexión y guarda las recetas en este dispositivo."
@@ -28,12 +45,28 @@
       Sin conexiones externas: no hay CDN, ni tipografías remotas, ni analítica.
       `connect-src 'self'` cubre el JSON de recetas y la función de publicación.
       Esta política es el respaldo para cuando el sitio se sirve sin cabeceras
-      (archivo local o alojamiento estático). En Vercel manda la de `vercel.json`,
-      que además incluye `frame-ancestors`, imposible de declarar en una meta.
+      (archivo local o alojamiento estático). En Vercel manda la de `vercel.json`.
+
+      Dice lo mismo que aquella salvo dos directivas, y las dos por un motivo:
+
+      - `frame-ancestors`: el navegador la IGNORA dentro de una meta. Solo existe
+        como cabecera, así que aquí sobraría.
+      - `upgrade-insecure-requests`: aquí haría daño. Esta meta es justamente el
+        respaldo para un alojamiento sin cabeceras, y si ese alojamiento sirviera
+        por `http://` la directiva reescribiría todas las peticiones a `https://`
+        y el recetario no cargaría ni un módulo. Como cabecera de Vercel sí va,
+        porque allí todo es `https` de todos modos.
+
+      `blob:` NO está declarado, y tampoco hace falta: se comprobó ejecutándolo
+      contra estas mismas cabeceras. Una descarga por `URL.createObjectURL` +
+      `<a download>` (la exportación a CSV) no es una carga de recurso sujeta a
+      la CSP, y no genera ninguna violación. Declararlo sería abrir un origen
+      para nada. La Web Speech API tampoco pasa por `connect-src`: su tráfico lo
+      hace el navegador por dentro, no la página.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="color-scheme" content="light" />
@@ -56,7 +89,10 @@
     <link rel="stylesheet" href="./assets/css/layout.css" />
     <link rel="stylesheet" href="./assets/css/sheet.css" />
     <link rel="stylesheet" href="./assets/css/views.css" />
+    <link rel="stylesheet" href="./assets/css/inicio.css" />
+    <link rel="stylesheet" href="./assets/css/pantalla.css" />
     <link rel="stylesheet" href="./assets/css/dialogs.css" />
+    <link rel="stylesheet" href="./assets/css/almacen.css" />
     <link rel="stylesheet" href="./assets/css/print.css" />
     <!-- Pantalla de fallo del arranque. Comparte hoja con 404.html y 500.html. -->
     <link rel="stylesheet" href="./assets/css/fallback.css" />
@@ -99,7 +135,7 @@
       -->
       <div class="fallo">
         <div class="fallo__inner">
-          <p class="fallo__brand">Zahavi · Recetario</p>
+          <p class="fallo__brand">ZAHAVI POS</p>
           <h1 class="fallo__title">Hace falta activar JavaScript</h1>
           <p class="fallo__text">
             Este recetario funciona dentro del navegador, también sin conexión, y para eso necesita

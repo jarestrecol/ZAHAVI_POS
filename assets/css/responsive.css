@@ -222,6 +222,16 @@
    * Los 36px son solo de ESTA barra. `--tap-min` sigue en 44px, asi que los
    * botones de la ficha, de los dialogos y del listado conservan su tamaño.
    * 36 sigue muy por encima de los 24 que exige la norma para un objetivo.
+   *
+   * Y DESDE QUE HAY CUATRO MODULOS, EL DESCRIPTOR SE QUEDA.
+   *
+   * Estuvo escondido aqui, con el argumento de que «el nombre ya identifica».
+   * Era cierto mientras la aplicacion era una sola cosa: ZAHAVI era el
+   * recetario. Con recetario, produccion, ingredientes y almacen, lo que
+   * identifica en que pantalla se esta es justamente el descriptor, y sin el
+   * las cuatro barras del sistema se ven exactamente iguales. Ahora cabe,
+   * ademas, porque los tres botones de modulo se fueron al menu: donde habia
+   * cuatro acciones hay dos.
    */
   .topbar {
     padding: var(--space-1) var(--space-3);
@@ -233,14 +243,29 @@
     margin-right: -0.14em;
   }
 
-  /* El descriptor sobra cuando el ancho aprieta: el nombre ya identifica. */
-  /* En celular la barra ya cede "recetario" por espacio, asi que la version
-     se va con el. Sigue estando en la pantalla de entrada y en Ajustes, que es
-     donde se va a buscar. */
-  .topbar__version,
-  .topbar__sub,
-  .topbar__dot {
+  /* La version si se va: es lo unico de la barra que no sirve para trabajar,
+     y sigue estando en la pantalla de entrada y en Ajustes, que es donde se va
+     a buscar cuando dos sedes comparan que estan viendo. */
+  .topbar__version {
     display: none;
+  }
+
+  /* El descriptor se queda, pero cede ancho antes que nada: en un nombre de
+     modulo largo vale mas recortarlo que empujar los botones fuera del borde,
+     que es el defecto que esta seccion vino a arreglar. */
+  .topbar__marca {
+    min-width: 0;
+  }
+
+  .topbar__sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar__brand {
+    min-width: 0;
+    flex-shrink: 1;
   }
 
   .topbar__actions .btn {

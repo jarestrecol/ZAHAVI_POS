@@ -22,6 +22,23 @@
   min-height: 100dvh;
   padding: 0;
   background: var(--surface-card);
+
+  /*
+   * ESTA PANTALLA SI SE DESPLAZA, y es la excepcion a proposito.
+   *
+   * Desde que `#app` es una caja de alto fijo con `overflow: hidden` (ver
+   * layout.css), lo que no quepa dentro se recorta y deja de alcanzarse. Al
+   * recetario eso le va bien, porque su desplazamiento vive en el listado y en
+   * el panel. Aqui no: en un telefono bajo, con el teclado abierto, el
+   * formulario de entrada mide mas que la pantalla, y recortarlo dejaria el
+   * boton de entrar fuera de alcance sin forma de llegar a el.
+   *
+   * `flex: 1 1 auto` con `min-height: 0` permite que encoja por debajo de su
+   * contenido; el desplazamiento propio hace el resto.
+   */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /*
@@ -296,6 +313,11 @@
   align-content: center;
   justify-items: center;
   gap: var(--space-6);
+  /* La altura la pone `#app`. Se conserva el `100dvh` como respaldo para el
+     primer pintado de `index.html`, que llega antes de que exista ningun
+     modulo, y para la pantalla de fallo, que vive fuera de este contenedor. */
+  flex: 1 1 auto;
+  min-height: 0;
   height: 100vh;
   height: 100dvh;
   padding: var(--gutter);

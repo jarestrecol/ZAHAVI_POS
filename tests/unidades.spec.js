@@ -12,12 +12,12 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar } from './apoyo.js';
+import { entrar, abrirModulo } from './apoyo.js';
 
 /** Abre el catalogo y despliega la fila de un ingrediente. */
 async function abrirIngrediente(page, nombre) {
   await entrar(page);
-  await page.getByRole('button', { name: /ingredientes/i }).first().click();
+  await abrirModulo(page, 'ingredientes');
 
   const buscador = page.getByPlaceholder(/buscar ingrediente/i);
   await expect(buscador).toBeVisible();

@@ -7,6 +7,12 @@
  *  edicion y estado de los dialogos. La vista activa, la receta abierta, la
  *  busqueda y el filtro de categoria viven en el hash y los aporta el enrutador.
  *
+ *  ESA REGLA ESTABA ESCRITA Y ROTA A LA VEZ. `planOpen`, `ingredientsOpen` y
+ *  `almacenOpen` eran tres booleanos de aqui que decidian que pantalla se veia,
+ *  o sea justo lo que esta linea dice que vive en el hash. El precio no era
+ *  teorico: esas tres pantallas no se podian enlazar, no sobrevivian a una
+ *  recarga, y el menu de modulos no tenia a donde apuntar. Ahora son rutas.
+ *
  *  POR QUE EL ESTADO VA POR MODULOS
  *  --------------------------------
  *  Antes esto era una bolsa PLANA de dieciseis claves, y diez de ellas eran del
@@ -38,9 +44,14 @@ import { ESCALA_POR_DEFECTO } from './preferencias.js';
  * @property {string|null} confirmDelete id pendiente de confirmar
  * @property {string|null} production id de la receta abierta en modo produccion
  * @property {number} factor multiplicador de la tanda que se esta viendo
- * @property {boolean} planOpen plan de produccion abierto
- * @property {boolean} ingredientsOpen catalogo de ingredientes abierto
+
  * @property {object|null} planPrint plan pendiente de imprimir
+ */
+
+/**
+ * @typedef {Object} EstadoAlmacen
+ * @property {Array} lotes
+ * @property {object|null} costeo resultado del cruce con el plan del dia
  */
 
 /**
@@ -57,6 +68,7 @@ import { ESCALA_POR_DEFECTO } from './preferencias.js';
  * @property {string} loginError
  * @property {string} escalaTexto tamano del texto de las recetas en este aparato
  * @property {EstadoRecetario} recetario
+ * @property {EstadoAlmacen} almacen
  */
 
 /**
@@ -68,7 +80,7 @@ import { ESCALA_POR_DEFECTO } from './preferencias.js';
  * el resto del modulo. `scripts/verificar.mjs` comprueba que las dos listas
  * coinciden.
  */
-export const MODULOS = Object.freeze(['recetario']);
+export const MODULOS = Object.freeze(['recetario', 'almacen']);
 
 /** Estado inicial del modulo de recetas. */
 const RECETARIO_INICIAL = Object.freeze({
@@ -80,13 +92,40 @@ const RECETARIO_INICIAL = Object.freeze({
   // receta: no se guarda en ningun sitio y vuelve a 1 al cambiar de receta.
   // Ver `core/scale.js` para el porque.
   factor: 1,
-  // Plan de produccion abierto. Tampoco se guarda: se pierde al cerrarlo.
-  planOpen: false,
-  // Catalogo de ingredientes abierto. Solo lee: no guarda nada.
-  ingredientsOpen: false,
   // Plan pendiente de imprimir, si se pidio imprimirlo.
   planPrint: null,
+  // Catalogo de ingredientes pendiente de imprimir. Mismo mecanismo que el
+  // plan: la hoja se monta en `renderPrint` y se imprime despues del pintado.
+  ingredientesPrint: null,
 });
+
+/**
+ * Estado inicial del modulo de almacen.
+ *
+ * Es la prueba de que el reparto por modulos servia para algo: anadir la bodega
+ * entera son estas doce lineas y una palabra en `MODULOS`. Nada del recetario
+ * se toca, y ningun nombre compite con los suyos.
+ */
+const ALMACEN_INICIAL = Object.freeze({
+  lotes: [],
+  // Resultado de `costearPlan` pendiente de descontar. No se guarda: es
+  // una cuenta de esta sesion, no un dato del almacen.
+  costeo: null,
+});
+
+/*
+ * LO QUE NO ESTA AQUI, Y ES A PROPOSITO.
+ *
+ * El lote que se esta editando, el texto del buscador y el orden de la lista
+ * NO viven en el estado: son de la ventana y se quedan dentro de ella, igual
+ * que la seleccion del plan del dia y la busqueda del catalogo.
+ *
+ * El motivo es mecanico y muerde: el dialogo del almacen tiene clave FIJA en
+ * `src/dialogs.js`, asi que no se reconstruye mientras esta abierto -si lo
+ * hiciera, borraria el formulario a medio rellenar-. Un `editando` en el estado
+ * cambiaria y no repintaria nada: seria estado muerto que aparenta gobernar una
+ * pantalla a la que no llega.
+ */
 
 /** Estado inicial completo. */
 const INITIAL = Object.freeze({
@@ -111,6 +150,7 @@ const INITIAL = Object.freeze({
   // por la guardada nada mas arrancar.
   escalaTexto: ESCALA_POR_DEFECTO,
   recetario: RECETARIO_INICIAL,
+  almacen: ALMACEN_INICIAL,
 });
 
 let state = INITIAL;
@@ -135,6 +175,18 @@ export function getState() {
  */
 export function recetario() {
   return state.recetario;
+}
+
+/**
+ * Estado del modulo de almacen.
+ *
+ * Hermano de `recetario()`, y existe por lo mismo: que la forma de leer sea la
+ * misma en los dos modulos y no una mezcla de atajos y rutas largas.
+ *
+ * @returns {EstadoAlmacen}
+ */
+export function almacen() {
+  return state.almacen;
 }
 
 /**

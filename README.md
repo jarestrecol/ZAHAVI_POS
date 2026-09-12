@@ -4,8 +4,13 @@ Las fórmulas de la panadería, la repostería y el café en un solo enlace: la 
 información en el obrador y en la casa de producción, consultable desde el móvil
 junto a la báscula y funcionando aunque no haya señal.
 
-**Versión 1.5.1 · Fase 1 en producción** · 121 recetas · 187 componentes · 1.282
-líneas de ingrediente · 159 ingredientes en catálogo.
+**Versión 2.0.0 · cuatro módulos en producción**: recetario, producción,
+ingredientes y almacén.
+
+Las cifras exactas —cuántas recetas, cuántos componentes, cuánto pesa el
+archivo— viven en [CLAUDE.md](CLAUDE.md) y **las comprueba la verificación**.
+Aquí no se copian: esta línea llegó a decir 121 recetas y 1.282 líneas mucho
+después de que dejara de ser cierto, porque nadie la miraba.
 
 > **¿Vas a usarlo y no a modificarlo?** Lo tuyo es la sección *Manual de uso* de
 > **[CLAUDE.md](CLAUDE.md)**: cómo se usa en el obrador, sin nada técnico.
@@ -343,13 +348,20 @@ Cinco cosas que no son obvias y salen caras si se descubren tarde.
 
 ## Documentación
 
-**Todo el proyecto está documentado en un solo archivo: [CLAUDE.md](CLAUDE.md).**
+**Empieza por [CLAUDE.md](CLAUDE.md)**, que es el núcleo: qué es esto, las
+cifras verificadas, las 26 reglas que no se negocian, las capas y sus fronteras,
+el mapa del repositorio, el modelo de datos y cómo se trabaja. Son unas 400
+líneas, y el CI no le deja crecer más.
 
-Ahí están las capas y las fronteras, las reglas al tocar el código con el defecto
-que originó cada una, el procedimiento para añadir un módulo nuevo, el modelo de
-datos, la seguridad, el despliegue y su diagnóstico, la recuperación ante fallos,
-el sistema de diseño, los límites conocidos, el historial de defectos y el manual
-de uso para el equipo de la panadería.
+Lo demás se abre por tarea, y el índice del final de ese archivo dice qué
+contesta cada uno: [`docs/arquitectura.md`](docs/arquitectura.md),
+[`datos.md`](docs/datos.md), [`seguridad.md`](docs/seguridad.md),
+[`operacion.md`](docs/operacion.md), [`verificacion.md`](docs/verificacion.md),
+[`interfaz.md`](docs/interfaz.md), [`roadmap.md`](docs/roadmap.md) y
+[`defectos.md`](docs/defectos.md).
+
+Y aparte, [**MANUAL.md**](MANUAL.md): el manual de uso para el equipo de la
+panadería, escrito para quien usa el sistema y no para quien lo programa.
 
 Está en un solo archivo a propósito: repartida en siete documentos, las mismas
 cifras aparecían en tres sitios con tres valores distintos y ninguno era el real.

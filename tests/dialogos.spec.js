@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, RECETA, TOTAL_RECETAS } from './apoyo.js';
+import { entrar, abrirModulo, abrirAjustes, RECETA, TOTAL_RECETAS } from './apoyo.js';
 
 test.describe('Modo Pesar', () => {
   test.beforeEach(async ({ page }) => {
@@ -100,21 +100,59 @@ test.describe('Modo Pesar', () => {
   });
 });
 
-test.describe('Las demas ventanas', () => {
-  for (const ventana of ['Plan del día', 'Ingredientes', 'Ajustes']) {
-    test(`${ventana}: el foco entra, Escape cierra y vuelve al boton`, async ({ page }) => {
-      await entrar(page);
-      await page.getByRole('button', { name: ventana, exact: true }).click();
+test.describe('Ajustes, que sigue siendo una ventana', () => {
+  /*
+   * Aqui habia un bucle sobre «Plan del día», «Ingredientes» y «Ajustes».
+   * Los dos primeros dejaron de ser ventanas: son pantallas completas, y a una
+   * pantalla completa no se le puede pedir lo que se le pide a un dialogo. Un
+   * dialogo atrapa el foco porque hay algo debajo a lo que no se debe llegar; en
+   * una pantalla no hay nada debajo, y atraparlo impediria llegar con el teclado
+   * a la barra del navegador. Lo que si se les sigue exigiendo -que Escape
+   * salga, y a donde- esta justo debajo.
+   */
+  test('Ajustes: el foco entra, Escape cierra y vuelve al boton', async ({ page }) => {
+    await entrar(page);
+    await abrirAjustes(page);
 
-      await expect(page.locator('[role=dialog]')).toBeFocused();
+    await expect(page.locator('[role=dialog]')).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[role=dialog]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ajustes' })).toBeFocused();
+  });
+});
+
+test.describe('Las pantallas de modulo', () => {
+  for (const modulo of ['plan', 'ingredientes', 'almacen']) {
+    test(`${modulo}: Escape vuelve al menu, que es de donde se vino`, async ({ page }) => {
+      await entrar(page);
+      await abrirModulo(page, modulo);
 
       await page.keyboard.press('Escape');
-      await expect(page.locator('[role=dialog]')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: ventana, exact: true })).toBeFocused();
+
+      await expect(page.locator('.pantalla')).toHaveCount(0);
+      await expect(page.locator('.inicio')).toBeVisible();
+    });
+
+    test(`${modulo}: abierto desde una receta, se vuelve A ESA receta`, async ({ page }) => {
+      await entrar(page, `#/receta/${RECETA}`);
+      const titulo = await page.locator('.sheet-head__title').textContent();
+
+      await abrirModulo(page, modulo);
+      // La receta de fondo viaja en la direccion y sobrevive al salto por el
+      // menu: es lo que evita tener que buscarla otra vez entre 122.
+      expect(await page.evaluate(() => window.location.hash)).toContain(`r=${RECETA}`);
+
+      await page.getByRole('button', { name: 'Volver a la receta' }).click();
+
+      await expect(page.locator('.sheet-head__title')).toHaveText(titulo);
     });
   }
 
-  test('el editor se cierra con Escape sin guardar nada', async ({ page }) => {
+});
+
+test.describe('El editor', () => {
+  test('se cierra con Escape sin guardar nada', async ({ page }) => {
     await entrar(page);
     await page.getByRole('button', { name: 'Nueva receta' }).click();
     await expect(page.locator('[role=dialog]')).toBeFocused();

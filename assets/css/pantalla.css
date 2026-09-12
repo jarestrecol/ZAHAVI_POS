@@ -1,0 +1,191 @@
+/* =============================================================================
+ *  PANTALLAS DE MODULO
+ * =============================================================================
+ *
+ *  Produccion, ingredientes y almacen ya no son recuadros flotando encima del
+ *  recetario: son pantallas completas, con su barra, su cuerpo y su pie.
+ *
+ *  POR QUE `position: fixed` Y NO UN HIJO DE `#app`
+ *  -----------------------------------------------
+ *  Porque estas pantallas cuelgan del `body` para sobrevivir al repintado -ver
+ *  la cabecera de `src/pantallas.js`-, y un hijo del `body` no hereda el reparto
+ *  de altura que `#app` hace para sus hijos. Fijandola a la ventana se consigue
+ *  lo mismo que consigue `#app`: una caja del tamaño exacto de la pantalla,
+ *  dentro de la cual se reparte, y un documento que no se desplaza nunca.
+ *
+ *  EL REPARTO ES EL MISMO EN LOS TRES MODULOS, Y ESO ES LO IMPORTANTE
+ *  -----------------------------------------------------------------
+ *      barra     fija arriba, con Menú siempre en el mismo sitio
+ *      avisos    alto natural, nunca se comprimen: son texto
+ *      cuerpo    todo lo que sobre, y se desplaza POR DENTRO
+ *      pie       fijo abajo, con lo que esa pantalla deja hacer
+ *
+ *  Quien aprende a moverse en uno sabe moverse en los otros tres. Eso es lo que
+ *  convierte cuatro pantallas sueltas en un sistema, y es exactamente lo que no
+ *  daban las tres ventanas modales: cada una cerraba por un sitio distinto.
+ *
+ *  EL TONO DEL MODULO ES EL MISMO QUE EL DE SU TARJETA EN EL MENU
+ *  -------------------------------------------------------------
+ *  `--comp-1` a `--comp-4`, la paleta fria, que en este proyecto dice «en que
+ *  parte del trabajo estas». La tarjeta del almacen en el menu lleva violeta y
+ *  la pantalla del almacen tambien: al pulsar, el color confirma que se ha
+ *  llegado a donde se pulso. Es la unica pista de continuidad que hay entre dos
+ *  pantallas que se sustituyen entera la una a la otra.
+ */
+
+.pantalla {
+  position: fixed;
+  inset: 0;
+  /* Por debajo de `.overlay` (110): un dialogo abierto desde aqui -Ajustes, la
+     confirmacion de borrado- tiene que tapar la pantalla, no colarse debajo. */
+  z-index: 50;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--surface);
+}
+
+/* El tono de cada modulo, el mismo que lleva su tarjeta en el menu. */
+.pantalla[data-modulo='plan'] {
+  --modulo-tono: var(--comp-4);
+}
+
+.pantalla[data-modulo='ingredientes'] {
+  --modulo-tono: var(--comp-3);
+}
+
+.pantalla[data-modulo='almacen'] {
+  --modulo-tono: var(--comp-2);
+}
+
+/*
+ * La franja de color va en un pseudoelemento colocado y NO en un `border-top`
+ * de la barra: la regla 14 del proyecto. Un borde participa del modelo de caja
+ * y baja la barra tres pixeles; un elemento colocado no participa de nada.
+ *
+ * Va sobre la barra, no debajo, porque la barra lleva `backdrop-filter` y su
+ * propio filo de marca: dos lineas seguidas de un pixel a distinto color se
+ * leen como un error de pintado.
+ */
+.pantalla > .topbar {
+  flex: 0 0 auto;
+  border-top: none;
+  box-shadow: inset 0 3px 0 0 var(--modulo-tono, transparent);
+}
+
+/*
+ * Los avisos conservan su alto natural. Es la misma decision que `#app` toma
+ * para el recetario, y por el mismo motivo: son texto, y apretarlos los deja
+ * cortados. Lo que cede es el cuerpo.
+ */
+.pantalla__avisos {
+  flex: 0 0 auto;
+}
+
+/* Sin avisos que pintar no hay hueco que dejar. */
+.pantalla__avisos:empty {
+  display: none;
+}
+
+/*
+ * El cuerpo es lo unico que se desplaza en toda la pantalla.
+ *
+ * Va a sangre -sin relleno propio- porque cada modulo reparte su ancho a su
+ * manera: el plan son dos mitades con un fondo hundido que llega hasta el
+ * borde, y meterlo dentro de un relleno lo convertiria en una tarjeta flotando.
+ * El relleno lo pone cada modulo, siempre con `--gutter`.
+ */
+.pantalla__cuerpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* El rebote no encadena al documento: el documento no se desplaza nunca. */
+  overscroll-behavior-y: contain;
+}
+
+/*
+ * Una linea que dice de que va la pantalla y que se puede esperar de ella.
+ *
+ * No es decoracion: las tres dicen algo que no se deduce mirando. Que el plan
+ * no se guarda, que los totales de unidades distintas no se suman, que el
+ * almacen es de este aparato. Antes vivia en el `meta` de la ventana modal, en
+ * letra gris junto al titulo, donde no la leia nadie.
+ */
+.pantalla__meta {
+  margin: 0;
+  padding: var(--space-4) var(--gutter);
+
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-3);
+
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--line);
+}
+
+/*
+ * El pie: lo que esa pantalla deja hacer, siempre visible.
+ *
+ * Fijo abajo y fuera del desplazamiento a proposito. «Imprimir la lista» y
+ * «Exportar a Excel» estaban al final de un catalogo de 159 filas: para
+ * llegar a ellos habia que recorrer entera una lista que no se venia a leer.
+ */
+.pantalla__pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--gutter);
+
+  background: var(--surface-card);
+  border-top: 1px solid var(--line);
+  /* La sombra va hacia ARRIBA, contra el cuerpo: es lo que dice que el pie esta
+     por encima de lo que se desplaza y no es la ultima fila de la lista. */
+  box-shadow: 0 -2px 4px -2px rgba(22, 18, 15, 0.1);
+}
+
+.pantalla__nota {
+  margin: 0;
+  flex: 1 1 18rem;
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+}
+
+.pantalla__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---- Pantallas estrechas ----------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .pantalla__meta {
+    padding: var(--space-3) var(--gutter);
+    font-size: var(--text-xs);
+  }
+
+  .pantalla__pie {
+    padding: var(--space-2) var(--gutter);
+  }
+
+  /* La nota explicativa se retira: en un telefono ocupa tres renglones y deja
+     los botones fuera del alcance del pulgar, que es justo lo que el pie fijo
+     venia a resolver. Lo que dice sigue estando en la linea de contexto de
+     arriba, que es donde se lee al entrar. */
+  .pantalla__nota {
+    display: none;
+  }
+
+  .pantalla__acciones {
+    flex: 1 1 100%;
+  }
+
+  .pantalla__acciones .btn {
+    flex: 1 1 0;
+  }
+}

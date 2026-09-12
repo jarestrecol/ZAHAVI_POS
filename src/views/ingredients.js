@@ -22,6 +22,7 @@
 
 import { el, clear } from '../lib/dom.js';
 import { titleCase, splitName, formatQty, yieldLabel } from '../lib/format.js';
+import { aCSV, descargarCSV, nombreConFecha } from '../lib/csv.js';
 import { navigate } from '../core/router.js';
 import {
   catalogoIngredientes,
@@ -31,7 +32,7 @@ import {
   recetasPorUnidad,
   resumenCatalogo,
 } from '../core/ingredients.js';
-import { createWindow } from './window.js';
+import { crearPantalla } from './pantalla.js';
 
 /**
  * @param {{recipes: Array, onClose: () => void}} options
@@ -274,8 +275,22 @@ export function openIngredients(options) {
             attrs: { 'data-category': receta.categoria },
             on: {
               click: () => {
-                navigate({ name: 'detail', id: receta.id });
-                options.onClose();
+                /*
+                 * Navegar y NADA MAS. Antes habia ademas un `options.onClose()`
+                 * detras, y hacia falta mientras el catalogo era una bandera
+                 * del estado; ahora es una ruta, asi que salir de ella ya lo
+                 * cierra.
+                 *
+                 * Dejar las dos llamadas no era redundante: era un fallo. La
+                 * segunda leia la ruta ANTES de que el navegador procesara el
+                 * cambio de la primera, no encontraba receta abierta, y
+                 * navegaba al listado pisando el destino. Pulsar una receta
+                 * desde el catalogo llevaba al listado en vez de a la ficha.
+                 *
+                 * `modulo` va escrito aunque `navigate` sepa deducirlo: aqui se
+                 * cruza de modulo, y eso se lee mejor dicho que deducido.
+                 */
+                navigate({ modulo: 'recetario', name: 'detail', id: receta.id });
               },
             },
           }, [
@@ -335,23 +350,36 @@ export function openIngredients(options) {
     lista,
   ]);
 
-  return createWindow({
-    title: 'Ingredientes',
-    meta: `${cuenta.distintos} distintos en ${cuenta.lineas} líneas`,
-    size: 'wide',
-    onClose: options.onClose,
-    body,
-    footer: [
+  return crearPantalla({
+    modulo: 'ingredientes',
+    subtitulo: 'ingredientes',
+    meta: `${cuenta.distintos} ingredientes distintos en ${cuenta.lineas} líneas de receta.`,
+    cuerpo: body,
+    onMenu: options.onMenu,
+    onVolver: options.onVolver,
+    onSalir: options.onSalir,
+    pie: [
       el('p', {
-        class: 'win__hint',
+        class: 'pantalla__nota',
         text: 'Los totales de cada unidad no se suman entre sí. Base para el costeo por receta.',
       }),
-      el('div', { class: 'win__actions' }, [
+      el('div', { class: 'pantalla__acciones' }, [
         el('button', {
           type: 'button',
-          class: 'btn btn--primary',
-          text: 'Cerrar',
-          on: { click: options.onClose },
+          class: 'btn btn--quiet',
+          text: 'Exportar a Excel',
+          attrs: { title: 'Descarga la lista como archivo CSV, listo para abrir en Excel' },
+          on: {
+            click: () => {
+              descargarCSV(nombreConFecha('zahavi-ingredientes'), catalogoCSV(catalogo));
+            },
+          },
+        }),
+        el('button', {
+          type: 'button',
+          class: 'btn btn--quiet',
+          text: 'Imprimir la lista',
+          on: { click: () => options.onPrint(ordenarPorNombre(catalogo)) },
         }),
       ]),
     ],
@@ -382,4 +410,74 @@ function dato(valor, etiqueta) {
       el('span', { class: 'ings__dato-label', text: etiqueta }),
     ]),
   ];
+}
+
+/**
+ * El catalogo como tabla para Excel.
+ *
+ * UNA FILA POR INGREDIENTE **Y UNIDAD**, y esa es la decision que hace que esto
+ * sirva de algo. El proposito declarado es poner precios, y un precio SOLO puede
+ * existir por unidad de medida: no se puede pagar "por azucar", se paga por
+ * gramo. Una fila por ingrediente obligaria a meter dos totales en una celda y
+ * la columna de precio no tendria a que referirse.
+ *
+ * De paso hace visible el problema que `CLAUDE.md` seccion 13 declara como
+ * bloqueante para el costeo: los 15 ingredientes que se miden de dos o tres
+ * formas distintas aparecen aqui en dos o tres filas, imposibles de pasar por
+ * alto, con una columna que dice cuantas unidades tiene cada uno.
+ *
+ * LAS TRES ULTIMAS COLUMNAS VAN VACIAS A PROPOSITO. Esto no es un informe, es
+ * una PLANTILLA: se exporta para rellenar el precio, el proveedor y las notas, y
+ * con eso alimentar la base de datos externa.
+ *
+ * LO QUE NO SE EXPORTA, Y NO ES UN OLVIDO
+ * ---------------------------------------
+ * No van las cantidades por receta. `CLAUDE.md` seccion 8 declara que sacar una
+ * copia completa de las formulas no debe poder hacerse desde el mostrador, y esa
+ * decision sigue en pie: aqui solo salen NOMBRES y TOTALES AGREGADOS, con los
+ * que no se puede reconstruir ninguna formula. Es el catalogo de la compra, no
+ * el recetario.
+ *
+ * @param {Array<object>} catalogo
+ * @returns {string}
+ */
+function catalogoCSV(catalogo) {
+  const cabeceras = [
+    'Ingrediente',
+    'Unidad',
+    'Total usado',
+    'Lineas de receta',
+    'Recetas',
+    'Unidades distintas',
+    'Precio por unidad',
+    'Proveedor',
+    'Observaciones',
+  ];
+
+  const filas = [];
+  for (const ingrediente of ordenarPorNombre(catalogo)) {
+    // Un ingrediente sin ninguna cantidad legible tambien sale: hay que poder
+    // verlo para corregirlo, y si se cayera de la lista nadie lo encontraria.
+    const totales = ingrediente.totales.length
+      ? ingrediente.totales
+      : [{ unidad: '', total: '' }];
+
+    for (const total of totales) {
+      filas.push([
+        ingrediente.nombre,
+        total.unidad,
+        // Coma decimal: es la que Excel en espanol espera. Con punto, la celda
+        // entra como texto y no se puede multiplicar por el precio.
+        typeof total.total === 'number' ? String(total.total).replace('.', ',') : '',
+        ingrediente.lineas,
+        ingrediente.recetas,
+        ingrediente.totales.length,
+        '',
+        '',
+        '',
+      ]);
+    }
+  }
+
+  return aCSV(filas, cabeceras);
 }

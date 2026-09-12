@@ -15,6 +15,7 @@ import { getState, recetario } from './core/store.js';
 import { getRoute, navigate } from './core/router.js';
 import { SEARCH_ID } from './views/sidebar.js';
 import { hayDialogoAbierto } from './dialogs.js';
+import { hayPantallaDeModulo } from './pantallas.js';
 
 /**
  * Atajos de teclado.
@@ -35,7 +36,9 @@ export function handleShortcuts(event) {
   const state = getState();
 
   if (!state.ready || !state.authed) return;
-  if (hayDialogoAbierto() || state.recetario.production) return;
+  // Con un modulo completo delante, el listado de recetas ni siquiera esta en
+  // pantalla: las flechas y las letras pertenecen a ese modulo.
+  if (hayDialogoAbierto() || hayPantallaDeModulo() || state.recetario.production) return;
 
   const target = event.target;
   const typing =

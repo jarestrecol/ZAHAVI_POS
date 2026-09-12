@@ -27,13 +27,13 @@ test.describe('Tableta', () => {
     const reparto = await page.evaluate(() => {
       const lista = document.querySelector('.sidebar__list');
       const columnas = new Set(
-        [...document.querySelectorAll('nav a[href*="#/receta/"]')].map((a) =>
+        [...document.querySelectorAll('nav a[href*="/receta/"]')].map((a) =>
           Math.round(a.getBoundingClientRect().left),
         ),
       );
       return {
         columnas: columnas.size,
-        recetas: document.querySelectorAll('nav a[href*="#/receta/"]').length,
+        recetas: document.querySelectorAll('nav a[href*="/receta/"]').length,
         desplazamientoLateral: lista.scrollWidth - lista.clientWidth,
       };
     });

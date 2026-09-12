@@ -34,7 +34,8 @@ import { titleCase, splitName, formatQty, normalize, yieldLabel } from '../lib/f
 import { announce } from '../lib/a11y.js';
 import { rendimientoBase, normalizarFactor, FACTOR_MIN, FACTOR_MAX } from '../core/scale.js';
 import { consolidar, tieneVariasUnidades, ingredientesConVariasUnidades } from '../core/plan.js';
-import { createWindow } from './window.js';
+import { renderCosteo } from './costeo.js';
+import { crearPantalla } from './pantalla.js';
 
 /** Cuantas recetas se sugieren al escribir en el buscador. */
 const MAX_SUGERENCIAS = 8;
@@ -58,8 +59,9 @@ const MAX_NOMBRES_AVISO = 4;
 const NOTA_MS = 6000;
 
 /**
- * @param {{recipes: Array, onClose: () => void, onPrint: (plan: object) => void}} options
- * @returns {{node: HTMLElement, close: () => void}}
+ * @param {{recipes: Array, onMenu: () => void, onSalir: () => void,
+ *          onPrint: (plan: object) => void}} options
+ * @returns {{node: HTMLElement, pintarAvisos: (nodos: Array<Node>) => void, close: () => void}}
  */
 export function openPlan(options) {
   /**
@@ -388,6 +390,24 @@ export function openPlan(options) {
     resultado.appendChild(
       el('ul', { class: 'plan__lista' }, plan.lineas.map((linea) => renderLinea(plan, linea))),
     );
+
+    // EL COSTO, DEBAJO DE LO QUE HAY QUE PESAR Y NO EN OTRA PANTALLA.
+    //
+    // Va aqui porque las dos preguntas se hacen a la vez y sobre lo mismo: al
+    // armar el plan del dia, "cuanto hay que pesar" y "cuanto me cuesta" son la
+    // misma consulta. Separarlas obligaria a rehacer la seleccion en otro sitio.
+    //
+    // Se pinta solo si quien monto la ventana paso el almacen: el plan del dia
+    // sigue funcionando igual sin el modulo de bodega.
+    if (typeof options.leerLotes === 'function') {
+      resultado.appendChild(
+        renderCosteo({
+          plan,
+          lotes: options.leerLotes(),
+          onDescontar: options.onDescontar,
+        }),
+      );
+    }
   }
 
   /**
@@ -520,23 +540,23 @@ export function openPlan(options) {
 
   dibujarTodo();
 
-  return createWindow({
-    title: 'Plan de producción',
-    meta: 'no se guarda: se pierde al cerrar',
-    size: 'wide',
-    onClose: options.onClose,
-    body,
-    footer: [
-      el('p', { class: 'win__hint', text: 'Los ingredientes de unidades distintas nunca se suman entre sí.' }),
-      el('div', { class: 'win__actions' }, [
-        el('button', {
-          type: 'button',
-          class: 'btn btn--quiet',
-          text: 'Cerrar',
-          on: { click: options.onClose },
-        }),
-        botonImprimir,
-      ]),
+  return crearPantalla({
+    modulo: 'plan',
+    subtitulo: 'producción',
+    meta: 'Lo que se arme aquí no se guarda: es la cuenta de hoy y se pierde al salir.',
+    cuerpo: body,
+    onMenu: options.onMenu,
+    onVolver: options.onVolver,
+    onSalir: options.onSalir,
+    // Ya no hay boton de «Cerrar»: se sale por «Menú», que esta en la barra y en
+    // el mismo sitio en los cuatro modulos. Un segundo control para lo mismo, en
+    // otra esquina, es lo que hace que nadie sepa cual es el camino.
+    pie: [
+      el('p', {
+        class: 'pantalla__nota',
+        text: 'Los ingredientes de unidades distintas nunca se suman entre sí.',
+      }),
+      el('div', { class: 'pantalla__acciones' }, [botonImprimir]),
     ],
   });
 }

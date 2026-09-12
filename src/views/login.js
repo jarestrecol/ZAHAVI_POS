@@ -213,7 +213,10 @@ export function renderLogin(params) {
         height: 78,
       }),
       el('h1', { class: 'login__wordmark sr-only', id: 'login-title', text: 'Zahavi' }),
-      el('p', { class: 'login__tagline', text: 'Recetario de producción' }),
+      // El sistema ya no es «el recetario»: el recetario es uno de sus cuatro
+      // modulos. El nombre completo aparece aqui y en el menu, y el de cada
+      // modulo en la barra de su pantalla (ZAHAVI · almacén).
+      el('p', { class: 'login__tagline', text: 'ZAHAVI POS · sistema de producción' }),
     ]);
   }
 

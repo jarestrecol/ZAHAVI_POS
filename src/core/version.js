@@ -21,7 +21,7 @@
  * verificacion que package.json dice exactamente lo mismo: si alguna vez se
  * separan, la verificacion falla antes de publicar.
  */
-export const APP_VERSION = '1.5.6';
+export const APP_VERSION = '2.0.0';
 
 /** Fase de la hoja de ruta que corresponde a esta version. */
 export const APP_FASE = 'Fase 1';

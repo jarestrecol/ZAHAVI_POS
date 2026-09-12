@@ -209,6 +209,37 @@
   --ok: #296038;
   --ok-soft: #e8f2ea;
 
+  /* ---- Estado de las existencias (almacén) ----
+   *
+   * SON ALIAS A PROPÓSITO, NO COLORES NUEVOS.
+   *
+   * La paleta del proyecto ya tiene resuelto qué color significa "bien", "ojo"
+   * y "mal", y está medida contra las superficies reales. Inventar aquí un
+   * verde y un rojo propios del almacén daría dos rojos que no se parecen en
+   * nada en la misma aplicación, que es exactamente lo que la sección 11 de
+   * `CLAUDE.md` evita cuando dice que un solo relleno de marca es "una
+   * decisión, aplicada tres veces".
+   *
+   * Lo que aportan es el NOMBRE: el CSS del almacén dice `--stock-vencido` y no
+   * `--danger`, así que el día que la panadería quiera distinguir "vencido" de
+   * "error" bastará con cambiar estas cinco líneas y no con buscar por todas
+   * las hojas cuál de los rojos era cuál.
+   *
+   * `--stock-bajo` y `--stock-proximo` comparten el ámbar sin que estorbe:
+   * nunca aparecen en la misma columna. El primero vive en el costeo del plan
+   * ("no alcanza para lo que vas a producir") y el segundo en la lista del
+   * almacén ("vence pronto"). Ninguno es la única señal: los dos van con su
+   * texto al lado.
+   */
+  --stock-ok: var(--ok);               /* #296038, 7,3:1 sobre blanco */
+  --stock-ok-soft: var(--ok-soft);
+  --stock-bajo: var(--amber-text);     /* #9c5e15, 5,2:1 sobre blanco */
+  --stock-bajo-soft: var(--amber-soft);
+  --stock-proximo: var(--amber-text);
+  --stock-proximo-soft: var(--amber-soft);
+  --stock-vencido: var(--danger);      /* #a31d1d, 8,1:1 sobre blanco */
+  --stock-vencido-soft: var(--danger-soft);
+
   /* Confirmación sobre la estructura oscura (modo Pesar). El verde de `--ok`
      está pensado para leerse sobre blanco y sobre el rail desaparece, así que
      necesita su versión clara igual que las categorías.
@@ -261,6 +292,17 @@
      peso sin distraer de los datos. Un solo punto de 1px repetido: nada que
      pese ni que dependa de una imagen. */
   --texture-dot: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+
+  /* Calor de marca muy bajo, para el fondo del menu de modulos. Al 10% no se
+     lee como color: se lee como que la luz entra por arriba, que es lo que
+     impide que un fondo liso de 1.400 px parezca una pared. Va aqui y no en
+     `inicio.css` porque es un color, y los colores se declaran en un solo
+     sitio. */
+  --calor-superior: radial-gradient(
+    120% 60% at 50% 0%,
+    rgba(246, 138, 30, 0.1) 0%,
+    transparent 60%
+  );
 
   /* ---- Foco ---- */
   --focus: #16120f;
