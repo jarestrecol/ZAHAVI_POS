@@ -81,7 +81,8 @@
       miniatura de la propia página en vez de un icono.
     -->
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
-    <link rel="manifest" href="./manifest.webmanifest" />
+    <!-- vite-ignore: el manifiesto resuelve sus URLs relativas contra su propia ubicacion, no la de index.html. -->
+    <link rel="manifest" href="./manifest.webmanifest" vite-ignore />
 
     <link rel="stylesheet" href="./assets/css/fonts.css" />
     <link rel="stylesheet" href="./assets/css/tokens.css" />

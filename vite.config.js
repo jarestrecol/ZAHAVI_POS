@@ -12,6 +12,12 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // `index.html:75-76` garantiza que todas las rutas son relativas para que
+  // el sitio funcione igual servido desde una subruta o abierto desde el
+  // disco, y `main.js:210` registra el service worker con `./sw.js`. Sin
+  // esto Vite usa `/` por defecto y reescribe cada ruta como absoluta desde
+  // la raiz, rompiendo esa garantia.
+  base: './',
   publicDir: false,
   build: {
     manifest: true,
