@@ -27,3 +27,7 @@ desktop.ini
 # Entorno
 .env
 .env.*
+
+# Resultado del build. Se regenera con `npm run build`; lo que se versiona es la
+# fuente. Vercel lo construye de nuevo en cada despliegue.
+dist/

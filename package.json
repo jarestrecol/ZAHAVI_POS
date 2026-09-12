@@ -9,6 +9,8 @@
     "node": "24.x"
   },
   "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/copiar-estaticos.mjs && node scripts/generar-shell.mjs",
     "verificar": "node scripts/verificar.mjs",
     "verificar-sql": "node scripts/verificar-sql.mjs",
     "probar-sql": "node scripts/probar-sql.mjs",
@@ -17,6 +19,7 @@
     "servidor": "node scripts/servidor.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "vite": "8.3.0"
   }
 }
