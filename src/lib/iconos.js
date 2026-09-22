@@ -27,22 +27,17 @@ export const ICON_PLAN = [
 
 /** Saco con etiqueta: el catalogo de ingredientes. */
 export const ICON_INGREDIENTES = [
-  'M6 2h12l2 6a8 8 0 0 1-8 14 8 8 0 0 1-8-14z',
-  'M9 2v3', 'M15 2v3', 'M8 12h8',
+  'M4 4h16v16H4z', 'M4 10h16', 'M10 10v10', 'M14 14h2', 'M14 17h2',
 ];
 
 /** Mas dentro de un documento: receta nueva. */
 export const ICON_NUEVA = [
-  'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z',
-  'M14 2v6h6', 'M12 11v6', 'M9 14h6',
+  'M12 5v14', 'M5 12h14',
 ];
 
 /** Caja de almacen: la bodega. */
 export const ICON_ALMACEN = [
-  'M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
-  'M3 8l2.2-4.2A1.5 1.5 0 0 1 6.5 3h11a1.5 1.5 0 0 1 1.3.8L21 8',
-  'M12 3v5',
-  'M9 13h6',
+  'M3 9l9-5 9 5v11H3z', 'M8 20V11h8v9', 'M8 15h8',
 ];
 
 /** Engranaje: ajustes. */
@@ -68,7 +63,46 @@ export const ICON_VOLVER = [
   'M19 12H5', 'M12 19l-7-7 7-7',
 ];
 
+/** Avance: siguiente paso del modo de producción. */
+export const ICON_AVANZAR = ['M5 12h14', 'M12 5l7 7-7 7'];
+
 /** Cuadricula: el menu de modulos. */
 export const ICON_MENU = [
   'M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z',
 ];
+
+/** Cierre: se usa en ventanas, filas y selecciones removibles. */
+export const ICON_CERRAR = ['M6 6l12 12', 'M18 6 6 18'];
+
+/** Lupa: buscar una formula sin depender de un glifo de fuente. */
+export const ICON_BUSCAR = ['M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z', 'm20 20-4.35-4.35'];
+
+/** Balanza: accion principal del obrador. */
+export const ICON_PESAR = [
+  'M12 4v16', 'M8 20h8', 'M4 8h16',
+  'M4 8 1.5 13.5a3 3 0 0 0 5 0L4 8z', 'M20 8l-2.5 5.5a3 3 0 0 0 5 0L20 8z',
+];
+
+/** Impresora, lapiz y papelera: acciones de la ficha. */
+export const ICON_IMPRIMIR = [
+  'M6 9V3h12v6', 'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2',
+  'M6 14h12v7H6z',
+];
+export const ICON_EDITAR = ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z'];
+export const ICON_ELIMINAR = ['M3 6h18', 'M8 6V4h8v2', 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6', 'M10 11v6', 'M14 11v6'];
+
+/* ---- Calendario de producción (PROD-002) ------------------------------------ */
+export const ICON_ANTERIOR = ['M15 18l-6-6 6-6'];
+export const ICON_SIGUIENTE = ['M9 18l6-6-6-6'];
+export const ICON_CALENDARIO = ['M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z', 'M4 10h16', 'M8 2v4', 'M16 2v4'];
+export const ICON_TAREA = ['M9 11l3 3 8-8', 'M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'];
+export const ICON_PENDIENTE = ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', 'M12 7v5l3 2'];
+export const ICON_RECOMENDACION = ['M9 18h6', 'M10 21h4', 'M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z'];
+export const ICON_FELICITACION = ['M12 3l2.7 5.5 6 .9-4.4 4.3 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.4l6-.9z'];
+export const ICON_MATERIALES = ['M21 8l-9-5-9 5 9 5 9-5z', 'M3 8v8l9 5 9-5V8', 'M12 13v8'];
+export const ICON_COSTOS = ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', 'M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5', 'M12 6v2', 'M12 16v2'];
+export const ICON_PROYECTAR = ['M5 4l14 8-14 8z'];
+export const ICON_EQUIPO = ['M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1', 'M16 3.1a4 4 0 0 1 0 7.8', 'M22 21v-1a6 6 0 0 0-4-5.6'];
+export const ICON_HISTORIAL = ['M3 12a9 9 0 1 0 3-6.7', 'M3 4v5h5', 'M12 7v5l3 2'];
+export const ICON_LISTO = ['M5 12l5 5L20 7'];
+export const ICON_MAS = ['M12 5v14', 'M5 12h14'];

@@ -79,16 +79,6 @@ let lastError = '';
 let currentSha = null;
 
 /**
- * Generacion de acceso que declara el servidor. Ver `core/access.js`.
- *
- * Empieza en 0 y solo sube cuando alguien la sube en la configuracion del
- * despliegue. Sin servidor se queda en 0, que significa "nunca se ha revocado":
- * un equipo sin red nunca queda fuera por esto, que es la condicion que hace
- * viable comprobar el acceso sin conexion.
- */
-let accesoGen = 0;
-
-/**
  * Se pone cuando el servidor rechaza por conflicto. Mientras siga en pie no se
  * puede volver a publicar: hay que recargar y aplicar los cambios sobre la
  * version nueva. Sin esto, un segundo clic en Publicar borraba el trabajo de la
@@ -131,14 +121,6 @@ export function serverStatus() {
     hasReference: currentSha !== null,
     conflict: staleSinceConflict,
   };
-}
-
-/**
- * Generacion de acceso vigente segun el servidor.
- * @returns {number}
- */
-export function generacionAcceso() {
-  return accesoGen;
 }
 
 /**
@@ -200,7 +182,7 @@ export function setEditKey(value) {
  */
 export async function fetchShared() {
   try {
-    const response = await withTimeout(fetch(ENDPOINT, { cache: 'no-store' }));
+    const response = await fetchWithTimeout(ENDPOINT, { cache: 'no-store' });
 
     if (!response.ok) {
       // Lo que el servidor tenga que decir se lee SIEMPRE. Es la unica pista
@@ -251,11 +233,9 @@ export async function fetchShared() {
     serverState = 'ok';
     lastReadAt = new Date();
 
-    // Solo se acepta hacia arriba. Un servidor que de pronto contesta 0 -una
-    // variable borrada por error, un despliegue a medias- no debe poder
-    // rebajar la generacion y reactivar claves que ya se habian retirado.
-    const recibida = Number.parseInt(data.accesoGen, 10);
-    if (Number.isFinite(recibida) && recibida > accesoGen) accesoGen = recibida;
+    // `data.accesoGen` lo sigue enviando `api/recipes.js` para las versiones
+    // desplegadas con la clave del equipo. Esta ya no lo usa: la baja de una
+    // persona se hace desactivando su perfil en Supabase (ver `core/sesion.js`).
 
     return {
       ok: true,
@@ -295,13 +275,11 @@ export async function verificarClave(password) {
   }
 
   try {
-    const response = await withTimeout(
-      fetch(ENDPOINT, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, verificar: true }),
-      }),
-    );
+    const response = await fetchWithTimeout(ENDPOINT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, verificar: true }),
+    });
 
     const data = await response.json().catch(() => ({}));
 
@@ -355,19 +333,17 @@ export async function publishShared(payload) {
   }
 
   try {
-    const response = await withTimeout(
-      fetch(ENDPOINT, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          password: payload.password,
-          recipes: payload.recipes,
-          ingredientes: payload.ingredientes,
-          author: payload.author,
-          sha: currentSha,
-        }),
+    const response = await fetchWithTimeout(ENDPOINT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password: payload.password,
+        recipes: payload.recipes,
+        ingredientes: payload.ingredientes,
+        author: payload.author,
+        sha: currentSha,
       }),
-    );
+    });
 
     const data = await response.json().catch(() => ({}));
 
@@ -447,28 +423,27 @@ async function leerError(response) {
 }
 
 /**
- * Corta una petición que no contesta.
+ * Pide al servidor con un límite real de tiempo.
  *
  * El temporizador SE LIMPIA pase lo que pase. Sin ese `finally` quedaba vivo
  * doce segundos por cada petición aunque la respuesta llegara en cien
  * milisegundos, y con la publicación automática reintentando se acumulaban
  * temporizadores pendientes sin ninguna utilidad.
  *
- * Lo que esto NO hace es cancelar el `fetch`: la petición sigue viajando y solo
- * se descarta su resultado. Cancelarla de verdad pediría un `AbortController`,
- * y aquí no compensa: la respuesta que se descarta ya no la espera nadie.
+ * Al vencer, `AbortController` cancela también la solicitud de red. Antes la
+ * aplicación descartaba el resultado, pero dejaba viajar la solicitud vencida:
+ * en una red inestable se acumulaban lecturas y publicaciones inútiles.
  *
- * @param {Promise} promise
- * @returns {Promise}
+ * @param {string} url
+ * @param {RequestInit} [options]
+ * @returns {Promise<Response>}
  */
-function withTimeout(promise) {
-  let temporizador = null;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      temporizador = setTimeout(() => reject(new Error('tiempo agotado')), TIMEOUT_MS);
-    }),
-  ]).finally(() => {
-    if (temporizador !== null) clearTimeout(temporizador);
-  });
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const temporizador = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(temporizador);
+  }
 }

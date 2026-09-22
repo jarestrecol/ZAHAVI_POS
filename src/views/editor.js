@@ -45,8 +45,9 @@
  *  alguien escribe le movería el cursor.
  */
 
-import { el, clear, desplazarAlFinal } from '../lib/dom.js';
+import { el, clear, desplazarAlFinal, icon } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
+import { ICON_CERRAR, ICON_NUEVA } from '../lib/iconos.js';
 import { comboboxIngrediente } from '../lib/combobox.js';
 import { dictadoDisponible, crearDictado } from '../lib/dictado.js';
 import { splitYield, composeName, yieldUnitList } from '../lib/format.js';
@@ -217,7 +218,6 @@ export function openEditor(options) {
           ? el('button', {
               type: 'button',
               class: 'btn-icon',
-              text: '×',
               attrs: { 'aria-label': `Quitar componente ${component.nombre || componentIndex + 1}` },
               on: {
                 click: () => {
@@ -226,7 +226,7 @@ export function openEditor(options) {
                   announce('Componente eliminado.');
                 },
               },
-            })
+            }, [icon(ICON_CERRAR, { class: 'icon--control' })])
           : null,
       ]),
       el('div', { class: 'rows__head', attrs: { 'aria-hidden': 'true' } }, [
@@ -239,7 +239,6 @@ export function openEditor(options) {
       el('button', {
         type: 'button',
         class: 'btn-link',
-        text: '+ ingrediente',
         on: {
           click: () => {
             component.items.push({ ingrediente: '', cantidad: '', unidad: 'GR' });
@@ -247,7 +246,7 @@ export function openEditor(options) {
             focusLastIngredient(itemsHost);
           },
         },
-      }),
+      }, [icon(ICON_NUEVA, { class: 'btn__icon' }), el('span', { text: 'Agregar ingrediente' })]),
     ]);
   }
 
@@ -381,7 +380,6 @@ export function openEditor(options) {
       el('button', {
         type: 'button',
         class: 'btn-icon',
-        text: '×',
         attrs: { 'aria-label': 'Quitar esta línea' },
         on: {
           click: () => {
@@ -396,7 +394,7 @@ export function openEditor(options) {
             redrawItems();
           },
         },
-      }),
+      }, [icon(ICON_CERRAR, { class: 'icon--control' })]),
     ]);
   }
 
@@ -800,7 +798,6 @@ export function openEditor(options) {
           el('button', {
             type: 'button',
             class: 'btn btn--quiet',
-            text: '+ Componente',
             on: {
               click: () => {
                 draft.componentes.push({
@@ -811,7 +808,7 @@ export function openEditor(options) {
                 announce('Componente agregado.');
               },
             },
-          }),
+          }, [icon(ICON_NUEVA, { class: 'btn__icon' }), el('span', { class: 'btn__label', text: 'Componente' })]),
         ]),
         componentsHost,
       ]),

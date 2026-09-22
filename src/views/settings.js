@@ -9,8 +9,8 @@
  *         Cuantas recetas hay, que version esta publicada y si este equipo tiene
  *         cambios que las demas sedes todavia no ven. Desde aqui se publica.
  *
- *      2. LA CLAVE DE ESTE EQUIPO
- *         Cambiarla, y saber que alcanza solo a este aparato.
+ *      2. TU SESION
+ *         Quien esta dentro, con que rol y en que sede.
  *
  *      3. TAMAÑO DEL TEXTO
  *         Cuanto se agranda o se achica el texto de las recetas EN ESTE
@@ -36,7 +36,7 @@ import { APP_VERSION } from '../core/version.js';
 import { createWindow } from './window.js';
 import { renderStatusBlock } from './settings/estado.js';
 import { renderDiagnosisBlock } from './settings/diagnostico.js';
-import { renderPasswordBlock } from './settings/clave.js';
+import { renderSesionBlock } from './settings/sesion.js';
 import { renderTextSizeBlock } from './settings/texto.js';
 
 /**
@@ -50,6 +50,7 @@ import { renderTextSizeBlock } from './settings/texto.js';
  * @param {string} options.editKey clave de edicion guardada en la sesion
  * @param {{state: string, readAt: Date|null}} options.server diagnostico del servidor
  * @param {{motivo: string, texto: string, pendiente: boolean}} options.sync publicacion automatica
+ * @param {object|null} options.usuario quien tiene la sesion abierta
  * @param {string} options.escalaTexto tamano de texto elegido en este aparato
  * @param {(clave: string) => void} options.onEscalaTexto
  * @param {(password: string) => Promise<object>} options.onPublish
@@ -69,7 +70,7 @@ export function openSettings(options) {
     // ella. El diagnostico al final es ademas donde lo pone cualquier panel de
     // sistema y donde se va a buscar cuando a uno le dicen que lo mire.
     renderStatusBlock(options),
-    renderPasswordBlock(),
+    renderSesionBlock(options),
     renderTextSizeBlock(options),
     renderDiagnosisBlock(options),
   ]);
@@ -95,10 +96,10 @@ export function openSettings(options) {
           class: 'btn btn--quiet',
           text: 'Cerrar sesión',
           on: {
-            // La sesion es de este dispositivo: cerrarla no toca ni las
-            // recetas ni los cambios sin publicar, solo saca a la persona hasta
-            // que alguien vuelva a entrar con la clave. Que limpiar exactamente
-            // lo decide `app/commands.js`, en un solo sitio.
+            // Cerrarla no toca ni las recetas ni los cambios sin publicar: saca
+            // a la persona de este equipo y desconecta su sesion en Supabase
+            // hasta que alguien vuelva a entrar con su codigo y su PIN. Que
+            // limpiar exactamente lo decide `app/commands.js`, en un solo sitio.
             click: options.onSalir,
           },
         }),

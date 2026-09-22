@@ -705,44 +705,39 @@
   background: var(--surface);
 }
 
-/* ---- Bienvenida ----
-   La textura de puntos y el halo de marca dan atmosfera sin distraer: son el
-   fondo de la primera pantalla que ve un cliente, y merece algo mas que un
-   blanco liso. */
+/* ---- Estado inicial del recetario ----
+   Es una superficie de trabajo, no una portada: el listado ya está disponible
+   a la izquierda y este panel solo explica qué hacer y qué contiene. */
 
 .welcome {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   min-height: 100%;
-  padding: var(--space-6);
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 0%, var(--glow), transparent 70%),
-    var(--texture-dot) 0 0 / 22px 22px,
-    var(--surface);
+  padding: var(--space-7) var(--space-8);
+  background: var(--surface);
 }
 
 .welcome__inner {
-  max-width: 36rem;
-  text-align: center;
+  width: min(100%, 56rem);
+  text-align: left;
 }
 
 /* Nunca por encima de su tamaño nativo (254 px): al ampliarlo se veía suave
    justo en la primera pantalla que ve un cliente. */
 .welcome__logo {
   display: block;
-  width: 100%;
-  max-width: 15rem;
+  width: 12rem;
+  max-width: 100%;
   height: auto;
-  margin: 0 auto var(--space-5);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  margin: 0 0 var(--space-5);
+  border-radius: var(--radius);
 }
 
 .welcome__title {
-  margin: var(--space-3) 0;
+  margin: 0 0 var(--space-3);
   font-family: var(--font-display);
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -756,13 +751,12 @@
 }
 
 .welcome__stats {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: var(--space-6);
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--line);
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 
 /* Receta que no existe. Misma composicion que la bienvenida, sin el halo de
@@ -789,7 +783,7 @@
 
 .welcome__actions {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: var(--space-5);
 }
 
@@ -814,12 +808,9 @@
 /* Cada cifra en su propia tarjeta, no en una fila plana: es la diferencia
    entre "cuatro numeros sueltos" y "un panel de estado". */
 .welcome__stat {
-  min-width: 6.5rem;
+  min-width: 0;
   padding: var(--space-3) var(--space-4);
-  background: var(--surface-card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  border-right: 1px solid var(--line);
 }
 
 /*
@@ -831,6 +822,10 @@
  */
 .welcome__stat:hover {
   background: var(--surface-hover);
+}
+
+.welcome__stat:last-child {
+  border-right: none;
 }
 
 .welcome__stat dt {

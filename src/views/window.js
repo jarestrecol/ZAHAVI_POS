@@ -5,8 +5,9 @@
  * al elemento que la abrio. La version anterior no hacia nada de esto.
  */
 
-import { el } from '../lib/dom.js';
+import { el, icon } from '../lib/dom.js';
 import { trapFocus } from '../lib/a11y.js';
+import { ICON_CERRAR } from '../lib/iconos.js';
 
 let openCount = 0;
 
@@ -29,10 +30,9 @@ export function createWindow(options) {
   const closeButton = el('button', {
     type: 'button',
     class: 'win__close',
-    text: '×',
     attrs: { 'aria-label': 'Cerrar' },
     on: { click: options.onClose },
-  });
+  }, [icon(ICON_CERRAR, { class: 'icon--control' })]);
 
   const dialog = el(
     'div',

@@ -11,8 +11,6 @@
 import { test, expect } from '@playwright/test';
 import {
   entrar,
-  CLAVE,
-  CLAVE_NUEVA,
   RECETA,
   desbordeHorizontal,
   abrirRecetaDesde,
@@ -23,32 +21,7 @@ import {
   abrirAjustes,
 } from './apoyo.js';
 
-test('la clave incorrecta no dice cual de los dos datos fallo', async ({ page }) => {
-  await page.goto('/index.html');
-  await page.waitForLoadState('networkidle');
-  await page.getByRole('textbox', { name: 'clave' }).fill('no-es-la-clave');
-  await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page.getByRole('alert')).toHaveText('Clave incorrecta.');
-});
-
-test('la clave de instalacion no se anuncia y no deja quedarse con ella', async ({ page }) => {
-  await page.goto('/index.html');
-  await page.waitForLoadState('networkidle');
-
-  // La pantalla llevaba escrita la clave de instalación para que nadie se
-  // quedara fuera el primer día. Cualquiera que abriera el enlace la leía, y
-  // como cada equipo nuevo empieza con ella, volvía a aparecer siempre.
-  await expect(page.locator('body')).not.toContainText(CLAVE);
-
-  // Y con ella no se entra: se pide una propia antes de pasar.
-  await page.getByRole('textbox', { name: 'clave', exact: true }).fill(CLAVE);
-  await page.getByRole('button', { name: 'Entrar' }).click();
-
-  await expect(page.getByText('Pon la clave de tu equipo')).toBeVisible();
-  await expect(page.locator('nav[aria-label="Listado de recetas"]')).toHaveCount(0);
-});
-
-test(`con la clave correcta aparecen las ${TOTAL_RECETAS} recetas`, async ({ page }) => {
+test(`con codigo y PIN correctos aparecen las ${TOTAL_RECETAS} recetas`, async ({ page }) => {
   await entrar(page);
   await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
 
@@ -63,40 +36,7 @@ test('la sesion sobrevive a recargar', async ({ page }) => {
   await entrar(page);
   await page.reload();
   await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
-  await expect(page.getByRole('textbox', { name: 'clave' })).toHaveCount(0);
-});
-
-test('pero no sobrevive a que la panaderia retire la clave', async ({ page }) => {
-  await entrar(page);
-
-  // La panaderia sube la generacion de acceso en el servidor. Eso es lo que
-  // retira la clave en TODOS los aparatos a la vez, que es lo que la caducidad
-  // semanal prometia y no cumplia: aquella obligaba a renovar por calendario en
-  // cada equipo por separado, y no dejaba a nadie fuera de verdad.
-  //
-  // La tableta de pared del obrador, que no cierra sesion nunca, es justo el
-  // caso donde la comprobacion tenia que llegar y no llegaba.
-  await page.route('**/api/recipes', async (route) => {
-    const publicado = await route.fetch({ url: 'http://127.0.0.1:8123/data/recipes.json' });
-    const datos = await publicado.json();
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ ...datos, sha: 'sha-uno', accesoGen: 1 }),
-    });
-  });
-
-  await page.reload();
-
-  // La sesion se cierra: la clave de este equipo dejo de valer.
-  await expect(page.getByRole('textbox', { name: 'clave', exact: true })).toBeVisible();
-  await expect(page.locator('nav[aria-label="Listado de recetas"]')).toHaveCount(0);
-
-  // Pero nadie se queda fuera: con la clave que tenia se entra, y lo que se
-  // pide es ponerla nueva, diciendo por que.
-  await page.getByRole('textbox', { name: 'clave', exact: true }).fill(CLAVE_NUEVA);
-  await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page.getByText('La panadería retiró esta clave')).toBeVisible();
+  await expect(page.getByLabel('Código de usuario')).toHaveCount(0);
 });
 
 test('la busqueda filtra por nombre, por codigo y sin acentos', async ({ page }) => {
@@ -255,7 +195,7 @@ test('el tamaño del texto cambia la receta y deja quieto el resto', async ({ pa
   const antes = await medir();
 
   // Ajustes se mudo al menu: detras de ese boton estan publicar, descartar
-  // cambios y la clave del equipo, y no tienen por que estar a un toque desde
+  // cambios y la sesion de quien entro, y no tienen por que estar a un toque desde
   // la pantalla en la que se pesa. Eso obliga a salir de la ficha y a volver,
   // que es exactamente lo que hace quien cambia el tamaño de verdad.
   await abrirAjustes(page);

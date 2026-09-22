@@ -1,0 +1,47 @@
+/* =============================================================================
+ *  HISTORIAL Y HOJAS DE PRODUCCION
+ * =============================================================================
+ *
+ *  El historial compartido de bodega y producción (`views/historial.js`) y la
+ *  impresión de materiales por área (`views/print.js`). La pantalla de
+ *  producción vive en `produccion.css` desde PROD-002; aquí quedaba la agenda
+ *  semanal anterior, retirada con ella.
+ */
+
+.historial {
+  min-width: 0;
+  margin: 16px 0;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-card);
+}
+
+.historial__filtros { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 16px 0; }
+.historial__filtros label { display: grid; gap: 6px; flex: 1 1 200px; }
+.historial__filtros > .field { width: auto; max-width: 100%; flex: 1 1 160px; }
+.historial__resultado { min-width: 0; }
+.historial__resumen { padding: 12px 0; font-weight: 600; line-height: 1.6; }
+.historial__registro { padding: 14px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.historial summary { cursor: pointer; padding: 10px 0; font-weight: 600; line-height: 1.6; }
+.historial__detalle { border-left: 3px solid var(--brand); padding: 12px 16px; margin: 12px 0; background: var(--surface-sunk); }
+.historial__detalle h3, .historial__detalle h4 { font-size: 1rem; margin: 6px 0; }
+.historial p { line-height: 1.6; overflow-wrap: anywhere; }
+.historial ul { padding-left: 20px; line-height: 1.8; }
+.historial__nota { font-size: 0.85rem; }
+.historial__alerta { color: var(--brand-deep); font-weight: 600; padding: 8px 0; }
+
+@media (max-width: 540px) {
+  .historial { padding: 14px; border-radius: 10px; }
+  .historial__filtros .btn { flex: 1 1 140px; white-space: normal; }
+  .historial__filtros label { min-width: 0; }
+}
+
+.ordenes-impresas { color: #111; }
+
+@media print {
+  .orden-impresa + .orden-impresa { break-before: page; }
+  .orden-impresa__receta { break-before: page; }
+  .orden-impresa__portada { break-after: avoid; }
+  .orden-impresa .sheet { box-shadow: none; }
+}

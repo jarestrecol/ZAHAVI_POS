@@ -9,7 +9,7 @@
  *  mirando la pantalla:
  *
  *      1. FEFO: sale antes lo que vence antes, y lo VENCIDO no sale.
- *      2. Las unidades NO se convierten nunca.
+ *      2. Las unidades se convierten solo con equivalencias explícitas.
  *      3. El costo se calcula lote a lote, no con un precio medio.
  *      4. Descontar no deja existencias negativas ni se aplica dos veces.
  *      5. El valor unitario se deriva y no se guarda.
@@ -65,7 +65,8 @@ function comprobar(titulo, condicion, detalle = '') {
 
 /** Un dia relativo a hoy, en el formato del almacen. */
 function dia(desplazamiento) {
-  const d = new Date();
+  const hoy = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const d = new Date(hoy + 'T12:00:00Z');
   d.setUTCDate(d.getUTCDate() + desplazamiento);
   return d.toISOString().slice(0, 10);
 }
@@ -135,7 +136,7 @@ comprobar(
   'y el mensaje esta redactado para la persona, sin codigos crudos',
   typeof sinPeso.message === 'string' && sinPeso.message.length > 20 && !sinPeso.message.includes('_'),
 );
-const bueno = A.validarLote({ ingrediente: 'harina', pesoCompra: '1.000', costoCompra: 5, unidad: 'gr' });
+const bueno = A.validarLote({ ingrediente: 'harina', pesoCompra: '1.000', costoCompra: 5, existencia: 1, unidad: 'gr' });
 comprobar('uno correcto pasa y sube a mayusculas', bueno.ok === true && bueno.value.ingrediente === 'HARINA');
 
 /* ===========================================================================
@@ -215,14 +216,14 @@ comprobar(
   String(evita.lineas[0].disponible),
 );
 
-console.log('\n8. Las unidades NUNCA se convierten');
+console.log('\n8. Las unidades requieren equivalencias en gramos');
 const enUnidades = [lote('L010', 'HUEVOS', 'UND', 30, 18000, 30, dia(20))];
 const pideGramos = C.costearPlan([{ ingrediente: 'HUEVOS', unidad: 'GR', cantidad: 100 }], enUnidades);
-comprobar('pedir en GR lo que hay en UND sale sin precio', pideGramos.lineas[0].estado === 'sin_precio');
+comprobar('sin peso de la unidad se indica la equivalencia faltante', pideGramos.lineas[0].estado === 'sin_conversion');
 comprobar('no se inventa ningun costo', pideGramos.costoTotal === 0);
 comprobar('y se cuenta como linea sin precio', pideGramos.lineasSinPrecio === 1);
 
-const pideUnidades = C.costearPlan([{ ingrediente: 'HUEVOS', unidad: 'UND', cantidad: 10 }], enUnidades);
+const pideUnidades = C.costearPlan([{ ingrediente: 'HUEVOS', unidad: 'UND', cantidad: 10 }], enUnidades.map((l) => ({ ...l, equivalencias: { UND: 50 } })));
 comprobar('pedirlo en su propia unidad si cuesta', pideUnidades.costoTotal === 6000, String(pideUnidades.costoTotal));
 
 console.log('\n9. Cuando no alcanza');
@@ -234,11 +235,11 @@ comprobar('y el faltante es la diferencia exacta', falta.lineas[0].faltante === 
 comprobar('el faltante nunca es negativo', falta.lineas.every((l) => l.faltante >= 0));
 
 console.log('\n10. Dos lineas del mismo ingrediente no gastan dos veces lo mismo');
-const unSoloLote = [lote('L012', 'AGUA', 'GR', 100, 1000, 100, dia(50))];
+const unSoloLote = [lote('L012', 'HARINA DE TRIGO', 'GR', 100, 1000, 100, dia(50))];
 const dobleGasto = C.costearPlan(
   [
-    { ingrediente: 'AGUA', unidad: 'GR', cantidad: 80 },
-    { ingrediente: 'AGUA', unidad: 'GR', cantidad: 80 },
+    { ingrediente: 'HARINA DE TRIGO', unidad: 'GR', cantidad: 80 },
+    { ingrediente: 'HARINA DE TRIGO', unidad: 'GR', cantidad: 80 },
   ],
   unSoloLote,
 );
@@ -332,6 +333,43 @@ comprobar(
 );
 comprobar('el resumen cuenta un valor mayor que cero', A.resumenAlmacen(demo).valorTotal > 0);
 
+/* El ejemplo con recetario tiene que dejar costear TODO: sin eso, cualquier
+ * plan de prueba sale "incompleto" y no se puede confirmar nada. La demanda se
+ * calcula aqui con el mismo consolidado que usa el plan, no con una cifra. */
+const P = await modulo('src/core/plan.js');
+const hoyDemo = dia(0);
+const completo = A.lotesDemo(hoyDemo, publicado.recipes);
+const catalogo = (factor) => P.consolidar(publicado.recipes.map((recipe) => ({ recipe, factor }))).lineas;
+const todoElCatalogo = C.costearPlan(catalogo(A.TANDAS_DEMO), completo, hoyDemo);
+comprobar(
+  'con recetario, todas las lineas del catalogo tienen precio',
+  todoElCatalogo.lineasSinPrecio === 0,
+  `${todoElCatalogo.lineasSinPrecio} sin precio de ${todoElCatalogo.lineas.length}`,
+);
+comprobar(
+  `y alcanzan para ${A.TANDAS_DEMO} tandas de cada receta a la vez`,
+  todoElCatalogo.lineasConFaltante === 0,
+  `${todoElCatalogo.lineasConFaltante} con faltante`,
+);
+const recetaSinCosto = publicado.recipes.find((receta) =>
+  C.costearPlan(P.consolidar([{ recipe: receta, factor: 1 }]).lineas, completo, hoyDemo).costoTotal <= 0);
+comprobar('ninguna receta sale con costo cero', !recetaSinCosto, recetaSinCosto ? recetaSinCosto.nombre : '');
+comprobar(
+  'todos los lotes generados pasan la misma validacion que uno tecleado',
+  completo.every((l) => A.validarLote(l).ok),
+);
+const soloEscritos = (lista) => lista.slice(0, demo.length).map(({ registrado, ...resto }) => resto);
+comprobar(
+  'los lotes escritos a mano se conservan, en el mismo orden',
+  JSON.stringify(soloEscritos(completo)) === JSON.stringify(soloEscritos(A.lotesDemo(hoyDemo))),
+);
+comprobar('los codigos no se repiten', new Set(completo.map((l) => l.id)).size === completo.length);
+comprobar(
+  'el unico vencido sigue siendo el escrito a proposito',
+  completo.filter((l) => A.estadoVencimiento(l, hoyDemo) === 'vencido').length
+    === demo.filter((l) => A.estadoVencimiento(l, hoyDemo) === 'vencido').length,
+);
+
 /* ===========================================================================
  *  15. EL ARCHIVO REAL NO SE TOCO
  * ======================================================================== */
@@ -348,4 +386,5 @@ if (fallos === 0) {
 }
 console.log('===========================================================\n');
 
+await import('./test-conversiones.mjs');
 process.exit(fallos === 0 ? 0 : 1);

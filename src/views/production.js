@@ -10,9 +10,10 @@
  * salir, que es justo lo que se espera de una lista de control de una tanda.
  */
 
-import { el, clear } from '../lib/dom.js';
+import { el, clear, icon } from '../lib/dom.js';
 import { titleCase, splitName, formatQty } from '../lib/format.js';
 import { trapFocus, announce } from '../lib/a11y.js';
+import { ICON_VOLVER, ICON_AVANZAR } from '../lib/iconos.js';
 
 /** Cuantos colores de estacion hay. Igual que en la ficha (`views/detail.js`). */
 const ESTACIONES = 4;
@@ -65,16 +66,14 @@ export function openProduction(options) {
   const btnAnterior = el('button', {
     type: 'button',
     class: 'btn btn--quiet btn--xl',
-    text: '← Anterior',
     on: { click: () => go(-1) },
-  });
+  }, [icon(ICON_VOLVER, { class: 'btn__icon' }), el('span', { class: 'btn__label', text: 'Anterior' })]);
 
   const btnSiguiente = el('button', {
     type: 'button',
     class: 'btn btn--primary btn--xl prod__next',
-    text: 'Siguiente',
     on: { click: markAndAdvance },
-  });
+  }, [el('span', { class: 'btn__label', text: 'Siguiente' }), icon(ICON_AVANZAR, { class: 'btn__icon' })]);
 
   const foot = el('footer', { class: 'prod__foot' }, [btnAnterior, btnSiguiente]);
 

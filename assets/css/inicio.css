@@ -40,18 +40,16 @@
 
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-6);
 
-  padding: var(--space-7) var(--gutter) var(--space-8);
+  padding: var(--space-6) var(--gutter) var(--space-8);
   background-color: var(--surface-sunk);
 
-  /* Dos capas: un calor de marca muy bajo arriba, donde esta el logotipo, y la
-     textura de puntos que ya usa el resto del sistema. Las dos salen de
-     `tokens.css`: aqui no se escribe ni un color. */
-  background-image: var(--calor-superior), var(--texture-dot);
-  background-size: auto, 22px 22px;
-  background-repeat: no-repeat, repeat;
+  /* Un plano de trabajo necesita quietud. El calor de marca orienta la entrada
+     sin convertir el menu en una superficie decorativa repetida. */
+  background-image: var(--calor-superior);
+  background-repeat: no-repeat;
 }
 
 /* ---- Cabecera --------------------------------------------------------- */
@@ -61,7 +59,12 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
+  width: 100%;
+  max-width: 74rem;
+  margin: 0 auto;
+  padding-bottom: var(--space-4);
   text-align: center;
+  border-bottom: 1px solid var(--line);
 }
 
 .inicio__logo {
@@ -87,18 +90,11 @@
   gap: var(--space-4);
 
   width: 100%;
-  /*
-   * El ancho maximo es lo que decide cuantas columnas salen, y aqui lo que se
-   * quiere son DOS.
-   *
-   * Con 60rem cabian tres, y como los modulos son cuatro, la cuarta tarjeta se
-   * quedaba sola en una segunda fila con dos huecos al lado: la pantalla parecia
-   * incompleta, como si faltaran dos modulos por cargar. Con 44rem salen dos y
-   * dos, que ademas deja cada tarjeta mas ancha y la cifra mas legible desde
-   * lejos. El dia que haya cinco o seis modulos habra que volver aqui, y es el
-   * sitio correcto para decidirlo.
-   */
-  max-width: 44rem;
+  /* En escritorio caben los cuatro accesos de trabajo en una misma fila. La
+     rejilla baja a dos y una columnas con el ancho disponible, sin una variante
+     de marcado para cada dispositivo. */
+  max-width: 74rem;
+  margin: 0 auto;
 }
 
 /* ---- Una tarjeta ------------------------------------------------------- */
@@ -284,7 +280,8 @@
   display: flex;
   justify-content: center;
   width: 100%;
-  max-width: 60rem;
+  max-width: 74rem;
+  margin: 0 auto;
 }
 
 /* ---- Pantallas estrechas ----------------------------------------------- */
@@ -305,5 +302,43 @@
   .modulo__icono {
     width: 2.25rem;
     height: 2.25rem;
+  }
+}
+
+/* En un monitor amplio el menu se lee como una consola de trabajo: los cuatro
+   dominios están a la vista y ninguno queda como una tarjeta solitaria debajo
+   de los demás. El contenido de cada módulo pasa a vertical para aprovechar
+   el ancho sin apretar los textos. */
+@media (min-width: 70rem) {
+  .inicio__cabecera {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-5);
+    text-align: left;
+  }
+
+  .inicio__logo {
+    width: 12rem;
+  }
+
+  .inicio__modulos {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .modulo {
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: var(--space-3);
+    min-height: 12.5rem;
+  }
+
+  .modulo__aviso {
+    grid-column: auto;
+    margin-top: auto;
+  }
+
+  .inicio__pie {
+    justify-content: flex-start;
   }
 }

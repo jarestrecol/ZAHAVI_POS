@@ -17,7 +17,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, abrirAjustes, CLAVE, TOTAL_RECETAS } from './apoyo.js';
+import { entrar, abrirAjustes, TOTAL_RECETAS } from './apoyo.js';
 
 /* ===========================================================================
  *  1. LA DIRECCION NO EXISTE
@@ -284,7 +284,7 @@ test.describe('Dos sedes editando', () => {
         return;
       }
 
-      const publicado = await route.fetch({ url: 'http://127.0.0.1:8123/data/recipes.json' });
+      const publicado = await route.fetch({ url: new URL('/data/recipes.json', route.request().url()).href });  // El puerto sale de la propia petición: la suite puede correr en otro (PLAYWRIGHT_PUERTO).
       const datos = await publicado.json();
       await route.fulfill({
         status: 200,

@@ -13,7 +13,7 @@
 \set QUIET on
 
 \echo ''
-\echo '8. Las recetas reales dentro del esquema'
+\echo '9. Las recetas reales dentro del esquema'
 
 -- ---- La forma de los datos --------------------------------------------------
 
@@ -69,6 +69,8 @@ end $$;
 
 set role authenticated;
 set request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000003';
+set request.jwt.claim.session_id = 'dddddddd-0000-0000-0000-000000000003';
+set request.jwt.claim.aal = 'aal2';
 
 do $$
 declare
@@ -133,3 +135,5 @@ end $$;
 
 reset role;
 reset request.jwt.claim.sub;
+reset request.jwt.claim.session_id;
+reset request.jwt.claim.aal;

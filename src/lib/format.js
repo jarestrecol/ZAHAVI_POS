@@ -161,6 +161,15 @@ export function formatQty(value) {
   return String(Math.round(parsed * factor) / factor).replace('.', ',');
 }
 
+/** Fracciones de compra y densidades: no mostrar 0 para un consumo pequeño. */
+export function formatMedida(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  if (n !== 0 && Math.abs(n) < 0.000001) return n.toExponential(3).replace('.', ',');
+  return n.toLocaleString('es-CO', { useGrouping: false, maximumFractionDigits: 6 });
+}
+
 /**
  * Normaliza para comparar y ordenar: sin acentos, en mayusculas.
  *

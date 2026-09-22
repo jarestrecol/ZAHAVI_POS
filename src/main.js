@@ -10,7 +10,7 @@
  *
  *  RECORRIDO DE UNA CARGA
  *  ----------------------
- *      1. `boot()`      prepara la contrasena y carga las recetas
+ *      1. `boot()`      lee la sesion guardada y carga las recetas
  *      2. `render()`    pinta segun el estado y la direccion actual
  *      3. a partir de ahi, cualquier cambio de estado o de direccion
  *         vuelve a llamar a `render()`
@@ -26,7 +26,7 @@
 
 import { el, clear } from './lib/dom.js';
 import { recordarFoco } from './lib/a11y.js';
-import { drenarTrasPintar } from './lib/paint.js';
+import { drenarTrasPintar, hayTrasPintar } from './lib/paint.js';
 import { leerEscalaTexto } from './core/preferencias.js';
 import {
   claveDelListado,
@@ -36,20 +36,23 @@ import {
   recetaMarcada,
 } from './memoria-pantalla.js';
 import { renderDialogs } from './dialogs.js';
-import { renderPantallas, cerrarPantallas } from './pantallas.js';
+import { renderPantallas, cerrarPantallas, sigueLaMismaPantalla } from './pantallas.js';
 import { handleShortcuts } from './shortcuts.js';
 import * as repo from './core/repository.js';
 import { getState, setState, subscribe, notify, clearNotice, recetario } from './core/store.js';
-import { getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
+import { buildHash, getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
 import { escalarReceta } from './core/scale.js';
-import { ensureAccess, isSignedIn, estadoClave, anotarGeneracion } from './core/access.js';
+import { leerSesion, retirarAccesoAnterior } from './core/sesion.js';
 import {
   saveRecipe,
   deleteRecipe,
   publish,
   discardChanges,
-  entrarSesion,
-  cerrarSesion,
+  ingresar,
+  verificarCodigo,
+  cancelarVerificacion,
+  vigilarTurno,
+  revalidarSesionActual,
 } from './app/commands.js';
 import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
 import { cargarAlmacen } from './app/almacen.js';
@@ -60,6 +63,8 @@ import { renderSidebar, SEARCH_ID, restaurarFocoBusqueda } from './views/sidebar
 import { renderDetail, renderPlaceholder, renderNotFound } from './views/detail.js';
 import { renderPortada } from './views/portada.js';
 import { renderInicio } from './views/inicio.js';
+import { cargarPanel, estadoMetas, guardarMetasResumen, prepararEjemplo } from './app/resumen.js';
+import { renderNavigation } from './views/navigation.js';
 import {
   renderRecipeSheet,
   renderIndexSheet,
@@ -73,6 +78,15 @@ const app = document.getElementById('app');
 /** Contenedor aparte para la hoja de impresion, que no se ve en pantalla. */
 const printRoot = document.getElementById('print-root');
 
+/**
+ * Cada cuanto se vuelve a comprobar la sesion con el servidor.
+ *
+ * Es lo maximo que tarda en salir de la pantalla alguien dado de baja en un
+ * aparato que no se recarga. Los datos de Supabase se le niegan desde el primer
+ * momento (ver `db/migraciones/0009`); esto solo le cierra la interfaz.
+ */
+const REVALIDAR_CADA_MS = 15 * 60 * 1000;
+
 boot();
 
 /* ===========================================================================
@@ -82,28 +96,28 @@ boot();
 /**
  * Prepara todo y pinta por primera vez.
  *
- * El orden importa: primero la contrasena (porque decide si se ve la pantalla
- * de entrada o el recetario), despues las recetas, y solo entonces se activan
- * las suscripciones que provocan repintados.
+ * El orden importa: primero la sesion guardada (porque decide si se ve la
+ * pantalla de entrada o el menu), despues las recetas, y solo entonces se
+ * activan las suscripciones que provocan repintados.
  */
 async function boot() {
-  // La clave del equipo se crea la primera vez que alguien abre la aplicacion.
-  // Si el equipo venia de un modelo anterior (la lista de usuarios, o la clave
-  // unica de antes), se conserva la que ya conocia el personal en vez de
-  // dejarlos fuera: ver `ensureAccess` en `core/access.js`.
-  //
-  // El resultado SE MIRA. Si la escritura de la credencial falla -cuota
-  // agotada, modo privado-, `readAccess()` seguira devolviendo null en cada
-  // arranque, y entonces `verifyPassword` contesta false hasta para la clave
-  // correcta: la pantalla de entrada diria "clave incorrecta" sin una sola
-  // pista de que el problema es del almacenamiento y no de lo que se escribio.
-  const acceso = await ensureAccess();
-  if (!acceso.ok) notify(acceso.message, 'error');
+  // Cada persona entra con su codigo y su PIN, comprobados por Supabase. La
+  // clave del equipo de antes ya no abre nada, y lo que dejo guardado en este
+  // aparato se borra: ver `core/sesion.js`.
+  retirarAccesoAnterior();
 
+  // La sesion guardada decide la primera pantalla SIN esperar a la red: quien
+  // ya entro en este equipo abre directamente, tambien sin conexion. Que siga
+  // valiendo se comprueba despues de pintar, ver `revalidarSesionActual`.
+  const sesion = leerSesion();
   setState({
-    authed: isSignedIn(),
+    authed: sesion !== null,
+    usuario: sesion ? sesion.usuario : null,
     online: navigator.onLine !== false,
   });
+  // El turno de 6 horas se mira ANTES del primer pintado y sin red: una tableta
+  // encendida al dia siguiente no puede abrir a nombre de quien entro ayer.
+  vigilarTurno();
 
   // Carga las recetas: primero las del servidor, y si no hay red, la copia
   // guardada en este equipo.
@@ -112,24 +126,6 @@ async function boot() {
     ready: true,
     recetario: { recipes: loaded.recipes, ingredientes: loaded.ingredientes },
   });
-
-  // LA CLAVE RETIRADA SE COMPRUEBA AQUI, y no antes, porque la generacion
-  // vigente viaja con el recetario: hasta haberlo leido no se sabe si la
-  // panaderia retiro la clave de este equipo.
-  //
-  // Se comprueba al arrancar y no mientras se trabaja: sacar a alguien de la
-  // pantalla a media tanda seria peor que el riesgo que se evita. Tampoco
-  // basta con mirarlo al entrar, porque la sesion no vence y la tableta de
-  // pared del obrador no cierra sesion nunca: ahi no dejaba de poder entrar
-  // nadie. En la practica el equipo se recarga a diario, y quien conoce la
-  // clave vigente la pone en el mismo formulario de entrada.
-  //
-  // Sin red, `generacionAcceso()` sigue valiendo la ultima conocida, asi que un
-  // obrador sin señal nunca queda fuera por esto.
-  anotarGeneracion(repo.generacionAcceso());
-  if (isSignedIn() && estadoClave().caducada) {
-    cerrarSesion();
-  }
 
   // `hydrate` avisa cuando algo no salio como esperaba: sin conexion, sin
   // recetas, o cambios locales danados que hubo que apartar.
@@ -160,8 +156,37 @@ async function boot() {
   startRouter();
   render();
 
+  // LA SESION SE COMPRUEBA CONTRA EL SERVIDOR DESPUES DE PINTAR, sin bloquear
+  // el arranque: una baja, un perfil desactivado o un cambio de rol llegan a
+  // este equipo en cuanto hay red, y sin red no se saca a nadie. No se espera
+  // a propósito: el recetario tiene que abrir aunque Supabase tarde.
+  revalidarSesionActual();
+
   // Estado de la conexion: en una cocina se cae a menudo y conviene decirlo.
-  window.addEventListener('online', () => setState({ online: true }));
+  // Al volver la red se comprueba otra vez la sesion, porque una tableta que
+  // pasa el dia sin señal no llego a hacerlo al arrancar.
+  window.addEventListener('online', () => {
+    setState({ online: true });
+    revalidarSesionActual();
+  });
+
+  // Y CADA RATO, porque la tableta de pared del obrador no recarga nunca: sin
+  // esto, una baja no llegaba a ella hasta que alguien la reiniciara. Tambien al
+  // volver a la pestaña, que es cuando alguien retoma el aparato. Sin red o sin
+  // sesion no hace nada: `revalidarSesionActual` sale sin preguntar.
+  //
+  // El turno se vigila en los dos sitios SIN mirar la red. Su temporizador se
+  // retrasa con la pestaña en segundo plano o la tableta dormida, y al volver es
+  // cuando alguien retoma el aparato: justo cuando no puede encontrarlo abierto
+  // a nombre de otro.
+  window.setInterval(() => {
+    if (!vigilarTurno().value) return;
+    if (navigator.onLine !== false && document.visibilityState === 'visible') revalidarSesionActual();
+  }, REVALIDAR_CADA_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !vigilarTurno().value) return;
+    if (navigator.onLine !== false) revalidarSesionActual();
+  });
   window.addEventListener('offline', () => setState({ online: false }));
 
   document.addEventListener('keydown', handleShortcuts);
@@ -246,7 +271,12 @@ function render() {
     document.activeElement && document.activeElement.id === SEARCH_ID,
   );
 
-  if (escribiendoEnBuscador || typeof document.startViewTransition !== 'function') {
+  // Tampoco dentro de un módulo que se queda en pantalla: no hay nada que
+  // animar y la transición bloquea los toques mientras dura (`pantallas.js`).
+  // Salvo si algo espera al repintado (imprimir), que cuenta con que llegue
+  // después de la navegación que sigue.
+  const mismoModulo = !hayTrasPintar() && sigueLaMismaPantalla(getState(), getRoute());
+  if (escribiendoEnBuscador || typeof document.startViewTransition !== 'function' || mismoModulo) {
     paint();
     drenarTrasPintar();
     return;
@@ -362,8 +392,15 @@ function paint() {
     app.appendChild(
       renderLogin({
         error: state.loginError,
-        onError: (texto) => setState({ loginError: texto }),
-        onEntrar: entrarSesion,
+        campo: state.loginCampo,
+        enCurso: state.loginEnCurso,
+        online: state.online,
+        paso: state.loginPaso,
+        qr: state.loginQr,
+        secreto: state.loginSecreto,
+        onIngresar: ingresar,
+        onVerificar: verificarCodigo,
+        onCancelarVerificacion: cancelarVerificacion,
       }),
     );
     clear(printRoot);
@@ -387,9 +424,10 @@ function paint() {
     // Ajustes se puede abrir desde el aviso de «cambios sin publicar», que vive
     // dentro de la propia pantalla, asi que hay que poder dejarla inerte.
     renderDialogs(pantalla);
-    // Lo que se imprime desde un modulo se monta despues de salir de el, ya en
-    // el recetario. Aqui no hay nada que imprimir.
-    clear(printRoot);
+    // La hoja es independiente de la pantalla. Imprimir producción no debe
+    // cerrar su editor ni destruir un borrador sin guardar.
+    if (state.recetario.planPrint) renderPrint(state, route, null);
+    else clear(printRoot);
     return;
   }
 
@@ -404,6 +442,19 @@ function paint() {
       recipes: state.recetario.recipes,
       lotes: state.almacen.lotes,
       recetaDeFondo: route.id,
+      usuario: state.usuario,
+      // Funciones y no datos: el panel se recalcula al cambiar de periodo o de
+      // modo sin pasar por un repintado global.
+      cargarPanel,
+      estadoMetas,
+      onGuardarMetas: guardarMetasResumen,
+      prepararEjemplo,
+      // Los avisos llevan a donde se arreglan; conservan la receta de fondo
+      // como el resto de enlaces del menú.
+      hrefDe: (destino) => buildHash({
+        modulo: destino.modulo, name: 'index', fecha: destino.fecha,
+        id: destino.modulo === 'recetario' ? null : route.id || null,
+      }),
       onSettings: () => setState({ settingsOpen: true }),
     });
     app.appendChild(menu);
@@ -460,7 +511,7 @@ function paint() {
      * los demas accesorios suyos, que es justo lo que este sistema ya no es.
      *
      * Ajustes tambien se fue, y ademas gana algo: detras de ese boton estan
-     * publicar, descartar cambios y la clave del equipo, y no tiene por que
+     * publicar, descartar cambios y cerrar la sesion, y no tiene por que
      * estar a un toque desde la pantalla en la que se pesa.
      */
     renderBarra({
@@ -478,6 +529,7 @@ function paint() {
       ],
     }),
 
+    renderNavigation('recetario'),
     el('div', { class: 'workspace' }, [
       // Izquierda: filtros, buscador y listado completo.
       renderSidebar({
@@ -611,4 +663,3 @@ function renderPrint(state, route, recipe) {
       : renderIndexSheet({ recipes: state.recetario.recipes, query: route.query, category: route.category }),
   );
 }
-

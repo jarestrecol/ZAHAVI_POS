@@ -355,6 +355,26 @@
   color: var(--ink-2);
 }
 
+/* Tu sesion: etiqueta y dato en dos columnas, como una ficha. */
+.settings__sesion {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.settings__sesion dt {
+  color: var(--ink-3);
+}
+
+.settings__sesion dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 /*
  * SIN TOPE DE MEDIDA.
  *
@@ -919,6 +939,46 @@
   font-style: italic;
   line-height: 1.6;
   color: var(--ink-4);
+}
+
+/* El resultado vacío no es una ausencia de interfaz: es el primer paso de una
+   tarea. Se diferencia de un "no hay coincidencias" con una pieza completa
+   que orienta sin competir con el campo de búsqueda de la columna vecina. */
+.plan__vacio--resultado {
+  display: grid;
+  align-content: center;
+  min-height: 15rem;
+  margin-top: var(--space-4);
+  padding: var(--space-6);
+  font-style: normal;
+  background: var(--surface-card);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+}
+
+.plan__vacio-paso {
+  margin-bottom: var(--space-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: var(--track-loose);
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.plan__vacio-titulo {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.plan__vacio-texto {
+  max-width: 28rem;
+  margin-top: var(--space-2);
+  line-height: 1.55;
+  color: var(--ink-3);
 }
 
 /* =============================================================================

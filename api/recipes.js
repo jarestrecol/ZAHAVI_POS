@@ -32,6 +32,9 @@ import { validatePayload, MAX_BYTES } from './_schema.js';
 const FILE_PATH = 'data/recipes.json';
 const API = 'https://api.github.com';
 
+/** Nunca se deja una funcion esperando indefinidamente una respuesta externa. */
+const GITHUB_TIMEOUT_MS = 8000;
+
 /**
  * Intentos fallidos por origen. Una funcion serverless no tiene estado
  * garantizado entre invocaciones, asi que esto no es un cortafuegos: solo
@@ -430,7 +433,7 @@ async function commit(response, config, value, sha, rawAuthor) {
 
   let committed;
   try {
-    committed = await fetch(`${API}/repos/${config.repo}/contents/${FILE_PATH}`, {
+    committed = await fetchGitHub(`${API}/repos/${config.repo}/contents/${FILE_PATH}`, {
       method: 'PUT',
       headers: githubHeaders(config.token),
       body: JSON.stringify({
@@ -472,7 +475,7 @@ async function commit(response, config, value, sha, rawAuthor) {
 async function fetchFile(config) {
   let res;
   try {
-    res = await fetch(
+    res = await fetchGitHub(
       `${API}/repos/${config.repo}/contents/${FILE_PATH}?ref=${encodeURIComponent(config.branch)}`,
       { headers: githubHeaders(config.token) },
     );
@@ -506,6 +509,28 @@ function githubHeaders(token) {
     'Content-Type': 'application/json',
     'User-Agent': 'zahavi-recetario',
   };
+}
+
+/**
+ * Acota una llamada a GitHub y libera la funcion cuando el proveedor no responde.
+ *
+ * El navegador ya corta su propia solicitud al endpoint; sin este limite, el
+ * servidor podia seguir esperando a GitHub aun despues de que la tableta hubiera
+ * recibido un error. Abortarla protege la capacidad de la funcion para la sede
+ * siguiente y devuelve el mismo 502 controlado que una caida de red.
+ *
+ * @param {string} url
+ * @param {RequestInit} options
+ * @returns {Promise<Response>}
+ */
+async function fetchGitHub(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GITHUB_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**

@@ -494,3 +494,16 @@
     --dur-slow: 0ms;
   }
 }
+
+/* La tableta del obrador puede usarse con luz directa. Quien pide mas contraste
+   al sistema no necesita otra paleta: refuerza los limites y el foco, y retira
+   la textura decorativa para que las lineas de trabajo sean lo primero que se ve. */
+@media (prefers-contrast: more) {
+  :root {
+    --line: #9d968a;
+    --line-cell: #b8b1a5;
+    --line-strong: #4a443c;
+    --focus-glow: 0 0 0 5px rgba(246, 138, 30, 0.45);
+    --texture-dot: none;
+  }
+}

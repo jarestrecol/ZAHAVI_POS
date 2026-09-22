@@ -1,0 +1,458 @@
+/* =============================================================================
+   GRAFICAS (BI-001). Kit de graficas del panel de inteligencia de negocio.
+   Propiedad del agente de graficas; ver el contrato BI-001 §8.
+   =============================================================================
+
+   COLOR DE LAS SERIES: TOKENS PROPIOS, VALIDADOS
+   Los colores de categoria del recetario (--cat-*) estan pensados para TEXTO
+   sobre blanco y son muy oscuros para marcar series. Se validaron con el
+   comprobador de paletas de la guia de visualizacion y NO pasan:
+
+     node validate_palette.js "#a31956,#7d4505,#1d6349" --mode light --surface "#ffffff"
+       [PASS] Lightness band      all 3 inside L 0.43–0.77
+       [FAIL] Chroma floor        #1d6349 C 0.082 (se lee gris)
+       [WARN] CVD separation      #1d6349↔#7d4505 ΔE 7.7 (deutan)
+       [FAIL] Normal-vision floor #1d6349↔#7d4505 ΔE 14.6 (< 15)
+
+   Se buscaron, en las MISMAS familias de tono (magenta, cafe-naranja, verde),
+   los pasos mas cercanos a la marca que pasan todos los controles, incluso con
+   todos los pares (en una grafica de lineas cualquier par puede cruzarse):
+
+     node validate_palette.js "#90145f,#8d5406,#04896a" --mode light --surface "#ffffff" --pairs all
+       [PASS] Lightness band      all 3 inside L 0.43–0.77
+       [PASS] Chroma floor        all 3 >= 0.1
+       [PASS] CVD separation      worst all-pairs #04896a↔#8d5406 ΔE 10.4 (deutan) · tritan 9.0
+       [PASS] Normal-vision floor worst all-pairs #04896a↔#8d5406 ΔE 18.4
+       [PASS] Contrast vs surface all 3 >= 3:1   (8,57 · 6,17 · 4,38 : 1)
+       → ALL CHECKS PASS
+
+   El total va en tinta (--ink, 18,6:1): no es una cuarta categoria sino el
+   dato que manda (enfasis), y por eso no entra en el control categorico, que
+   exige croma. La comparacion (periodo anterior) va en gris --ink-4 (5,7:1)
+   PUNTEADA: el trazo la distingue ademas del color.
+
+   MAPA DE CALOR: rampa de UN tono (el naranja de la marca, tono 58°), cuatro
+   escalones mas el cero, validada como rampa ordinal:
+
+     node validate_palette.js "#c2804a,#a8662b,#8a4d14,#653504" --mode light --surface "#ffffff" --ordinal
+       [PASS] Lightness monotone · [PASS] Adjacent ΔL >= 0.06
+       [PASS] Light-end contrast 3.24:1 · [PASS] Single hue (1°)
+
+   El primer escalon pasa 3:1 contra la tarjeta (antes #dfab85, 2,04:1): una
+   casilla con produccion no puede confundirse con el fondo. El cero lleva
+   ademas un borde, para no leerse como «poca produccion».
+
+   La aplicacion es solo modo claro; no hay variante oscura que validar.
+   El texto nunca lleva el color de la serie: siempre --ink, --ink-2 o --ink-3.
+   ============================================================================= */
+
+:root {
+  --graf-pasteleria: #90145f;
+  --graf-panaderia: #8d5406;
+  --graf-galletas: #04896a;
+  --graf-total: var(--ink);
+  --graf-otros: var(--cat-otros);
+  --graf-comparacion: var(--ink-4);
+  /* Una sola serie sin area (rankings): el acento de la marca, 4,1:1. */
+  --graf-uno: var(--brand-deep);
+
+  /* Mobiliario: la rejilla un paso por encima de la superficie, recesiva. */
+  --graf-rejilla: #e6e3dc;
+  --graf-base: var(--line);
+  --graf-cruz: var(--line-strong);
+
+  --graf-calor-0: var(--graf-rejilla);
+  --graf-calor-1: #c2804a;
+  --graf-calor-2: #a8662b;
+  --graf-calor-3: #8a4d14;
+  --graf-calor-4: #653504;
+
+  /* Estados: el color acompana al icono y la palabra, nunca va solo. */
+  --graf-bien: var(--ok);
+  --graf-bien-suave: var(--ok-soft);
+  --graf-atencion: var(--amber-text);
+  --graf-atencion-suave: var(--amber-soft);
+  --graf-mal: var(--danger);
+  --graf-mal-suave: var(--danger-soft);
+  --graf-neutro: var(--ink-4);
+  --graf-neutro-suave: var(--surface-sunk);
+
+  --graf-alto-barra: 0.625rem;
+  --graf-alto-meta: 0.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Tono de cada marca: una variable que leen trazos, rellenos y muestras.
+   --------------------------------------------------------------------------- */
+.graf [data-tono],
+.graf-barras [data-tono] {
+  --graf-tono: var(--graf-otros);
+}
+.graf [data-tono="pasteleria"] {
+  --graf-tono: var(--graf-pasteleria);
+}
+.graf [data-tono="panaderia"] {
+  --graf-tono: var(--graf-panaderia);
+}
+.graf [data-tono="galletas"] {
+  --graf-tono: var(--graf-galletas);
+}
+.graf [data-tono="total"] {
+  --graf-tono: var(--graf-total);
+}
+.graf [data-tono="comparacion"] {
+  --graf-tono: var(--graf-comparacion);
+}
+.graf [data-tono="uno"] {
+  --graf-tono: var(--graf-uno);
+}
+
+/* ---------------------------------------------------------------------------
+   Figura
+   --------------------------------------------------------------------------- */
+.graf {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  min-width: 0;
+  color: var(--ink);
+}
+.graf__cabecera { display: grid; gap: var(--space-1); }
+.graf__titulo { font-size: var(--text-md); font-weight: 700; line-height: 1.25; color: var(--ink); }
+.graf__subtitulo { font-size: var(--text-sm); color: var(--ink-3); line-height: 1.4; }
+.graf__nota { margin: 0; font-size: var(--text-xs); color: var(--ink-3); }
+
+.graf__vacio {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: center;
+  margin: 0;
+  padding: var(--space-5) var(--space-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+.graf__vacio strong { color: var(--ink); font-size: var(--text-base); }
+
+/* ---------------------------------------------------------------------------
+   Leyenda: la muestra imita la marca; el nombre va en tinta.
+   --------------------------------------------------------------------------- */
+.graf__leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.graf__leyenda-item { display: inline-flex; align-items: center; gap: var(--space-2); }
+.graf__muestra {
+  flex: none;
+  display: inline-block;
+  width: 1rem;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--graf-tono);
+}
+.graf__muestra[data-forma="caja"] { width: 0.75rem; height: 0.75rem; border-radius: var(--radius-sm); }
+.graf__muestra[data-forma="punteada"] {
+  height: 0;
+  border-top: 2px dashed var(--graf-tono);
+  border-radius: 0;
+  background: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Lienzo SVG
+   --------------------------------------------------------------------------- */
+.graf__lienzo { position: relative; min-width: 0; }
+.graf__svg { display: block; width: 100%; height: auto; overflow: visible; border-radius: var(--radius-sm); touch-action: pan-y; }
+.graf__svg:focus { outline: none; }
+.graf__svg:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; box-shadow: var(--focus-glow); }
+
+.graf__rejilla { stroke: var(--graf-rejilla); stroke-width: 1; shape-rendering: crispEdges; }
+.graf__base { stroke: var(--graf-base); stroke-width: 1; shape-rendering: crispEdges; }
+.graf__eje { fill: var(--ink-3); font-family: var(--font-ui); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
+
+.graf__linea { fill: none; stroke: var(--graf-tono); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.graf__linea--comparacion { stroke-width: 1.5; stroke-dasharray: 4 4; }
+.graf__area { fill: var(--graf-tono); fill-opacity: 0.1; stroke: none; }
+/* La tinta al 10 % ya es un gris pesado en un bloque grande: la mitad basta. */
+.graf__area[data-tono="total"] { fill-opacity: 0.05; }
+/* Anillo del color de la superficie: el punto se lee aunque cruce una linea. */
+.graf__punto,
+.graf__foco { fill: var(--graf-tono); stroke: var(--surface-card); stroke-width: 2; pointer-events: none; }
+.graf__cruz { stroke: var(--graf-cruz); stroke-width: 1; pointer-events: none; shape-rendering: crispEdges; }
+
+.graf__columna { fill: var(--graf-tono); }
+.graf__banda { fill: transparent; }
+.graf__banda--activa { fill: var(--surface-sunk); }
+
+.graf__meta { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 6 4; }
+
+/* Rotulos sobre el dibujo: halo del color de la superficie para leerse aunque
+   pase una linea por detras. */
+.graf__meta-rotulo,
+.graf__rotulo-final,
+.graf__rotulo-valor {
+  fill: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--surface-card);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.graf__rotulo-final { fill: var(--ink); }
+
+/* ---------------------------------------------------------------------------
+   Tooltip: el valor manda, el nombre acompana. Nunca sale de la grafica.
+   --------------------------------------------------------------------------- */
+.graf__tooltip {
+  --graf-tx: var(--space-3);
+  --graf-ty: 0px;
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: var(--space-1);
+  width: max-content;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translate(var(--graf-tx), var(--graf-ty));
+}
+.graf__tooltip[hidden] { display: none; }
+/* El ancho maximo lo pone la grafica: el sitio que queda de ese lado. */
+.graf__tooltip[data-lado="izquierda"] {
+  --graf-tx: calc(-100% - var(--space-3));
+}
+.graf__tooltip[data-vertical="arriba"] {
+  --graf-ty: -100%;
+}
+.graf__tooltip-titulo { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--ink-3); }
+.graf__tooltip-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); margin: 0; min-width: 0; }
+.graf__tooltip-valor { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.graf__tooltip-nombre { color: var(--ink-3); overflow-wrap: break-word; min-width: 0; }
+
+/* ---------------------------------------------------------------------------
+   Tabla equivalente: plegada, y desplaza dentro de su caja.
+   --------------------------------------------------------------------------- */
+.graf__datos { min-width: 0; }
+.graf__datos-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-row);
+  padding: 0 var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+  border-radius: var(--radius-control);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.graf__datos-boton:hover { color: var(--ink); background: var(--surface-sunk); }
+.graf__datos-boton:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.graf__tabla-caja { overflow-x: auto; max-width: 100%; border: 1px solid var(--line-cell); border-radius: var(--radius-sm); }
+.graf__tabla { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.graf__celda {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line-cell);
+  text-align: left;
+  font-weight: 400;
+  vertical-align: top;
+}
+.graf__tabla thead .graf__celda { background: var(--surface-sunk); font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.graf__tabla tbody tr:last-child .graf__celda { border-bottom: 0; }
+.graf__celda[data-alinear="derecha"] { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.graf__celda[data-alinear="centro"] { text-align: center; }
+
+/* ---------------------------------------------------------------------------
+   Estado contra la meta: icono + palabra.
+   --------------------------------------------------------------------------- */
+.graf-estado {
+  --graf-estado: var(--graf-neutro);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.graf-estado[data-estado="bien"] {
+  --graf-estado: var(--graf-bien);
+}
+.graf-estado[data-estado="atencion"] {
+  --graf-estado: var(--graf-atencion);
+}
+.graf-estado[data-estado="mal"] {
+  --graf-estado: var(--graf-mal);
+}
+.graf-estado__icono {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--graf-estado);
+  color: var(--surface-card);
+  font-size: var(--text-2xs);
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Barra contra la meta (bala)
+   --------------------------------------------------------------------------- */
+.graf-meta {
+  --graf-estado: var(--graf-neutro);
+  --graf-estado-suave: var(--graf-neutro-suave);
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.graf-meta[data-estado="bien"] {
+  --graf-estado: var(--graf-bien);
+  --graf-estado-suave: var(--graf-bien-suave);
+}
+.graf-meta[data-estado="atencion"] {
+  --graf-estado: var(--graf-atencion);
+  --graf-estado-suave: var(--graf-atencion-suave);
+}
+.graf-meta[data-estado="mal"] {
+  --graf-estado: var(--graf-mal);
+  --graf-estado-suave: var(--graf-mal-suave);
+}
+.graf-meta__pista {
+  position: relative;
+  height: var(--graf-alto-meta);
+  border-radius: var(--radius-pill);
+  background: var(--graf-estado-suave);
+}
+.graf-meta__relleno {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--graf-estado);
+}
+/* La meta: una raya en tinta que sobresale de la pista. */
+.graf-meta__marca {
+  position: absolute;
+  top: calc(-1 * var(--space-1));
+  bottom: calc(-1 * var(--space-1));
+  width: 2px;
+  margin-left: -1px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+}
+.graf-meta__texto { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0; font-size: var(--text-xs); color: var(--ink-3); }
+.graf-meta__lectura { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------------------
+   Chispa
+   --------------------------------------------------------------------------- */
+.graf-chispa { display: block; width: 5rem; height: 1.5rem; overflow: visible; }
+.graf-chispa--vacia { visibility: hidden; }
+.graf-chispa__linea { fill: none; stroke: var(--graf-comparacion); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.graf-chispa__fin { fill: var(--ink); }
+
+/* ---------------------------------------------------------------------------
+   Barras horizontales (ranking)
+   --------------------------------------------------------------------------- */
+.graf-barras__resumen { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+.graf-barras {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.graf-barras__fila {
+  display: grid;
+  grid-template-columns: minmax(7rem, 2fr) minmax(4rem, 3fr) minmax(4.5rem, auto);
+  grid-template-areas: "texto pista cifras";
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-height: var(--tap-row);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.graf-barras__fila:hover { background: var(--surface-sunk); }
+.graf-barras__texto { grid-area: texto; display: grid; min-width: 0; }
+.graf-barras__nombre { font-size: var(--text-sm); color: var(--ink); overflow-wrap: anywhere; line-height: 1.3; }
+.graf-barras__detalle { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.3; }
+.graf-barras__pista { grid-area: pista; display: block; min-width: 0; }
+.graf-barras__barra {
+  display: block;
+  max-width: 100%;
+  height: var(--graf-alto-barra);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--graf-tono);
+}
+.graf-barras__cifras { grid-area: cifras; display: grid; justify-items: end; text-align: right; }
+.graf-barras__valor { font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.graf-barras__acumulado { font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Donde el acumulado cruza el 80 %: una raya y la frase que lo dice. */
+.graf-barras__marca {
+  margin: var(--space-1) 0;
+  padding: var(--space-1) var(--space-2) 0;
+  border-top: 2px dashed var(--line-strong);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------------------
+   Mapa de calor
+   --------------------------------------------------------------------------- */
+.graf-calor__svg { width: auto; max-width: 100%; }
+.graf-calor__celda { stroke: none; }
+.graf-calor__celda[data-nivel="sin"] { fill: var(--surface-card); stroke: var(--line-cell); stroke-width: 1; }
+.graf-calor__celda[data-nivel="0"],
+.graf-calor__muestra[data-nivel="0"] { fill: var(--graf-calor-0); background: var(--graf-calor-0); }
+/* El cero: la rejilla con un borde un paso mas fuerte, distinto de «poco». */
+.graf-calor__celda[data-nivel="0"] { stroke: var(--line-strong); stroke-width: 1; }
+.graf-calor__muestra[data-nivel="0"] { box-shadow: inset 0 0 0 1px var(--line-strong); }
+.graf-calor__celda[data-nivel="1"],
+.graf-calor__muestra[data-nivel="1"] { fill: var(--graf-calor-1); background: var(--graf-calor-1); }
+.graf-calor__celda[data-nivel="2"],
+.graf-calor__muestra[data-nivel="2"] { fill: var(--graf-calor-2); background: var(--graf-calor-2); }
+.graf-calor__celda[data-nivel="3"],
+.graf-calor__muestra[data-nivel="3"] { fill: var(--graf-calor-3); background: var(--graf-calor-3); }
+.graf-calor__celda[data-nivel="4"],
+.graf-calor__muestra[data-nivel="4"] { fill: var(--graf-calor-4); background: var(--graf-calor-4); }
+.graf-calor__celda--activa { stroke: var(--ink); stroke-width: 2; }
+.graf-calor__escala {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.graf-calor__escala-grupo { display: inline-flex; align-items: center; gap: var(--space-1); }
+.graf-calor__muestra { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: var(--radius-sm); }
+
+/* ---------------------------------------------------------------------------
+   Pantalla estrecha: el ranking pasa a dos lineas (nombre y cifra arriba,
+   barra a todo el ancho abajo), para que el nombre no se parta letra a letra.
+   --------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .graf-barras__fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "texto cifras" "pista pista";
+    padding: var(--space-2);
+  }
+  .graf__tooltip { font-size: var(--text-xs); }
+}

@@ -18,7 +18,9 @@
 
 import { defineConfig, devices } from '@playwright/test';
 
-const PUERTO = 8123;
+// Dos sesiones pueden correr pruebas a la vez en este equipo: cada una elige su
+// puerto con PLAYWRIGHT_PUERTO para no chocar ni apagar el servidor de la otra.
+const PUERTO = Number(process.env.PLAYWRIGHT_PUERTO) || 8123;
 
 export default defineConfig({
   testDir: './tests',
@@ -44,7 +46,7 @@ export default defineConfig({
   projects: [
     {
       name: 'escritorio',
-      testMatch: /(recorrido|dialogos|impresion|resiliencia|publicacion|editor|unidades|almacen|exportar|inicio)\.spec\.js/,
+      testMatch: /(recorrido|dialogos|impresion|resiliencia|publicacion|editor|unidades|almacen|exportar|inicio|operacion|agenda|acceso|graficas|resumen|resumen-analisis)\.spec\.js/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
     {
@@ -79,7 +81,11 @@ export default defineConfig({
   webServer: {
     command: `node scripts/servidor.mjs ${PUERTO}`,
     url: `http://127.0.0.1:${PUERTO}/index.html`,
-    reuseExistingServer: !process.env.CI,
+    // En QA se crea y se cierra un servidor propio. Reutilizar por defecto deja
+    // procesos locales vivos al terminar y vuelve inestable la siguiente pasada.
+    // Si alguien ya esta depurando `npm run servidor`, puede optar por usarlo
+    // con PLAYWRIGHT_REUSE_SERVER=1.
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === '1',
     timeout: 20_000,
   },
 });

@@ -24,32 +24,43 @@ import {
   cuantasEn,
 } from './apoyo.js';
 
-test('el plan del dia imprime el plan, no la receta abierta', async ({ page }) => {
+/** Registra berlinas hoy desde el calendario y abre sus materiales. */
+async function materialesConBerlinas(page) {
+  await abrirModulo(page, 'plan');
+  await page.getByRole('button', { name: 'Registrar producción', exact: true }).click();
+  await page.locator('.dia .area-btn--panaderia').click();
+  await page.getByRole('searchbox', { name: 'Buscar' }).fill('berlinas');
+  await page.getByRole('button', { name: /^Añadir Berlinas/ }).click();
+  await expect(page.locator('.reg__fila')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Volver al calendario' }).click();
+  await page.getByRole('button', { name: 'Materiales', exact: true }).first().click();
+}
+
+test('los materiales del dia imprimen el plan, no la receta abierta', async ({ page }) => {
   await entrar(page, `#/receta/${RECETA}`);
   await interceptarImpresion(page);
 
-  await abrirModulo(page, 'plan');
-  await page.getByRole('searchbox', { name: 'Buscar receta para añadir' }).fill('berlinas');
-  await page.getByRole('button', { name: /^Berlinas/ }).click();
-  await page.getByRole('button', { name: 'Imprimir la lista' }).click();
+  await materialesConBerlinas(page);
+  await page.getByRole('button', { name: 'Imprimir', exact: true }).click();
 
   const hoja = await hojaImpresa(page);
   expect(hoja, 'no se monto ninguna hoja').not.toBeNull();
-  expect(hoja.titulo).toBe('Producción del día');
+  expect(hoja.texto).toContain('Producción del día');
+  expect(hoja.texto).toContain('Solo materiales');
+  expect(hoja.texto).not.toContain('Costo estimado');
   expect(hoja.texto).toContain('Berlinas');
   expect(hoja.texto).not.toContain('Cheescake');
 });
 
-test('y despues vuelve la ficha, para el siguiente Ctrl+P', async ({ page }) => {
+test('imprimir conserva la vista y no deja una hoja pendiente al volver a la ficha', async ({ page }) => {
   await entrar(page, `#/receta/${RECETA}`);
   await interceptarImpresion(page);
 
-  await abrirModulo(page, 'plan');
-  await page.getByRole('searchbox', { name: 'Buscar receta para añadir' }).fill('berlinas');
-  await page.getByRole('button', { name: /^Berlinas/ }).click();
-  await page.getByRole('button', { name: 'Imprimir la lista' }).click();
-  // Imprimir sale del modulo: la hoja se monta ya en el recetario.
-  await expect(page.locator('.pantalla')).toHaveCount(0);
+  await materialesConBerlinas(page);
+  await page.getByRole('button', { name: 'Imprimir', exact: true }).click();
+  await expect(page.locator('.pantalla')).toHaveCount(1);
+  await expect(page.locator('.mat-area')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Volver a la receta' }).click();
 
   // Un plan que se quedara pendiente saldria en la siguiente impresion, cuando
   // ya nadie lo espera.

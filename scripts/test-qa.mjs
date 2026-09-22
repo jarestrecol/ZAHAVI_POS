@@ -8,8 +8,8 @@
  *      1. Si creo 20 recetas, ¿se guardan bien y siguen ahi al recargar?
  *         ¿Y se pueden borrar todas, dejando el recetario como estaba?
  *
- *      2. La clave del equipo: ¿se puede cambiar? ¿caduca a la semana?
- *         ¿y nadie se queda fuera al actualizar desde los modelos anteriores?
+ *      2. La sesion de usuario: ¿entra solo quien tiene codigo y PIN validos?
+ *         ¿una baja o un cambio de rol llegan al equipo? ¿y sin red nadie sale?
  *
  *  NO TOCA NINGUN DATO REAL
  *  ------------------------
@@ -27,7 +27,6 @@
 
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { webcrypto } from 'node:crypto';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { resolve, dirname, join } from 'node:path';
 
@@ -57,16 +56,12 @@ globalThis.window = {
   localStorage: storage(almacen),
   sessionStorage: storage(almacenSesion),
   location: { protocol: 'https:', hash: '' },
-  // `access.js` usa crypto.subtle para el SHA-256 de la clave. Node ya
-  // expone `globalThis.crypto`, pero solo de lectura, asi que se cuelga aqui.
-  crypto: webcrypto,
 };
 
 globalThis.fetch = async () => ({ ok: true, json: async () => JSON.parse(JSON.stringify(publicado)) });
 
 const repo = await import(pathToFileURL(repoRoot + '/src/core/repository.js').href);
 const { validateRecipe } = await import(pathToFileURL(repoRoot + '/src/core/schema.js').href);
-const acceso = await import(pathToFileURL(repoRoot + '/src/core/access.js').href);
 
 /* ===========================================================================
  *  UTILIDADES DE LA PRUEBA
@@ -902,130 +897,666 @@ comprobar(
 );
 
 /* ===========================================================================
- *  BLOQUE 2: LA CLAVE DEL EQUIPO
+ *  BLOQUE 2: LA SESION DE USUARIO
  *
- *  Ya no hay usuarios: una sola clave que caduca cada semana. Lo que hay que
- *  proteger aqui son dos cosas. Que nadie se quede fuera al actualizar desde
- *  los modelos anteriores, y que la caducidad cuente los dias de verdad.
+ *  Ya no hay clave del equipo: cada persona entra con su codigo y su PIN, y
+ *  quien los comprueba es Supabase Auth. Aqui `fetch` hace de Supabase y
+ *  contesta con los MISMOS formatos que devolvio el proyecto real al medirlo
+ *  (credenciales incorrectas: 400 `invalid_credentials`; renovacion invalida:
+ *  400). No sale nada a la red.
  * ======================================================================== */
 
-console.log('\n7. Clave de fabrica');
-await acceso.ensureAccess();
-comprobar('entra con la clave de fabrica', (await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)).ok);
-comprobar('rechaza una clave incorrecta', !(await acceso.verifyPassword('incorrecta')).ok);
-comprobar('y detecta que sigue siendo la de fabrica', await acceso.isUsingDefaultPassword());
-acceso.signIn();
-comprobar('la sesion queda abierta', acceso.isSignedIn() === true);
-
-console.log('\n8. Cambiar la clave');
-let r = await acceso.changePassword('claveIncorrecta', 'NuevaClave123', 'NuevaClave123');
-comprobar('rechaza si la actual esta mal', !r.ok, r.ok ? 'lo permitio' : r.message);
-r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, 'abc', 'abc');
-comprobar('rechaza una clave demasiado corta', !r.ok, r.ok ? 'la permitio' : r.message);
-r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, 'ClaveLarga1', 'ClaveLarga2');
-comprobar('rechaza si las dos nuevas no coinciden', !r.ok, r.ok ? 'lo permitio' : r.message);
-r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, acceso.DEFAULT_PASSWORD, acceso.DEFAULT_PASSWORD);
-comprobar('rechaza repetir la misma clave', !r.ok, r.ok ? 'lo permitio' : r.message);
-
-r = await acceso.changePassword(acceso.DEFAULT_PASSWORD, 'NuevaClave123', 'NuevaClave123');
-comprobar('acepta con la actual correcta', r.ok, r.ok ? '' : r.message);
-comprobar('la nueva funciona', (await acceso.verifyPassword('NuevaClave123')).ok);
-comprobar('la anterior ya no', !(await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)).ok);
-comprobar('y deja de ser la de fabrica', !(await acceso.isUsingDefaultPassword()));
-
-console.log('\n9. Retirada de la clave por generacion de acceso');
-
-// Sustituye a la caducidad semanal, que obligaba a renovar por calendario en
-// cada aparato por separado y no retiraba el acceso a nadie. Ahora la panaderia
-// sube un numero en el servidor y todos los equipos piden clave nueva a la vez.
-let vigencia = acceso.estadoClave();
-comprobar('sin generacion nueva, la clave no caduca', vigencia.caducada === false);
-comprobar('la generacion vigente arranca en cero', vigencia.vigente === 0, String(vigencia.vigente));
-
-// El servidor anuncia que se ha retirado el acceso.
-acceso.anotarGeneracion(1);
-vigencia = acceso.estadoClave();
-comprobar(
-  'al subir la generacion, la clave de este equipo queda retirada',
-  vigencia.caducada === true && vigencia.motivo === 'revocada',
-  JSON.stringify(vigencia),
-);
-comprobar('retirada, todavia sirve para entrar y poder cambiarla', (await acceso.verifyPassword('NuevaClave123')).ok);
-
-r = await acceso.changePassword('NuevaClave123', 'OtraMas456', 'OtraMas456');
-comprobar('poner una clave nueva la sella con la generacion vigente', r.ok, r.ok ? '' : r.message);
-comprobar('y deja de pedirse el cambio', acceso.estadoClave().caducada === false);
-comprobar('la generacion quedo anotada', acceso.estadoClave().generacion === 1, String(acceso.estadoClave().generacion));
-
-// Un servidor que de pronto contesta menos no puede reactivar claves retiradas.
-acceso.anotarGeneracion(0);
-comprobar('la generacion no baja nunca', acceso.estadoClave().vigente === 1, String(acceso.estadoClave().vigente));
-
-// Sin red no se anota nada nuevo, asi que un obrador sin señal sigue entrando.
-comprobar('sin generacion nueva no queda nadie fuera', acceso.estadoClave().caducada === false);
-
-console.log('\n10. Migracion desde los modelos anteriores');
-// Un equipo que venia de la lista de usuarios: se conserva la clave de zahavi.
-almacen.clear();
-almacenSesion.clear();
-almacen.set(
-  'zahavi_usuarios_v1',
-  JSON.stringify([
-    { name: 'otra-persona', credential: { alg: 'plain', value: 'suya' }, createdAt: new Date().toISOString() },
-    { name: 'zahavi', credential: { alg: 'plain', value: 'la-de-siempre' }, createdAt: new Date().toISOString() },
-  ]),
-);
-await acceso.ensureAccess();
-comprobar('migra conservando la clave de zahavi', (await acceso.verifyPassword('la-de-siempre')).ok);
-comprobar('y descarta la lista de usuarios', almacen.get('zahavi_usuarios_v1') === undefined);
-
-// Un equipo que venia de la clave unica de dos modelos atras.
-almacen.clear();
-almacen.set('zahavi_recetario_pwd_v2', JSON.stringify({ alg: 'plain', value: 'clave-vieja' }));
-await acceso.ensureAccess();
-comprobar('migra la clave unica anterior', (await acceso.verifyPassword('clave-vieja')).ok);
-
-// Un equipo nuevo del todo.
-almacen.clear();
-await acceso.ensureAccess();
-comprobar('un equipo nuevo arranca con la de fabrica', (await acceso.verifyPassword(acceso.DEFAULT_PASSWORD)).ok);
-
-console.log('\n10c. Los dos motivos de no entrar se distinguen');
-
-// Decir "Clave incorrecta" cuando el problema real es que el equipo no puede
-// guardar nada manda a la persona a probar claves buenas toda la manana.
-const malaClave = await acceso.verifyPassword('esta-no-es-la-clave');
-comprobar('una clave mal escrita da clave_incorrecta', malaClave.code === 'clave_incorrecta', malaClave.code);
-
-// Sin credencial guardada: es lo que ocurre cuando el almacenamiento no esta
-// disponible, y reescribir la clave no lo arregla.
-almacen.clear();
-const sinCredencial = await acceso.verifyPassword('la-que-sea');
-comprobar('sin credencial guardada da sin_credencial', sinCredencial.code === 'sin_credencial', sinCredencial.code);
-comprobar(
-  'y el mensaje NO dice "incorrecta"',
-  !sinCredencial.message.toLowerCase().includes('incorrecta'),
-  sinCredencial.message,
-);
-
-await acceso.ensureAccess();
-
-console.log('\n11. Cerrar sesion revoca tambien la clave de edicion');
-// Se prueba `cerrarSesion` y NO `signOut`, y la diferencia importa: `signOut`
-// solo cierra la sesion local. Las dos mitades -cerrar y revocar- viven juntas
-// en el caso de uso, y `scripts/verificar.mjs` comprueba que nadie llame a la
-// de abajo por su cuenta. Lo que esta prueba fija es la GARANTIA: quien entre
-// despues no hereda la capacidad de publicar de quien estuvo antes.
+const sesion = await import(pathToFileURL(repoRoot + '/src/core/sesion.js').href);
+const { SUPABASE_URL } = await import(pathToFileURL(repoRoot + '/src/core/supabase.js').href);
+const { getState } = await import(pathToFileURL(repoRoot + '/src/core/store.js').href);
 const remote = await import(pathToFileURL(repoRoot + '/src/core/remote.js').href);
 const comandos = await import(pathToFileURL(repoRoot + '/src/app/commands.js').href);
 
-comandos.entrarSesion();
-comprobar('la sesion se abre', acceso.isSignedIn() === true);
+const PIN = '246810';
+const PERFIL_QA = {
+  id: 'aaaaaaaa-0000-4000-8000-00000000qa01',
+  nombre: 'QA-TEST Persona',
+  codigo_usuario: 'QA-TEST',
+  rol: 'obrador',
+  activo: true,
+  sede: { id: 'bbbbbbbb-0000-4000-8000-00000000qa01', nombre: 'QA-TEST-SEDE' },
+};
+
+/**
+ * Supabase de mentira. Cada campo que no es null sustituye la respuesta normal,
+ * para poder ensayar un fallo concreto sin reescribir el servidor entero.
+ */
+const supabaseFalso = {
+  perfil: { ...PERFIL_QA },
+  entrar: null,
+  renovar: null,
+  leerPerfil: null,
+  llamadas: [],
+  emitidos: 0,
+  // Lo que Auth sabe de la verificacion en dos pasos: que celulares tiene
+  // registrados la cuenta y con que nivel emite los testigos.
+  factores: [],
+  nivel: 'aal1',
+  inscribir: null,
+  verificar: null,
+};
+
+/** El codigo que "muestra" la aplicacion autenticadora en las pruebas. */
+const CODIGO_TOTP = '135790';
+
+/** @param {number} status @param {any} [datos] sin datos, el cuerpo no es JSON */
+function contestar(status, datos) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => {
+      if (datos === undefined) throw new SyntaxError('sin cuerpo');
+      return JSON.parse(JSON.stringify(datos));
+    },
+  };
+}
+
+/**
+ * Un testigo con la forma de un JWT: la aplicacion lee su `sub` y su `aal`, no
+ * su firma. `aal2` es el nivel que deja Supabase tras verificar el codigo del
+ * celular; sin la marca, el testigo es de nivel 1.
+ */
+function jwtFalso(sub, numero, aal = 'aal1') {
+  const parte = (objeto) => Buffer.from(JSON.stringify(objeto)).toString('base64url');
+  return `${parte({ alg: 'HS256', typ: 'JWT' })}.${parte({ sub, n: numero, aal })}.firma-${numero}`;
+}
+
+function testigosNuevos(expiraEnSegundos = 3600, aal = supabaseFalso.nivel) {
+  supabaseFalso.emitidos += 1;
+  return {
+    access_token: jwtFalso(PERFIL_QA.id, supabaseFalso.emitidos, aal),
+    refresh_token: `renovacion-${supabaseFalso.emitidos}`,
+    expires_in: expiraEnSegundos,
+    expires_at: Math.floor(Date.now() / 1000) + expiraEnSegundos,
+    user: { id: PERFIL_QA.id, factors: supabaseFalso.factores },
+  };
+}
+
+const fetchDelRecetario = globalThis.fetch;
+globalThis.fetch = async (url, opciones = {}) => {
+  const direccion = String(url);
+  if (!direccion.startsWith(SUPABASE_URL)) return fetchDelRecetario(url, opciones);
+
+  const cuerpo = opciones.body ? JSON.parse(opciones.body) : null;
+  const llamada = { ruta: direccion.slice(SUPABASE_URL.length), method: opciones.method || 'GET', cuerpo, cabeceras: opciones.headers || {} };
+  supabaseFalso.llamadas.push(llamada);
+
+  const responder = async (sustituto, normal) => {
+    if (sustituto === 'sin_red') throw new TypeError('Failed to fetch');
+    // `{esperar}`: la respuesta normal, pero cuando la prueba lo diga. Es lo
+    // que permite cerrar la sesion MIENTRAS viaja una renovacion.
+    if (sustituto && sustituto.esperar) {
+      await sustituto.esperar;
+      return normal();
+    }
+    return sustituto ? contestar(sustituto.status, sustituto.datos) : normal();
+  };
+
+  if (llamada.ruta.startsWith('/auth/v1/token?grant_type=password')) {
+    return responder(supabaseFalso.entrar, () =>
+      cuerpo.email === 'qa-test@usuarios.zahavi.internal' && cuerpo.password === PIN
+        ? contestar(200, testigosNuevos())
+        : contestar(400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' }),
+    );
+  }
+  if (llamada.ruta.startsWith('/auth/v1/token?grant_type=refresh_token')) {
+    return responder(supabaseFalso.renovar, () => contestar(200, testigosNuevos()));
+  }
+  if (llamada.ruta.startsWith('/auth/v1/logout')) return contestar(204);
+
+  // --- El segundo paso ------------------------------------------------------
+  if (llamada.ruta.startsWith('/auth/v1/factors')) {
+    const resto = llamada.ruta.slice('/auth/v1/factors'.length);
+
+    if (llamada.method === 'DELETE') {
+      const id = resto.slice(1);
+      supabaseFalso.factores = supabaseFalso.factores.filter((f) => f.id !== id);
+      return contestar(200, { id });
+    }
+    if (resto === '') {
+      return responder(supabaseFalso.inscribir, () => {
+        const factor = { id: 'factor-nuevo', factor_type: 'totp', status: 'unverified' };
+        supabaseFalso.factores = [...supabaseFalso.factores, factor];
+        return contestar(200, {
+          id: factor.id,
+          type: 'totp',
+          totp: {
+            qr_code: '<?xml version="1.0"?>\n<!-- Generated by SVGo -->\n<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200"/></svg>',
+            secret: 'ABCDEFGHIJKLMNOP',
+            uri: 'otpauth://totp/Zahavi%20POS:qa-test?secret=ABCDEFGHIJKLMNOP',
+          },
+        });
+      });
+    }
+    if (resto.endsWith('/challenge')) {
+      return contestar(200, { id: 'reto-1', type: 'totp', expires_at: Math.floor(Date.now() / 1000) + 300 });
+    }
+    if (resto.endsWith('/verify')) {
+      return responder(supabaseFalso.verificar, () => {
+        if (cuerpo.code !== CODIGO_TOTP) {
+          return contestar(422, { code: 422, error_code: 'mfa_verification_failed', msg: 'Invalid TOTP code entered' });
+        }
+        supabaseFalso.factores = supabaseFalso.factores.map((f) => ({ ...f, status: 'verified' }));
+        supabaseFalso.nivel = 'aal2';
+        return contestar(200, testigosNuevos(3600, 'aal2'));
+      });
+    }
+  }
+  if (llamada.ruta.startsWith('/rest/v1/perfiles')) {
+    return responder(supabaseFalso.leerPerfil, () => contestar(200, supabaseFalso.perfil ? [supabaseFalso.perfil] : []));
+  }
+  return contestar(404, { message: 'ruta no simulada: ' + llamada.ruta });
+};
+
+/** Deja el servidor falso y el equipo como recien instalados. */
+function reiniciarSupabase() {
+  supabaseFalso.perfil = { ...PERFIL_QA };
+  supabaseFalso.entrar = null;
+  supabaseFalso.renovar = null;
+  supabaseFalso.leerPerfil = null;
+  supabaseFalso.inscribir = null;
+  supabaseFalso.verificar = null;
+  supabaseFalso.factores = [];
+  supabaseFalso.nivel = 'aal1';
+  supabaseFalso.llamadas = [];
+  almacen.delete('zahavi_sesion_v2');
+  // Un ingreso a medias de la prueba anterior no puede colarse en la siguiente.
+  sesion.cancelarSegundoPaso();
+}
+
+const llamadasA = (prefijo) => supabaseFalso.llamadas.filter((l) => l.ruta.startsWith(prefijo));
+const guardada = () => almacen.get('zahavi_sesion_v2');
+
+console.log('\n7. El codigo y el PIN se revisan antes de preguntar al servidor');
+
+let r = sesion.validarCredenciales('', PIN);
+comprobar('sin codigo', r.code === 'codigo_vacio', r.code);
+r = sesion.validarCredenciales('ab', PIN);
+comprobar('codigo demasiado corto', r.code === 'codigo_invalido', r.code);
+r = sesion.validarCredenciales('JULIÁN', PIN);
+comprobar('codigo con tilde (la base de datos no lo admite)', r.code === 'codigo_invalido', r.code);
+r = sesion.validarCredenciales('QA-TEST', '');
+comprobar('sin PIN', r.code === 'pin_vacio', r.code);
+r = sesion.validarCredenciales('QA-TEST', '1234');
+comprobar('PIN de 4 digitos', r.code === 'pin_invalido', r.code);
+r = sesion.validarCredenciales('QA-TEST', '12345a');
+comprobar('PIN con una letra', r.code === 'pin_invalido', r.code);
+r = sesion.validarCredenciales('  qa-test ', PIN);
+comprobar(
+  'el codigo se normaliza y da el correo interno',
+  r.ok && r.value.codigo === 'QA-TEST' && r.value.correo === 'qa-test@usuarios.zahavi.internal',
+  JSON.stringify(r.value),
+);
+
+reiniciarSupabase();
+r = await sesion.iniciarSesion('QA-TEST', '123');
+comprobar('un PIN mal formado no gasta un intento en el servidor', !r.ok && llamadasA('/auth').length === 0);
+
+console.log('\n8. Entrar');
+
+reiniciarSupabase();
+r = await sesion.iniciarSesion('QA-TEST', '999999');
+comprobar(
+  'PIN incorrecto: mismo mensaje que un codigo inexistente',
+  r.code === 'credenciales' && r.message === 'Código o PIN incorrectos.',
+  r.message,
+);
+comprobar('y no queda sesion guardada', guardada() === undefined && sesion.leerSesion() === null);
+
+reiniciarSupabase();
+supabaseFalso.entrar = { status: 429, datos: { code: 429, error_code: 'over_request_rate_limit', msg: 'Too many requests' } };
+r = await sesion.iniciarSesion('QA-TEST', PIN);
+comprobar('demasiados intentos se dice como tal', r.code === 'demasiados_intentos', r.code);
+
+reiniciarSupabase();
+supabaseFalso.entrar = 'sin_red';
+r = await sesion.iniciarSesion('QA-TEST', PIN);
+comprobar('sin red no dice "incorrecto"', r.code === 'sin_conexion' && !r.message.includes('incorrecto'), r.message);
+
+reiniciarSupabase();
+supabaseFalso.entrar = { status: 503, datos: { message: 'caido' } };
+r = await sesion.iniciarSesion('QA-TEST', PIN);
+comprobar('un servidor caido se distingue de un PIN malo', r.code === 'servidor', r.code);
+
+reiniciarSupabase();
+r = await sesion.iniciarSesion(' qa-test ', PIN);
+comprobar('con el PIN correcto entra', r.ok, r.ok ? '' : r.message);
+comprobar(
+  'y devuelve nombre, codigo, rol y sede del perfil',
+  r.ok &&
+    r.value.estado === 'dentro' &&
+    r.value.usuario.nombre === PERFIL_QA.nombre &&
+    r.value.usuario.codigo === 'QA-TEST' &&
+    r.value.usuario.rol === 'obrador' &&
+    r.value.usuario.sede.nombre === 'QA-TEST-SEDE',
+  JSON.stringify(r.value),
+);
+comprobar(
+  'un jefe de obrador entra de una vez: el segundo paso es de gerencia y administracion',
+  llamadasA('/auth/v1/factors').length === 0,
+);
+comprobar(
+  'y la sesion guardada anota cuando empezo el turno',
+  Number.isFinite(JSON.parse(guardada()).inicio_turno),
+);
+const [pedidoEntrar] = llamadasA('/auth/v1/token?grant_type=password');
+comprobar(
+  'al servidor viaja el correo interno en minusculas',
+  pedidoEntrar && pedidoEntrar.cuerpo.email === 'qa-test@usuarios.zahavi.internal',
+  pedidoEntrar && pedidoEntrar.cuerpo.email,
+);
+const [pedidoPerfil] = llamadasA('/rest/v1/perfiles');
+comprobar(
+  'el perfil se lee con el testigo recien emitido',
+  pedidoPerfil && pedidoPerfil.cabeceras.Authorization === `Bearer ${JSON.parse(guardada()).access_token}`,
+);
+comprobar('la sesion queda guardada', sesion.leerSesion() !== null);
+comprobar('y el PIN NO se guarda en el equipo', !String(guardada()).includes(PIN));
+
+reiniciarSupabase();
+supabaseFalso.perfil = { ...PERFIL_QA, activo: false };
+r = await sesion.iniciarSesion('QA-TEST', PIN);
+comprobar('un usuario desactivado no entra aunque el PIN sea bueno', r.code === 'inactivo', r.code);
+comprobar('no queda sesion guardada', guardada() === undefined);
+comprobar('y la sesion abierta en el servidor se desconecta', llamadasA('/auth/v1/logout').length === 1);
+
+reiniciarSupabase();
+supabaseFalso.perfil = null;
+r = await sesion.iniciarSesion('QA-TEST', PIN);
+comprobar('sin perfil tampoco entra', r.code === 'sin_perfil', r.code);
+comprobar('y tambien se desconecta', llamadasA('/auth/v1/logout').length === 1);
+
+console.log('\n9. La sesion guardada: renovar y volver a comprobar');
+
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+const recienEntrada = JSON.parse(guardada());
+supabaseFalso.llamadas = [];
+r = await sesion.tokenVigente();
+comprobar(
+  'con el testigo vigente no se pregunta al servidor',
+  r.ok && r.value === recienEntrada.access_token && supabaseFalso.llamadas.length === 0,
+  r.value,
+);
+
+// El testigo vence en 30 segundos: dentro del margen, asi que se renueva.
+const porVencer = { ...recienEntrada, expires_at: Math.floor(Date.now() / 1000) + 30 };
+almacen.set('zahavi_sesion_v2', JSON.stringify(porVencer));
+r = await sesion.tokenVigente();
+const trasRenovar = JSON.parse(guardada());
+comprobar('a punto de vencer se renueva', r.ok && r.value !== recienEntrada.access_token, r.value);
+const [pedidoRenovar] = llamadasA('/auth/v1/token?grant_type=refresh_token');
+comprobar(
+  'con el testigo de renovacion guardado',
+  pedidoRenovar && pedidoRenovar.cuerpo.refresh_token === recienEntrada.refresh_token,
+  pedidoRenovar && pedidoRenovar.cuerpo.refresh_token,
+);
+comprobar(
+  'y se guarda el testigo rotado',
+  trasRenovar.refresh_token !== recienEntrada.refresh_token && trasRenovar.usuario.id === PERFIL_QA.id,
+);
+
+// Sin red al renovar: la sesion NO se cierra.
+trasRenovar.expires_at = 0;
+almacen.set('zahavi_sesion_v2', JSON.stringify(trasRenovar));
+supabaseFalso.renovar = 'sin_red';
+r = await sesion.revalidarSesion();
+comprobar('sin red la sesion sigue abierta', r.code === 'sin_conexion' && !sesion.invalidaLaSesion(r) && sesion.leerSesion() !== null, r.code);
+
+// El servidor ya no reconoce la sesion: hay que cerrarla.
+supabaseFalso.renovar = { status: 400, datos: { code: 400, error_code: 'refresh_token_not_found', msg: 'Invalid Refresh Token' } };
+r = await sesion.revalidarSesion();
+comprobar('una sesion revocada obliga a salir', r.code === 'revocada' && sesion.invalidaLaSesion(r), r.code);
+
+// Un cambio de rol llega al volver a comprobar.
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+supabaseFalso.perfil = { ...PERFIL_QA, rol: 'operario' };
+r = await sesion.revalidarSesion();
+comprobar('un cambio de rol llega sin volver a entrar', r.ok && sesion.leerSesion().usuario.rol === 'operario', r.ok ? r.value.rol : r.code);
+
+// UN ASCENSO NO SE HEREDA. Quien entro de obrador con solo el PIN y ahora es
+// gerencia tiene que volver a entrar, ahora con el codigo del celular.
+supabaseFalso.perfil = { ...PERFIL_QA, rol: 'gerencia' };
+r = await sesion.revalidarSesion();
+comprobar(
+  'ascender a gerencia obliga a entrar otra vez, con verificacion',
+  r.code === 'requiere_verificacion' && sesion.invalidaLaSesion(r),
+  r.code,
+);
+supabaseFalso.perfil = { ...PERFIL_QA };
+
+supabaseFalso.perfil = { ...PERFIL_QA, activo: false };
+r = await sesion.revalidarSesion();
+comprobar('y una baja tambien: obliga a salir', r.code === 'inactivo' && sesion.invalidaLaSesion(r), r.code);
+
+almacen.set('zahavi_sesion_v2', '{"v":2,"access_token":"x"}');
+comprobar('una sesion guardada con otra forma se ignora', sesion.leerSesion() === null);
+comprobar('y se borra', guardada() === undefined);
+
+console.log('\n9b. Lo que encontro la revision: carreras, relojes y permisos');
+
+// Una renovacion que llega DESPUES de cerrar la sesion no la resucita.
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+let soltarRenovacion;
+supabaseFalso.renovar = { esperar: new Promise((listo) => { soltarRenovacion = listo; }) };
+const conVencimiento = JSON.parse(guardada());
+conVencimiento.expires_at = 0;
+almacen.set('zahavi_sesion_v2', JSON.stringify(conVencimiento));
+const renovando = sesion.tokenVigente();
+await new Promise((listo) => setTimeout(listo, 0));
+sesion.terminarSesion();
+soltarRenovacion();
+r = await renovando;
+comprobar('cerrar sesion durante una renovacion no la resucita', r.code === 'sesion_cambiada' && guardada() === undefined, r.code);
+comprobar('y los testigos que llegaron tarde se desconectan', llamadasA('/auth/v1/logout').length === 2);
+
+// Ni pisa la sesion de otra persona que entro mientras tanto.
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+supabaseFalso.renovar = { esperar: new Promise((listo) => { soltarRenovacion = listo; }) };
+const deLaAnterior = JSON.parse(guardada());
+deLaAnterior.expires_at = 0;
+almacen.set('zahavi_sesion_v2', JSON.stringify(deLaAnterior));
+const renovandoAnterior = sesion.tokenVigente();
+await new Promise((listo) => setTimeout(listo, 0));
+const deLaNueva = { ...deLaAnterior, refresh_token: 'renovacion-de-otra-persona', expires_at: Math.floor(Date.now() / 1000) + 3600 };
+almacen.set('zahavi_sesion_v2', JSON.stringify(deLaNueva));
+soltarRenovacion();
+r = await renovandoAnterior;
+comprobar(
+  'ni pisa la sesion de quien entro mientras tanto',
+  r.code === 'sesion_cambiada' && JSON.parse(guardada()).refresh_token === 'renovacion-de-otra-persona',
+  r.code,
+);
+
+// Un 403 es un permiso que falta en el servidor, no una sesion revocada.
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+supabaseFalso.leerPerfil = { status: 403, datos: { code: '42501', message: 'permission denied for table perfiles' } };
+r = await sesion.revalidarSesion();
+comprobar('un 403 no saca a nadie', r.code === 'servidor' && !sesion.invalidaLaSesion(r), r.code);
+
+// Con el reloj del equipo atrasado, `expires_at` del servidor engañaria.
+reiniciarSupabase();
+supabaseFalso.entrar = {
+  status: 200,
+  datos: { ...testigosNuevos(30), expires_at: Math.floor(Date.now() / 1000) + 99999 },
+};
+await sesion.iniciarSesion('QA-TEST', PIN);
+const vence = JSON.parse(guardada()).expires_at - Math.floor(Date.now() / 1000);
+comprobar('el vencimiento se cuenta con el reloj del equipo (expires_in)', vence <= 30 && vence >= 29, String(vence));
+
+// Un 401 con un testigo "vigente" se renueva una vez antes de sacar a nadie.
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+let primeraLectura = true;
+supabaseFalso.leerPerfil = null;
+const perfilNormal = supabaseFalso.perfil;
+supabaseFalso.llamadas = [];
+const fetchConUn401 = globalThis.fetch;
+globalThis.fetch = async (url, opciones) => {
+  if (String(url).includes('/rest/v1/perfiles') && primeraLectura) {
+    primeraLectura = false;
+    return contestar(401, { code: 'PGRST303', message: 'JWT expired' });
+  }
+  return fetchConUn401(url, opciones);
+};
+r = await sesion.revalidarSesion();
+globalThis.fetch = fetchConUn401;
+comprobar(
+  'un 401 inesperado renueva y vuelve a leer en vez de cerrar',
+  r.ok && llamadasA('/auth/v1/token?grant_type=refresh_token').length === 1 && supabaseFalso.perfil === perfilNormal,
+  r.ok ? '' : r.code,
+);
+
+// La identidad sale del testigo firmado, no de lo guardado en el equipo.
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+const manipulada = JSON.parse(guardada());
+manipulada.usuario = { ...manipulada.usuario, id: 'cccccccc-0000-4000-8000-00000000otro', rol: 'obrador' };
+almacen.set('zahavi_sesion_v2', JSON.stringify(manipulada));
+r = await sesion.revalidarSesion();
+comprobar('una sesion guardada con la identidad cambiada se cierra', r.code === 'revocada' && sesion.invalidaLaSesion(r), r.code);
+
+console.log('\n9c. El segundo paso de gerencia y administracion');
+
+/** El mismo perfil, con un rol que la base de datos solo concede con `aal2`. */
+const ADMIN_QA = { ...PERFIL_QA, rol: 'admin' };
+const REGISTRADO = [{ id: 'factor-1', factor_type: 'totp', status: 'verified' }];
+
+// Con el celular ya registrado: tras el PIN falta el codigo, y NADIE esta dentro.
+reiniciarSupabase();
+supabaseFalso.perfil = { ...ADMIN_QA };
+supabaseFalso.factores = [...REGISTRADO];
+r = await sesion.iniciarSesion('QA-TEST', PIN);
+comprobar(
+  'un administrador con el celular registrado pasa al segundo paso',
+  r.ok && r.value.estado === 'verificar' && r.value.usuario.rol === 'admin',
+  r.ok ? r.value.estado : r.code,
+);
+comprobar('y todavia no hay sesion en el equipo', guardada() === undefined && sesion.leerSesion() === null);
+comprobar(
+  'no se registra un celular nuevo si ya hay uno',
+  supabaseFalso.llamadas.filter((l) => l.ruta === '/auth/v1/factors' && l.method === 'POST').length === 0,
+);
+
+r = await sesion.verificarSegundoPaso('1234');
+comprobar(
+  'un codigo que no son 6 numeros no gasta un intento en el servidor',
+  r.code === 'verificacion_invalida' && llamadasA('/auth/v1/factors/factor-1/challenge').length === 0,
+  r.code,
+);
+
+r = await sesion.verificarSegundoPaso('000000');
+comprobar('un codigo equivocado se dice y se puede repetir', r.code === 'verificacion_incorrecta', r.code);
+comprobar('sin perder el ingreso a medias', guardada() === undefined);
+
+r = await sesion.verificarSegundoPaso(CODIGO_TOTP);
+comprobar(
+  'con el codigo correcto entra',
+  r.ok && r.value.estado === 'dentro' && r.value.usuario.rol === 'admin',
+  r.ok ? '' : r.code,
+);
+const nivelGuardado = JSON.parse(
+  Buffer.from(JSON.parse(guardada()).access_token.split('.')[1], 'base64url').toString(),
+).aal;
+comprobar('y lo que se guarda es la sesion verificada', nivelGuardado === 'aal2', nivelGuardado);
+comprobar(
+  'cada intento pide su propio reto, para que no caduque mientras se busca el celular',
+  llamadasA('/auth/v1/factors/factor-1/challenge').length === 2,
+  String(llamadasA('/auth/v1/factors/factor-1/challenge').length),
+);
+
+// La primera vez hay que registrar el celular.
+reiniciarSupabase();
+supabaseFalso.perfil = { ...ADMIN_QA };
+supabaseFalso.factores = [{ id: 'abandonado', factor_type: 'totp', status: 'unverified' }];
+r = await sesion.iniciarSesion('QA-TEST', PIN);
+comprobar(
+  'la primera vez se ofrece el QR y la clave para escribirla a mano',
+  r.ok && r.value.estado === 'inscribir' && r.value.secreto === 'ABCDEFGHIJKLMNOP' && r.value.qr.includes('<svg'),
+  r.ok ? r.value.estado : r.code,
+);
+comprobar(
+  'y antes se borra el registro que alguien dejo a medias',
+  supabaseFalso.llamadas.some((l) => l.method === 'DELETE' && l.ruta === '/auth/v1/factors/abandonado'),
+);
+r = await sesion.verificarSegundoPaso(CODIGO_TOTP);
+comprobar('confirmar el codigo deja dentro', r.ok && sesion.leerSesion() !== null, r.ok ? '' : r.code);
+
+// Volver atras cierra en el servidor la sesion que abrio el PIN.
+reiniciarSupabase();
+supabaseFalso.perfil = { ...ADMIN_QA };
+supabaseFalso.factores = [...REGISTRADO];
+await sesion.iniciarSesion('QA-TEST', PIN);
+supabaseFalso.llamadas = [];
+sesion.cancelarSegundoPaso();
+comprobar('volver atras desconecta la sesion que abrio el PIN', llamadasA('/auth/v1/logout').length === 1);
+r = await sesion.verificarSegundoPaso(CODIGO_TOTP);
+comprobar('y despues el codigo ya no sirve', r.code === 'sin_ingreso', r.code);
+
+// Una sesion de administracion guardada sin verificar no abre nada.
+reiniciarSupabase();
+supabaseFalso.perfil = { ...ADMIN_QA };
+supabaseFalso.factores = [...REGISTRADO];
+await sesion.iniciarSesion('QA-TEST', PIN);
+await sesion.verificarSegundoPaso(CODIGO_TOTP);
+const sinVerificar = JSON.parse(guardada());
+sinVerificar.access_token = jwtFalso(PERFIL_QA.id, 99, 'aal1');
+almacen.set('zahavi_sesion_v2', JSON.stringify(sinVerificar));
+comprobar(
+  'una sesion de administracion sin verificar se descarta',
+  sesion.leerSesion() === null && guardada() === undefined,
+);
+
+// El caso de uso: la pantalla se queda en el segundo paso hasta que se verifica.
+reiniciarSupabase();
+supabaseFalso.perfil = { ...ADMIN_QA };
+supabaseFalso.factores = [...REGISTRADO];
+await comandos.ingresar('QA-TEST', PIN);
+comprobar(
+  'el caso de uso deja la pantalla en el segundo paso, sin entrar',
+  getState().authed === false && getState().loginPaso === 'verificar',
+  getState().loginPaso,
+);
+await comandos.verificarCodigo('000000');
+comprobar(
+  'un codigo equivocado no saca del segundo paso',
+  getState().loginPaso === 'verificar' && getState().loginCampo === 'verificacion' && getState().loginError.includes('incorrecto'),
+  getState().loginError,
+);
+await comandos.verificarCodigo(CODIGO_TOTP);
+comprobar(
+  'y con el correcto entra, sin dejar el QR en el estado',
+  getState().authed === true && getState().loginPaso === '' && getState().loginQr === '' && getState().turnoHasta > Date.now(),
+);
+comandos.cerrarSesion();
+
+console.log('\n9d. El turno dura 6 horas, con red o sin ella');
+
+reiniciarSupabase();
+await sesion.iniciarSesion('QA-TEST', PIN);
+const delTurno = JSON.parse(guardada());
+comprobar(
+  'recien entrada, el turno tiene casi 6 horas por delante',
+  sesion.finDelTurno(delTurno) - Date.now() > (sesion.TURNO_MAXIMO_S - 60) * 1000,
+);
+
+almacen.set(
+  'zahavi_sesion_v2',
+  JSON.stringify({ ...delTurno, inicio_turno: delTurno.inicio_turno - sesion.TURNO_MAXIMO_S - 1 }),
+);
+supabaseFalso.llamadas = [];
+r = await sesion.tokenVigente();
+comprobar('pasado el turno no se renueva: hay que volver a entrar', r.code === 'turno_vencido' && sesion.invalidaLaSesion(r), r.code);
+comprobar(
+  'y no hace falta preguntar al servidor, asi que tambien cierra sin red',
+  supabaseFalso.llamadas.length === 0,
+  String(supabaseFalso.llamadas.length),
+);
+
+almacen.set(
+  'zahavi_sesion_v2',
+  JSON.stringify({ ...delTurno, inicio_turno: Math.floor(Date.now() / 1000) + 3600 }),
+);
+r = await sesion.tokenVigente();
+comprobar('atrasar el reloj del equipo no alarga el turno', r.code === 'turno_vencido', r.code);
+
+// Renovar el testigo NO estira el turno: conserva su hora de inicio. El turno se
+// pone una hora atras A PROPOSITO: si se comparara con el de recien entrada, una
+// renovacion que lo reiniciara daria la misma cifra por correr en el mismo
+// segundo, y la prueba pasaria sin vigilar nada.
+const turnoDeHaceUnaHora = delTurno.inicio_turno - 3600;
+almacen.set(
+  'zahavi_sesion_v2',
+  JSON.stringify({ ...delTurno, inicio_turno: turnoDeHaceUnaHora, expires_at: 0 }),
+);
+r = await sesion.tokenVigente();
+comprobar(
+  'renovar el testigo no estira el turno',
+  r.ok && JSON.parse(guardada()).inicio_turno === turnoDeHaceUnaHora,
+  r.ok ? String(JSON.parse(guardada()).inicio_turno - turnoDeHaceUnaHora) : r.code,
+);
+
+// Y el caso de uso saca a la persona diciendo por que.
+reiniciarSupabase();
+await comandos.ingresar('QA-TEST', PIN);
+const abierta = JSON.parse(guardada());
+almacen.set(
+  'zahavi_sesion_v2',
+  JSON.stringify({ ...abierta, inicio_turno: abierta.inicio_turno - sesion.TURNO_MAXIMO_S - 1 }),
+);
+comandos.vigilarTurno();
+comprobar(
+  'el turno vencido cierra la sesion y lo dice en la pantalla de entrada',
+  getState().authed === false && getState().loginError.includes('turno'),
+  getState().loginError,
+);
+
+console.log('\n10. La clave del equipo de antes se retira del aparato');
+
+reiniciarSupabase();
+
+almacen.set('zahavi_acceso_v1', JSON.stringify({ credential: { alg: 'plain', value: 'vieja' } }));
+almacen.set('zahavi_sesion_v1', new Date().toISOString());
+almacen.set('zahavi_usuarios_v1', '[]');
+almacen.set('zahavi_recetario_pwd_v2', '{}');
+sesion.retirarAccesoAnterior();
+comprobar(
+  'no queda ninguna credencial del modelo anterior',
+  ['zahavi_acceso_v1', 'zahavi_sesion_v1', 'zahavi_usuarios_v1', 'zahavi_recetario_pwd_v2'].every((k) => !almacen.has(k)),
+);
+comprobar('y una sesion de la clave del equipo no abre la aplicacion', sesion.leerSesion() === null);
+
+console.log('\n11. Cerrar sesion revoca tambien la clave de edicion');
+// Se prueba `cerrarSesion` y NO `terminarSesion`, y la diferencia importa:
+// `terminarSesion` solo cierra la sesion guardada. Las dos mitades -cerrar y
+// revocar la clave de edicion- viven juntas en el caso de uso. Lo que fija esta
+// prueba es la GARANTIA: quien entre despues no hereda la capacidad de publicar
+// de quien estuvo antes.
+
+reiniciarSupabase();
+r = await comandos.ingresar('QA-TEST', PIN);
+comprobar('la sesion se abre desde el caso de uso', r.ok && getState().authed === true && getState().usuario.codigo === 'QA-TEST');
 remote.setEditKey('clave-de-edicion-de-prueba');
 comprobar('la clave queda en la sesion', remote.getEditKey() === 'clave-de-edicion-de-prueba');
+supabaseFalso.llamadas = [];
 comandos.cerrarSesion();
-comprobar('la sesion se cierra', acceso.isSignedIn() === false);
+comprobar('la sesion se cierra', getState().authed === false && getState().usuario === null && sesion.leerSesion() === null);
 comprobar('y la clave de edicion se borra', remote.getEditKey() === '', remote.getEditKey());
+comprobar('y se desconecta en el servidor', llamadasA('/auth/v1/logout').length === 1);
+
+r = await comandos.ingresar('QA-TEST', '000000');
+comprobar('un PIN malo deja el motivo en el estado', !r.ok && getState().loginError === 'Código o PIN incorrectos.', getState().loginError);
+
+// Al volver a comprobar, una baja saca a la persona CON el motivo a la vista.
+await comandos.ingresar('QA-TEST', PIN);
+supabaseFalso.perfil = { ...PERFIL_QA, activo: false };
+await comandos.revalidarSesionActual();
+comprobar(
+  'una baja cierra la sesion y dice por que',
+  getState().authed === false && getState().loginError.includes('desactivado'),
+  getState().loginError,
+);
+
+// Sin red, en cambio, nadie sale.
+supabaseFalso.perfil = { ...PERFIL_QA };
+await comandos.ingresar('QA-TEST', PIN);
+const vencida = JSON.parse(guardada());
+vencida.expires_at = 0;
+almacen.set('zahavi_sesion_v2', JSON.stringify(vencida));
+supabaseFalso.renovar = 'sin_red';
+await comandos.revalidarSesionActual();
+comprobar('sin red la sesion del caso de uso sigue abierta', getState().authed === true);
+supabaseFalso.renovar = null;
+comandos.cerrarSesion();
 
 console.log('\n11b. La clave de edicion caduca por inactividad');
 

@@ -176,7 +176,8 @@ export function parseHash(hash) {
    * direcciones sin guardar el fondo habria empeorado el trabajo diario a
    * cambio de una mejora de arquitectura, que es un mal cambio.
    */
-  return { modulo, name: 'index', id: params.get('r') || null, ...base };
+  return { modulo, name: 'index', id: params.get('r') || null, ...base,
+    ...(modulo === 'plan' && params.get('fecha') ? { fecha: params.get('fecha') } : {}) };
 }
 
 /**
@@ -203,6 +204,7 @@ export function buildHash(route) {
   const segmento = MODULOS[modulo] === undefined ? '' : MODULOS[modulo];
 
   if (modulo !== 'recetario') {
+    if (modulo === 'plan' && route.fecha) params.set('fecha', route.fecha);
     /*
      * La receta que queda detras, para poder volver a ella.
      *

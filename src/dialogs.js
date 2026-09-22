@@ -346,7 +346,7 @@ function buildPublicar() {
   });
 }
 
-/** Ajustes: estado de publicacion, contrasena y recuperacion. */
+/** Ajustes: estado de publicacion, sesion de quien entro y recuperacion. */
 function buildSettings(state) {
   return openSettings({
     recipeCount: state.recetario.recipes.length,
@@ -357,6 +357,8 @@ function buildSettings(state) {
     needsReload: repo.needsReloadBeforePublish(),
     server: repo.serverDiagnosis(),
     sync: estadoSincronizacion(),
+    usuario: state.usuario,
+    turnoHasta: state.turnoHasta,
     // La escala NO entra en la clave del dialogo, unas lineas mas arriba: se
     // pasa para pintar cual esta elegida al ABRIR, y a partir de ahi el propio
     // grupo de botones se encarga. Meterla en la clave reconstruiria Ajustes

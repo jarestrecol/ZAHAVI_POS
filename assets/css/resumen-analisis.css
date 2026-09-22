@@ -1,0 +1,462 @@
+/* =============================================================================
+   RESUMEN-ANALISIS (BI-001). Propiedad del agente que lo implementa; ver el contrato.
+
+   Contenido de las cuatro pestañas de análisis del Resumen (Producción,
+   Rendimiento y merma, Bodega y compras, Equipo): src/views/resumen/pestana-*.js.
+   Prefijo `analisis`. Las figuras (`.graf*`) son del kit de gráficas y las
+   tarjetas de indicador (`.kpi*`) del panel; aquí solo se acomodan.
+
+   MÓVIL PRIMERO. Una columna a 390 px; dos desde 700 px (tableta); tres desde
+   1200 px. Las tendencias (`--ancho`) ocupan la fila entera: una línea de tiempo
+   apretada en un tercio de pantalla no se lee.
+
+   NUNCA SOLO COLOR. El color de área acompaña siempre a su nombre, y los
+   estados llevan icono y palabra. Los tonos de texto son los de tokens.css, que
+   ya cumplen AA sobre blanco (--ok 7,3:1, --amber-text 5,2:1, --danger 8,1:1).
+   ============================================================================= */
+
+.analisis {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.analisis__rejilla {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* SIN HUECOS. Los bloques estrechos van de a dos en tableta y de a tres en
+   escritorio. `marcarFilas` (pestana-produccion.js) marca cómo cierra cada
+   tanda, y aquí se reparte el ancho que sobra: una tarjeta sola ocupa la fila
+   y dos que sobran se la parten. Sin esto, al jefe de obrador (sin los bloques
+   de dinero) le quedaba «Vencimientos» sola con dos tercios en blanco. */
+@media (min-width: 700px) and (max-width: 1199.98px) {
+  .analisis__rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analisis__bloque[data-fila2='sola'] { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1200px) {
+  /* Seis carriles: un bloque normal toma dos (un tercio); los que sobran de
+     una tanda, tres (la mitad) o seis (la fila). */
+  .analisis__rejilla { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .analisis__bloque { grid-column: span 2; }
+  .analisis__bloque[data-fila3='par'] { grid-column: span 3; }
+  .analisis__bloque[data-fila3='sola'] { grid-column: 1 / -1; }
+}
+
+.analisis__bloque {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--line-cell);
+  border-radius: var(--radius-lg);
+}
+
+.analisis__bloque--ancho { grid-column: 1 / -1; }
+@media (min-width: 1200px) {
+  .analisis__bloque.analisis__bloque--ancho { grid-column: 1 / -1; }
+}
+
+/* El bloque ya tiene su título (h3): el de la figura repetía lo mismo con
+   otras palabras («Gasto por área» y «Gasto de materia prima por área»). Se
+   conserva para el lector de pantalla, fuera de la vista. Una figura que va
+   después de una cifra (la canasta: «Mayores alzas de precio») sí es un
+   subtítulo distinto y se ve. */
+.analisis__bloque > .graf:not(.analisis__cifra ~ .graf) > .graf__cabecera {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Ranking a todo el ancho: el nombre respira en una línea. */
+@media (min-width: 48rem) {
+  .analisis__bloque--ancho .graf-barras__fila {
+    grid-template-columns: minmax(14rem, 2fr) minmax(0, 3fr) minmax(6rem, auto);
+  }
+}
+
+.analisis__titulo {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.analisis__nota {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+/* Textos largos (recetas, ingredientes, personas) pasan de línea antes que
+   empujar la página hacia la derecha. `break-word` y no `anywhere`: este
+   último cuenta cada letra como punto de corte al medir la tabla, y el nombre
+   de un área acababa partido en «Pastele / ría». */
+.analisis__bloque,
+.analisis__bloque * { overflow-wrap: break-word; }
+
+/* ---- Vacío: qué falta y qué hacer ---- */
+
+.analisis__vacio {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border-radius: var(--radius);
+}
+
+.analisis__vacio-texto {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.analisis__vacio-accion {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ---- Aviso de pocas mediciones (rendimiento) ---- */
+
+.analisis__aviso {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--amber-soft);
+  border-left: 4px solid var(--amber-mark);
+  border-radius: var(--radius);
+}
+
+.analisis__aviso-titulo {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.analisis__aviso-texto {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* ---- Cifra destacada (índice de la canasta) ---- */
+
+.analisis__cifra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.analisis__cifra-valor {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.analisis__cifra-base {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ---- Avance por área (plan vs real) y barras apiladas por persona ---- */
+
+.analisis__avances,
+.analisis__apiladas,
+.analisis__lista,
+.analisis__leyenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.analisis__avances,
+.analisis__apiladas {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.analisis__avance,
+.analisis__apilada {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.analisis__avance-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.analisis__avance-nombre {
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.analisis__avance-cifra {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.analisis__avance-aviso {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--amber-text);
+}
+
+.analisis__pista {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  height: 0.625rem;
+  background: var(--surface-sunk);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.analisis__relleno,
+.analisis__tramo {
+  display: block;
+  height: 100%;
+  background: var(--cat-otros);
+}
+
+.analisis__relleno { border-radius: var(--radius-pill); }
+
+/* Marca de la meta sobre la pista: línea fina en tinta, legible sobre el
+   relleno y sobre el fondo. */
+.analisis__marca-meta {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+}
+
+/* Color de área: identidad, siempre junto al nombre del área. */
+[data-area="pasteleria"] > .analisis__pista > .analisis__relleno,
+.analisis__tramo[data-area="pasteleria"],
+[data-area="pasteleria"] .analisis__punto { background: var(--cat-pasteleria); }
+
+[data-area="panaderia"] > .analisis__pista > .analisis__relleno,
+.analisis__tramo[data-area="panaderia"],
+[data-area="panaderia"] .analisis__punto { background: var(--cat-panaderia); }
+
+[data-area="galletas"] > .analisis__pista > .analisis__relleno,
+.analisis__tramo[data-area="galletas"],
+[data-area="galletas"] .analisis__punto { background: var(--cat-galletas); }
+
+.analisis__pista--apilada { height: 0.875rem; }
+
+.analisis__leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.analisis__leyenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.analisis__punto {
+  display: inline-block;
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--cat-otros);
+  vertical-align: middle;
+}
+
+.analisis__leyenda-item .analisis__punto { margin-right: 0; }
+
+/* ---- Tablas visibles (por área, cobertura) ---- */
+
+.analisis__tabla-marco {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.analisis__tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.analisis__tabla th,
+.analisis__tabla td {
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--line-cell);
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: normal;
+}
+
+.analisis__tabla thead th {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  border-bottom-color: var(--line);
+}
+
+.analisis__tabla tbody th {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.analisis__tabla .analisis__num {
+  text-align: right;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.analisis__tabla thead .analisis__num { font-family: inherit; }
+
+/* En el celular se quitan las columnas de apoyo: lo que decide es cuántos
+   días alcanza y su estado. La tabla completa sigue en «Ver los datos». */
+@media (max-width: 520px) {
+  .analisis__col-extra { display: none; }
+}
+
+
+/* ---- Estado en palabras con icono ---- */
+
+.analisis__estado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.analisis__estado[data-tono="bien"] { color: var(--ok); }
+.analisis__estado[data-tono="atencion"] { color: var(--amber-text); }
+.analisis__estado[data-tono="mal"] { color: var(--danger); }
+
+.analisis__estado-icono {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- Lista de vencimientos ---- */
+
+.analisis__lista {
+  display: grid;
+}
+
+.analisis__item {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line-cell);
+}
+
+.analisis__item:last-child { border-bottom: 0; }
+
+/* Una lista que se queda sola en su fila (Vencimientos sin los bloques de
+   dinero) se reparte en columnas en vez de estirar cada renglón. */
+@media (min-width: 700px) and (max-width: 1199.98px) {
+  .analisis__bloque[data-fila2='sola'] .analisis__lista { grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); column-gap: var(--space-6); }
+  .analisis__bloque[data-fila2='sola'] .analisis__item:last-child { border-bottom: 1px solid var(--line-cell); }
+}
+@media (min-width: 1200px) {
+  .analisis__bloque[data-fila3='sola'] .analisis__lista { grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); column-gap: var(--space-6); }
+  .analisis__bloque[data-fila3='sola'] .analisis__item:last-child { border-bottom: 1px solid var(--line-cell); }
+}
+
+.analisis__item-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.analisis__item-nombre {
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.analisis__item-detalle {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ---- Cifras de notas ---- */
+
+.analisis__datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.analisis__dato {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunk);
+  border-radius: var(--radius);
+}
+
+.analisis__dato dt {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.analisis__dato dd {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.analisis__dato[data-tono="atencion"] dd { color: var(--amber-text); }
+.analisis__dato[data-tono="bien"] dd { color: var(--ok); }
+
+.analisis__datos--suaves .analisis__dato { background: transparent; border: 1px solid var(--line-cell); }
+.analisis__datos--suaves .analisis__dato dd { font-size: var(--text-lg); }
+
+/* El mapa de calor escala con su caja: a todo el ancho de un escritorio sus
+   celdas y rótulos crecen de más. Se limita su ancho; en el celular y la
+   tableta sigue ocupando lo que haya. */
+.analisis__bloque[data-bloque="calor"] > .graf { max-width: 46rem; }

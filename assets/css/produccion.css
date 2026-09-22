@@ -1,0 +1,2529 @@
+/* =============================================================================
+ *  PRODUCCIÓN: CALENDARIO (PROD-002, rediseño de uso PROD-003)
+ * =============================================================================
+ *
+ *  Calendario mensual, panel del día y las vistas de trabajo (registrar,
+ *  proyectar, materiales, costos, equipo e historial). Para tableta de cocina:
+ *  objetivos de 44 px en celular y tableta, texto de 12 px como mínimo y el
+ *  color siempre acompañado de palabra o de forma.
+ *
+ *  Los cortes miran el ancho del MÓDULO, no el de la ventana: `.calprod` es un
+ *  contenedor (`calprod`), porque el ancho útil depende del menú lateral.
+ *    celular         max-width: 37.5rem
+ *    una columna     max-width: 59.999rem   (Registrar, Proyectar)
+ *    panel lateral   min-width: 64rem       (calendario + panel del día)
+ *  Lo que se desplaza es `.pantalla__cuerpo`, no el documento: todos los
+ *  `sticky` y los altos máximos cuentan con eso.
+ *
+ *  Reglas de color:
+ *    · el color de área solo identifica el área (franjas, fichas, pestaña);
+ *    · la selección y el foco son neutros oscuros (`--prod-activo`);
+ *    · un solo naranja relleno por pantalla (la acción que decide el JS),
+ *      más el círculo de hoy y el estado «En preparación», que son pequeños.
+ *
+ *  Contraste calculado (WCAG 2.x, luminancia relativa, 2026-09-17):
+ *    Texto de área sobre su suave         panadería 6,56  pastelería 6,21  galletas 6,10
+ *    Texto de área sobre su tono medio    5,57 / 5,20 / 5,22  (parte de avance de la ficha)
+ *    Blanco sobre el color de área        7,71 / 7,42 / 7,16  (ficha completa, pestaña)
+ *    Notas, texto sobre su suave          tarea 7,41  pendiente 6,05  recomendación 7,36
+ *                                         felicitación 5,84
+ *    --ink-2 sobre suaves de área         8,00 a 8,14   (cuenta de la tarjeta de área)
+ *    --ink-3 sobre suaves de área/nota    5,00 a 5,48   (autor de nota)
+ *    --ink-3 sobre blanco/surface/sunk    5,99 / 5,44 / 5,10  (meta, encabezados)
+ *    Blanco sobre --ink (opción pulsada)  15,44
+ *    --ink sobre --brand (número de hoy)  6,27
+ *    #281b10 sobre --brand                6,80  (primario, «En preparación»)
+ *    --brand-deep sobre blanco / hover    5,55 / 5,14  (parcial, «Añadir»)
+ *    Contorno de control #8a8d80          3,39 sobre blanco, 3,08 sobre surface (≥ 3)
+ *    Foco naranja sobre --ink             6,27 (anillo sobre opción pulsada)
+ *    --ok sobre --ok-soft / blanco / sunk 6,49 / 7,43 / 6,34  (hecho, ✓ del celular)
+ *    Blanco sobre --ok                    7,43  (estado «Lista»)
+ *    --danger sobre danger-soft           6,57  (avisos, atrasado)
+ *    --danger sobre blanco/surface/sunk/hover  7,63 / 6,94 / 6,51 / 7,08  (festivo, «!»)
+ *    --ink-3 sobre sunk (deshabilitado)   5,10  (antes --ink-4: 4,21, no pasaba)
+ *    --ink-2 sobre sunk (fichas de notas, etiqueta del día)  8,14
+ *
+ *  Añadidos en la revisión del 2026-09-17 (mismos tokens, usos nuevos):
+ *    Punta del desplegable, --ink-2 sobre tarjeta   9,55  (Materiales)
+ *    Punta del desplegable, --ink sobre tarjeta    15,44  (Costos)
+ *    Franja de «lo ya confirmado», --ok sobre fondo 6,76 y sobre tarjeta 7,43
+ *    Regla del total en el celular, #8a8d80         3,39 sobre blanco (≥ 3)
+ *    Rótulo `data-rotulo`, --ink-3 sobre tarjeta    5,99
+ */
+
+.calprod {
+  container: calprod / inline-size;
+
+  /* Color por área y por tipo de nota */
+  --area-panaderia: var(--cat-panaderia);
+  --area-pasteleria: var(--cat-pasteleria);
+  --area-galletas: var(--cat-galletas);
+  --area-otros: var(--cat-otros);
+  --area-panaderia-suave: #f6ebdf;
+  --area-pasteleria-suave: #f9e6ee;
+  --area-galletas-suave: #e3f0e8;
+  --area-otros-suave: var(--surface-sunk);
+  --area-panaderia-medio: #ecd8c3;
+  --area-pasteleria-medio: #f1cfdd;
+  --area-galletas-medio: #c9e2d3;
+  --nota-tarea: var(--comp-1);
+  --nota-tarea-suave: #e4eef6;
+  --nota-pendiente: #8a4b00;
+  --nota-pendiente-suave: #fdf0dc;
+  --nota-recomendacion: var(--comp-2);
+  --nota-recomendacion-suave: #efe8f6;
+  --nota-felicitacion: #7a5a00;
+  --nota-felicitacion-suave: #fdf5d6;
+  --festivo: var(--danger);
+
+  /* Color por rol */
+  --prod-activo: var(--ink);
+  --prod-activo-texto: #fff;
+  --prod-foco-oscuro: var(--brand);
+  --prod-hoy: var(--brand);
+  --prod-hoy-texto: var(--ink);
+  --prod-en-curso: var(--brand);
+  --prod-en-curso-texto: #281b10;
+  --prod-line-control: #8a8d80;
+  --prod-riel: rgba(36, 37, 32, 0.12);
+  --prod-sombra-arriba: 0 -8px 16px -12px rgba(22, 18, 15, 0.35);
+  --prod-sombra-hoja: 0 -6px 16px -12px rgba(22, 18, 15, 0.35);
+
+  /* Medidas */
+  --prod-toque: var(--tap-min, 2.75rem);
+  --prod-toque-grande: 3.25rem;
+  --prod-hueco-min: 0.125rem;
+  --prod-franja: 0.3125rem;
+  --prod-avance-alto: 0.25rem;
+  --prod-dia-boton: 2rem;
+  --prod-ficha-alto: 1rem;
+  --prod-panel-w: 24rem;
+  /* Barra de la app, avisos y título del módulo: lo que el panel fijo resta. */
+  --prod-cromo: 11.5rem;
+  /* Alto útil bajo la barra de la app, para las columnas fijas de las vistas. */
+  --prod-alto-util: calc(100dvh - 9rem);
+  /* Seis semanas caben en la ventana: cabecera, barra y títulos fuera. */
+  --prod-celda-alto: clamp(5.5rem, calc((100dvh - 17rem) / 6), 7.5rem);
+
+  min-width: 0;
+  padding: 0 var(--space-5) var(--space-6);
+}
+
+@media (max-width: 47.9375rem) {
+  .calprod { padding: 0 var(--space-4) var(--space-5); }
+}
+
+/* ---- Cabecera compacta del módulo ------------------------------------------ */
+
+.pantalla[data-modulo='plan'] .pantalla__cuerpo > .page-heading {
+  margin: 0;
+  padding: var(--space-3) var(--space-5) var(--space-2);
+  gap: var(--space-2);
+}
+
+.pantalla[data-modulo='plan'] .page-heading .eyebrow,
+.pantalla[data-modulo='plan'] .page-heading__description { display: none; }
+
+.pantalla[data-modulo='plan'] .page-heading h1 {
+  font-size: var(--text-xl);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 47.9375rem) {
+  .pantalla[data-modulo='plan'] .pantalla__cuerpo > .page-heading {
+    padding: var(--space-3) var(--space-4) var(--space-2);
+  }
+}
+
+/* ---- Piezas comunes -------------------------------------------------------- */
+
+.prod-aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.prod-aviso[hidden] { display: none; }
+.prod-aviso p { margin: 0; }
+
+.prod-zona { min-width: 0; }
+
+/* Desplegables del módulo: `display: flex` borra el triángulo del navegador y
+   el título se quedaba en negrita sin nada que indicara que se abre. La punta
+   la dibuja el CSS y gira al abrir (el giro se anima solo si hay movimiento
+   permitido; ver la sección «Movimiento»). */
+.proy-detalle__metodo > summary,
+.mat-area__detalle > summary,
+.cos-ingredientes > summary,
+.cos-confirmado > summary {
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.proy-detalle__metodo > summary::-webkit-details-marker,
+.mat-area__detalle > summary::-webkit-details-marker,
+.cos-ingredientes > summary::-webkit-details-marker,
+.cos-confirmado > summary::-webkit-details-marker { display: none; }
+
+.proy-detalle__metodo > summary::before,
+.mat-area__detalle > summary::before,
+.cos-ingredientes > summary::before,
+.cos-confirmado > summary::before {
+  content: '';
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transform-origin: 55% 55%;
+}
+
+.proy-detalle__metodo[open] > summary::before,
+.mat-area__detalle[open] > summary::before,
+.cos-ingredientes[open] > summary::before,
+.cos-confirmado[open] > summary::before { transform: rotate(45deg); }
+
+.proy-detalle__metodo > summary:focus-visible,
+.mat-area__detalle > summary:focus-visible,
+.cos-ingredientes > summary:focus-visible,
+.cos-confirmado > summary:focus-visible {
+  outline: 3px solid var(--prod-activo);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.calprod svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.calprod .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--prod-toque);
+  font-size: var(--text-sm);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.calprod .btn svg { width: 1.15rem; height: 1.15rem; flex: none; }
+.calprod .btn > span:empty { display: none; }
+
+.calprod .btn--quiet {
+  border-color: var(--prod-line-control);
+  background: var(--surface-card);
+  color: var(--ink-2);
+}
+
+.calprod .btn--quiet:hover { border-color: var(--ink-3); background: var(--surface-hover); }
+.calprod .btn:active:not(:disabled) { transform: scale(0.99); }
+
+.calprod .btn:focus-visible {
+  outline: 3px solid var(--prod-activo);
+  outline-offset: 2px;
+}
+
+.calprod .btn:disabled,
+.calprod .btn[aria-disabled='true'] { color: var(--ink-3); }
+
+.calprod .btn[aria-busy='true'] { cursor: progress; }
+
+.calprod .btn[aria-busy='true']::before {
+  content: '';
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.calprod .field {
+  min-height: var(--prod-toque);
+  border-color: var(--prod-line-control);
+  font-size: var(--text-base);
+}
+
+.calprod .field:focus-visible {
+  border-color: var(--prod-activo);
+  outline: 3px solid var(--prod-activo);
+  outline-offset: 1px;
+}
+
+/* Botones de solo icono: 44 × 44, el nombre va en aria-label. */
+.cal-mes__nav,
+.reg__menos,
+.reg__mas,
+.nota__boton,
+.proy__flecha {
+  flex: none;
+  width: var(--prod-toque);
+  min-width: var(--prod-toque);
+  padding: 0;
+}
+
+.proy__flecha span:empty { display: none; }
+
+/* Marca breve junto a lo que se acaba de cambiar (`marcarHecho`). */
+.prod-cambio {
+  position: relative;
+  background-color: var(--surface-hover);
+}
+
+/*
+ * La marca va a la IZQUIERDA dentro de una tarjeta de receta: a la derecha se
+ * monta sobre la insignia de estado, y se leian dos pastillas superpuestas.
+ */
+.proy-item > .prod-hecho { right: auto; left: var(--space-4); }
+
+.prod-hecho {
+  position: absolute;
+  top: 0;
+  right: var(--space-4);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--ok);
+  border-radius: var(--radius-pill);
+  color: var(--ok);
+  background: var(--ok-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Estado de una receta: siempre con palabra; la forma cambia además del color. */
+.prod-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 1.5rem;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.prod-estado--pendiente {
+  color: var(--ink-2);
+  background: var(--surface-card);
+  border-color: var(--prod-line-control);
+}
+
+.prod-estado--en_preparacion {
+  color: var(--prod-en-curso-texto);
+  background: var(--prod-en-curso);
+}
+
+.prod-estado--en_preparacion::before {
+  content: '';
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.prod-estado--lista {
+  color: var(--prod-activo-texto);
+  background: var(--ok);
+}
+
+.prod-estado__marca { font-weight: 800; }
+
+.prod-estado--parcial {
+  color: var(--brand-deep);
+  background: var(--surface-card);
+  border: 1px dashed var(--brand-deep);
+}
+
+.prod-estado-texto {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.prod-estado-texto:empty { display: none; }
+
+/*
+ * El mensaje y su «Deshacer» van en la misma linea, pero en nodos distintos: el
+ * boton no puede estar dentro de la region viva, o el lector lo repetiria en
+ * cada aviso. Sin nada que deshacer, el contenedor no ocupa.
+ */
+.reg__mensaje {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.reg__mensaje:has(.prod-estado-texto:empty) .reg__deshacer:empty { display: none; }
+.reg__deshacer:empty { display: none; }
+.reg__deshacer-boton { min-height: var(--prod-toque); }
+
+.prod-vacio {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--prod-line-control);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.prod-vacio__texto {
+  margin: 0;
+  max-width: 36rem;
+  font-size: var(--text-base);
+  line-height: 1.45;
+}
+
+.prod-vacio__icono { width: 2rem; height: 2rem; color: var(--ink-3); }
+
+.prod-avance { display: flex; align-items: center; gap: var(--space-3); }
+.prod-avance progress { flex: 1; min-width: 0; height: 0.5rem; accent-color: var(--ok); }
+.prod-avance__texto { font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---- Selectores: pestañas de área y segmentados ---------------------------- */
+
+.prod-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.prod-selector {
+  display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+  border: 1px solid var(--prod-line-control);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.prod-selector__opcion {
+  flex: 1 1 auto;
+  min-height: var(--prod-toque);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.prod-selector__opcion + .prod-selector__opcion { border-left: 1px solid var(--line); }
+.prod-selector__opcion:hover { background: var(--surface-hover); }
+
+.prod-selector__opcion:focus-visible {
+  outline: 3px solid var(--prod-activo);
+  outline-offset: -3px;
+  box-shadow: inset 0 0 0 5px var(--surface-card);
+}
+
+.prod-selector__opcion[aria-pressed='true'] {
+  color: var(--prod-activo-texto);
+  background: var(--prod-activo);
+}
+
+.prod-selector__opcion[aria-pressed='true']:focus-visible {
+  outline-color: var(--prod-foco-oscuro);
+  box-shadow: none;
+}
+
+.prod-selector--areas {
+  display: flex;
+  width: 100%;
+  border-radius: var(--radius-lg);
+}
+
+.prod-selector--areas .prod-selector__opcion {
+  flex: 1 1 0;
+  min-height: var(--prod-toque-grande);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.area-tab { border-bottom: 4px solid transparent; }
+.area-tab--panaderia { border-bottom-color: var(--area-panaderia); }
+.area-tab--pasteleria { border-bottom-color: var(--area-pasteleria); }
+.area-tab--galletas { border-bottom-color: var(--area-galletas); }
+.area-tab[aria-pressed='true'] { color: var(--prod-activo-texto); }
+.area-tab--panaderia[aria-pressed='true'] { background: var(--area-panaderia); }
+.area-tab--pasteleria[aria-pressed='true'] { background: var(--area-pasteleria); }
+.area-tab--galletas[aria-pressed='true'] { background: var(--area-galletas); }
+
+.area-tab[aria-pressed='true']:focus-visible {
+  outline-color: var(--prod-activo-texto);
+  outline-offset: -5px;
+}
+
+.prod-selector--filtro,
+.prod-selector--incluir { flex: 0 1 auto; }
+
+/* ---- Tablas ---------------------------------------------------------------- */
+
+.prod-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: var(--text-base);
+}
+
+.prod-tabla th {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  background: var(--surface-sunk);
+  white-space: nowrap;
+}
+
+.prod-tabla td,
+.prod-tabla tbody th {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line-cell);
+  overflow-wrap: break-word;
+}
+
+.prod-tabla td:first-child,
+.prod-tabla tbody th:first-child { min-width: 10rem; }
+
+.prod-tabla tbody th {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  white-space: normal;
+}
+
+.prod-tabla tbody tr:hover { background: var(--surface-hover); }
+
+.prod-tabla tfoot th,
+.prod-tabla tfoot td {
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border-top: 2px solid var(--prod-line-control);
+}
+
+/* El total cierra la tabla: la regla va ENCIMA y solo encima. Sin esto, los
+   `td` del pie conservan el `border-bottom` de las filas y el `th` no, y bajo
+   «Total del área» queda media raya que empieza en la segunda columna. */
+.prod-tabla tfoot td { border-bottom: 0; }
+
+.prod-tabla th.prod-tabla__num { text-align: right; }
+
+.prod-tabla__num {
+  text-align: right;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---- Calendario y panel ---------------------------------------------------- */
+
+.prod-calendario {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.prod-panel { min-width: 0; }
+.prod-panel:empty { display: none; }
+
+@container calprod (min-width: 64rem) {
+  .prod-calendario--con-panel { grid-template-columns: minmax(0, 1fr) var(--prod-panel-w); }
+
+  /* Fijo y con desplazamiento propio: las notas se recorren sin perder el mes. */
+  .prod-panel {
+    position: sticky;
+    top: var(--space-3);
+    max-height: calc(100dvh - var(--prod-cromo));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    border-radius: var(--radius-lg);
+  }
+
+  .prod-panel .dia__cabecera {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
+    padding: var(--space-4) var(--space-4) var(--space-2);
+    background: var(--surface-card);
+  }
+}
+
+.cal-mes { min-width: 0; }
+
+.cal-mes__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.cal__mes {
+  min-width: 0;
+  margin: 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1.15;
+}
+
+.cal__mes::first-letter { text-transform: uppercase; }
+
+.cal-mes__nav { font-size: var(--text-xl); line-height: 1; }
+.cal-mes__hoy { flex: none; padding: 0 var(--space-4); }
+
+.prod-vistas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.prod-vistas .btn { padding: 0 var(--space-3); }
+
+.cal {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.cal__fila {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cal__fila + .cal__fila { border-top: 1px solid var(--line-cell); }
+.cal__fila--cabecera { background: var(--surface-sunk); }
+
+.cal__dia-semana {
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.cal__celda {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--prod-hueco-min);
+  min-width: 0;
+  min-height: var(--prod-celda-alto);
+  padding: var(--prod-hueco-min);
+  cursor: pointer;
+  background: var(--surface-card);
+}
+
+.cal__celda + .cal__celda { border-left: 1px solid var(--line-cell); }
+.cal__celda:hover { background: var(--surface-hover); }
+.cal__celda--finde { background: var(--surface); }
+.cal__celda--fuera { background: var(--surface-sunk); }
+.cal__celda--fuera .cal__numero { color: var(--ink-3); font-weight: 500; }
+.cal__celda--pasado:not(.cal__celda--hoy) .cal__numero { color: var(--ink-2); }
+
+/* Día pasado con recetas sin confirmar: franja roja arriba, además del «!». */
+.cal__celda--atrasada { box-shadow: inset 0 3px 0 var(--danger); }
+
+.cal__celda--elegida {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 2px var(--prod-activo);
+}
+
+.cal__celda--atrasada.cal__celda--elegida {
+  box-shadow: inset 0 0 0 2px var(--prod-activo), inset 0 5px 0 var(--danger);
+}
+
+.cal__cabeza {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.cal__dia {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--prod-dia-boton);
+  min-height: var(--prod-dia-boton);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cal__dia:focus-visible {
+  outline: 3px solid var(--prod-activo);
+  outline-offset: 0;
+}
+
+.cal__numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Festivo: color, subrayado y nombre; nunca solo color. */
+.cal__celda--festivo .cal__numero {
+  color: var(--festivo);
+  text-decoration: underline 2px;
+  text-underline-offset: 3px;
+}
+
+.cal__celda--hoy .cal__numero {
+  color: var(--prod-hoy-texto);
+  background: var(--prod-hoy);
+  font-weight: 800;
+}
+
+.cal__festivo {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--festivo);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cal__fichas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--prod-hueco-min);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Resumen del celular: oculto en escritorio y tableta. */
+.cal__resumen { display: none; }
+
+.cal-ficha {
+  --ficha-color: var(--area-otros);
+  --ficha-suave: var(--area-otros-suave);
+  --ficha-medio: var(--area-otros-suave);
+
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--prod-hueco-min);
+  min-height: var(--prod-ficha-alto);
+  padding: 0 var(--prod-hueco-min);
+  border-left: 3px solid var(--ficha-color);
+  border-radius: var(--radius-sm);
+  color: var(--ficha-color);
+  background: var(--ficha-suave);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* En la tableta la celda mide 100 px: «Panadería 2/2 ✓» pedía 89 px y solo
+   había 86. Se recupera con el interletraje y con 2 px menos de relleno; queda
+   holgura para «Pastelería 1/1 ✓», la cadena más larga de un dígito. */
+.cal-ficha__texto {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  letter-spacing: -0.02em;
+}
+
+/* Si el JS separa la cuenta («Panadería» + «2/2 ✓»), la cifra no se recorta
+   nunca: lo que cede es el nombre del área. Ver el informe de PROD-003. */
+.cal-ficha__cuenta {
+  flex: none;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.cal-ficha--panaderia { --ficha-color: var(--area-panaderia); --ficha-suave: var(--area-panaderia-suave); --ficha-medio: var(--area-panaderia-medio); }
+.cal-ficha--pasteleria { --ficha-color: var(--area-pasteleria); --ficha-suave: var(--area-pasteleria-suave); --ficha-medio: var(--area-pasteleria-medio); }
+.cal-ficha--galletas { --ficha-color: var(--area-galletas); --ficha-suave: var(--area-galletas-suave); --ficha-medio: var(--area-galletas-medio); }
+.cal-ficha--tarea { --ficha-color: var(--nota-tarea); --ficha-suave: var(--nota-tarea-suave); }
+.cal-ficha--pendiente { --ficha-color: var(--nota-pendiente); --ficha-suave: var(--nota-pendiente-suave); }
+.cal-ficha--recomendacion { --ficha-color: var(--nota-recomendacion); --ficha-suave: var(--nota-recomendacion-suave); }
+.cal-ficha--felicitacion { --ficha-color: var(--nota-felicitacion); --ficha-suave: var(--nota-felicitacion-suave); }
+.cal-ficha--notas { --ficha-color: var(--ink-2); --ficha-suave: var(--surface-sunk); border-left-color: var(--prod-line-control); }
+
+/* Avance: el JS pone `--avance` en línea; esta regla solo da el valor inicial. */
+.cal-ficha--area,
+.dia__area-avance {
+  --avance: 0%;
+}
+
+/* El tono medio es lo hecho. */
+.cal-ficha--area {
+  font-weight: 600;
+  background: linear-gradient(to right, var(--ficha-medio) var(--avance), var(--ficha-suave) 0);
+}
+
+/* Completa: relleno pleno con texto blanco (7,16 a 7,71:1) y «✓» en el texto. */
+.cal-ficha--lista {
+  color: var(--prod-activo-texto);
+  background: var(--ficha-color);
+}
+
+/* Pasada con pendientes: borde rojo a la derecha, además del «!» del texto. */
+.cal-ficha--atrasada { box-shadow: inset -3px 0 0 var(--danger); }
+
+.cal-ficha--hecha .cal-ficha__texto { text-decoration: line-through; }
+
+/* ---- Panel del día --------------------------------------------------------- */
+
+.dia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+.dia__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.dia__titulo {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.dia__titulo::first-letter { text-transform: uppercase; }
+.dia__titulo:focus { outline: none; }
+.dia__titulo:focus-visible { outline: 3px solid var(--prod-activo); outline-offset: 2px; }
+
+.dia__etiqueta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  margin: 0;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  color: var(--ink-2);
+  background: var(--surface-sunk);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dia__festivo {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--festivo);
+}
+
+.dia__estado {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  color: var(--ok);
+  background: var(--ok-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.dia__estado:empty { display: none; }
+
+.dia__estado--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.dia__atrasado {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.dia__atrasado p { margin: 0; }
+
+.dia__bloque {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  align-content: start;
+}
+
+/* Las notas se separan de la producción con una raya, no con otra tarjeta. */
+.dia__bloque--notas {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line-cell);
+}
+
+.dia__bloque--produccion { gap: var(--space-2); }
+
+.dia__subtitulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.dia__lista {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dia__lista--areas > li { min-width: 0; }
+.dia__lista--notas > li { min-width: 0; }
+
+.dia__vacio {
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius);
+}
+
+.dia__vacio .prod-vacio__texto { font-size: var(--text-sm); }
+
+.dia__vacio-notas {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* Tarjeta de área: la misma pieza para la fila del día y el botón de registrar. */
+.area-btn,
+.dia__area {
+  --tarjeta-color: var(--area-otros);
+  --tarjeta-suave: var(--area-otros-suave);
+
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'nombre cuenta flecha' 'avance avance avance';
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  width: 100%;
+  min-height: var(--prod-toque-grande);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-left: var(--prod-franja) solid var(--tarjeta-color);
+  border-radius: var(--radius);
+  background: var(--tarjeta-suave);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+button.area-btn,
+button.dia__area { cursor: pointer; }
+
+.area-btn--panaderia, .dia__area--panaderia { --tarjeta-color: var(--area-panaderia); --tarjeta-suave: var(--area-panaderia-suave); }
+.area-btn--pasteleria, .dia__area--pasteleria { --tarjeta-color: var(--area-pasteleria); --tarjeta-suave: var(--area-pasteleria-suave); }
+.area-btn--galletas, .dia__area--galletas { --tarjeta-color: var(--area-galletas); --tarjeta-suave: var(--area-galletas-suave); }
+
+button.area-btn:hover,
+button.dia__area:hover { border-color: var(--tarjeta-color); }
+
+button.area-btn:active,
+button.dia__area:active { transform: scale(0.99); }
+
+.area-btn:focus-visible,
+.dia__area:focus-visible {
+  outline: 3px solid var(--prod-activo);
+  outline-offset: 2px;
+}
+
+/* La flecha dice que la fila lleva a otra vista; es decorativa. */
+button.dia__area::after {
+  content: '›';
+  content: '›' / '';
+  grid-area: flecha;
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+.area-btn__nombre,
+.dia__area-nombre {
+  grid-area: nombre;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.area-btn__cuenta,
+.dia__area-cuenta {
+  grid-area: cuenta;
+  justify-self: end;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dia__area-avance {
+  grid-area: avance;
+  height: var(--prod-avance-alto);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to right, var(--tarjeta-color) var(--avance), var(--prod-riel) 0);
+}
+
+.dia__area--vacia {
+  --tarjeta-color: var(--prod-line-control);
+  --tarjeta-suave: var(--surface);
+  grid-template-areas: 'nombre cuenta flecha';
+}
+
+.dia__area--vacia .dia__area-nombre { color: var(--ink-2); font-weight: 600; }
+.dia__area--vacia .dia__area-cuenta { color: var(--ink-3); }
+
+/* Elegir área para registrar: tres botones, uno por área. */
+.dia__areas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.area-btn {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'nombre' 'cuenta';
+  align-content: center;
+  gap: 0;
+}
+
+.area-btn__cuenta { justify-self: start; text-align: left; }
+
+/* Accesos del día: el primario (lo decide el JS) va a lo ancho. */
+.dia__atajos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.dia__atajos .btn { min-width: 0; white-space: normal; line-height: 1.2; }
+.dia__proyectar { grid-column: 1 / -1; }
+
+.dia__proyectar.btn--primary,
+.dia__accion--produccion.btn--primary {
+  min-height: var(--prod-toque-grande);
+  font-size: var(--text-base);
+}
+
+.dia__accion { min-width: 0; font-size: var(--text-sm); }
+.dia__accion--produccion { width: 100%; }
+
+.dia__accion[aria-pressed='true'] {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 2px var(--prod-activo);
+}
+
+.dia__accion--produccion[aria-expanded='true'] {
+  box-shadow: 0 0 0 2px var(--surface-card), 0 0 0 4px var(--prod-activo);
+}
+
+.dia__accion--tarea svg { color: var(--nota-tarea); }
+.dia__accion--pendiente svg { color: var(--nota-pendiente); }
+.dia__accion--recomendacion svg { color: var(--nota-recomendacion); }
+.dia__accion--felicitacion svg { color: var(--nota-felicitacion); }
+
+/* Tipos de nota: 2 × 2 en el panel estrecho. */
+.dia__acciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.dia__acciones .btn { justify-content: flex-start; }
+
+/* Formulario de nota */
+.dia__formulario {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--prod-line-control);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.dia__formulario--tarea { border-left-color: var(--nota-tarea); }
+.dia__formulario--pendiente { border-left-color: var(--nota-pendiente); }
+.dia__formulario--recomendacion { border-left-color: var(--nota-recomendacion); }
+.dia__formulario--felicitacion { border-left-color: var(--nota-felicitacion); }
+
+.dia__formulario-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.dia__formulario-titulo svg { width: 1.2rem; height: 1.2rem; }
+
+.dia__campo {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.dia__texto { min-height: 5rem; resize: vertical; }
+
+.dia__cuenta {
+  justify-self: end;
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.dia__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.dia__para .prod-selector { display: flex; width: 100%; }
+.dia__para .prod-selector__opcion { padding: 0 var(--space-3); }
+
+.dia__botones { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Notas del día */
+.nota {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-left: 4px solid var(--prod-line-control);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.nota:focus { outline: none; }
+.nota:focus-visible { outline: 3px solid var(--prod-activo); outline-offset: 2px; }
+.nota--tarea { border-left-color: var(--nota-tarea); background: var(--nota-tarea-suave); }
+.nota--pendiente { border-left-color: var(--nota-pendiente); background: var(--nota-pendiente-suave); }
+.nota--recomendacion { border-left-color: var(--nota-recomendacion); background: var(--nota-recomendacion-suave); }
+.nota--felicitacion { border-left-color: var(--nota-felicitacion); background: var(--nota-felicitacion-suave); }
+.nota--hecha .nota__texto { text-decoration: line-through; color: var(--ink-2); }
+
+.nota__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nota__tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.nota__tipo svg { width: 1rem; height: 1rem; }
+.nota--tarea .nota__tipo { color: var(--nota-tarea); }
+.nota--pendiente .nota__tipo { color: var(--nota-pendiente); }
+.nota--recomendacion .nota__tipo { color: var(--nota-recomendacion); }
+.nota--felicitacion .nota__tipo { color: var(--nota-felicitacion); }
+
+.nota__area {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  color: var(--prod-activo-texto);
+  background: var(--area-otros);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.nota__area--panaderia { background: var(--area-panaderia); }
+.nota__area--pasteleria { background: var(--area-pasteleria); }
+.nota__area--galletas { background: var(--area-galletas); }
+
+.nota__texto {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.45;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.nota__autor { margin: 0; font-size: var(--text-xs); color: var(--ink-3); }
+
+/* Editar y borrar SIEMPRE a la derecha. «Hecha» solo existe en tarea y
+   pendiente; sin este `justify-content`, en recomendación y felicitación los
+   dos botones saltaban al borde izquierdo y la columna se rompía. */
+.nota__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.nota__hecha {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--prod-toque);
+  margin-right: auto;
+  padding-right: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nota__hecha input { width: 1.5rem; height: 1.5rem; accent-color: var(--prod-activo); }
+.nota__pregunta { margin-right: auto; font-size: var(--text-sm); font-weight: 600; }
+
+/* Tableta y cualquier columna única ancha: el panel se aprovecha a lo ancho. */
+@container calprod (min-width: 40rem) and (max-width: 63.999rem) {
+  /* El contenedor no se estila a sí mismo: la medida va en la rejilla. */
+  .cal { --prod-celda-alto: 5.5rem; }
+
+  .cal__mes { font-size: var(--text-lg); }
+
+  .dia__lista--areas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .dia__area {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'nombre flecha' 'cuenta cuenta' 'avance avance';
+  }
+
+  .dia__area--vacia { grid-template-areas: 'nombre flecha' 'cuenta cuenta'; }
+  .dia__area-cuenta { justify-self: start; text-align: left; }
+
+  /* Accesos en una fila: el primario, más ancho; «Registrar» debajo, a lo ancho. */
+  .dia__atajos { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); }
+  .dia__proyectar { grid-column: auto; }
+
+  .dia__acciones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .dia__lista--notas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---- Celular: el mes en cifras y el panel como hoja en el flujo ------------ */
+
+@container calprod (max-width: 37.5rem) {
+  .cal-mes__barra { gap: var(--space-1) var(--space-2); }
+  .cal__mes { flex: 1 1 0; font-size: var(--text-lg); text-align: center; }
+
+  .prod-vistas {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+    margin-left: 0;
+  }
+
+  .prod-vistas .btn { padding: 0 var(--space-2); white-space: normal; line-height: 1.2; }
+
+  .cal__dia-semana { padding: var(--space-1) 0; letter-spacing: 0; }
+
+  .cal__celda {
+    align-items: center;
+    gap: 0;
+    min-height: calc(var(--prod-toque) + var(--space-4));
+    padding: 0;
+  }
+
+  .cal__cabeza { justify-content: center; }
+
+  .cal__dia {
+    min-width: var(--prod-toque);
+    min-height: var(--prod-toque);
+  }
+
+  .cal__dia:focus-visible { outline-offset: -3px; }
+
+  .cal__numero {
+    min-width: 1.875rem;
+    height: 1.875rem;
+    font-size: var(--text-sm);
+  }
+
+  .cal__festivo,
+  .cal__fichas { display: none; }
+
+  .cal__resumen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--prod-hueco-min);
+    min-height: var(--space-4);
+    margin-top: calc(-1 * var(--space-1));
+    font-size: var(--text-xs);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cal__resumen:empty { visibility: hidden; }
+
+  .cal__cuenta { color: var(--ink); }
+  .cal__marca { color: var(--ok); font-weight: 800; }
+  .cal__celda--atrasada .cal__marca { color: var(--danger); }
+  .cal__punto { color: var(--ink-3); }
+
+  /* El panel es una hoja pegada al mes, sin tarjeta dentro de tarjeta. */
+  .prod-panel { margin: 0 calc(-1 * var(--space-4)); }
+
+  .dia {
+    padding: var(--space-4);
+    border: 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: var(--prod-sombra-hoja);
+  }
+
+  .dia__formulario { padding: var(--space-3); }
+}
+
+/* ---- Vistas de trabajo ----------------------------------------------------- */
+
+.prod-vista {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  min-width: 0;
+  margin-top: var(--space-2);
+}
+
+.calprod--propio .prod-vista { margin-top: var(--space-2); }
+
+.prod-vista__cabecera {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.prod-vista__volver svg { width: 1.1rem; height: 1.1rem; }
+.prod-vista__textos { min-width: 0; }
+
+.prod-vista__titulo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1.15;
+}
+
+.prod-vista__titulo:focus { outline: none; }
+.prod-vista__titulo:focus-visible { outline: 3px solid var(--prod-activo); outline-offset: 2px; }
+
+.prod-vista__fecha {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.prod-vista__fecha:empty { display: none; }
+.prod-vista__fecha::first-letter { text-transform: uppercase; }
+
+.prod-vista__acciones { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.prod-vista[data-area='panaderia'] .prod-vista__cabecera { border-bottom: 2px solid var(--area-panaderia); }
+.prod-vista[data-area='pasteleria'] .prod-vista__cabecera { border-bottom: 2px solid var(--area-pasteleria); }
+.prod-vista[data-area='galletas'] .prod-vista__cabecera { border-bottom: 2px solid var(--area-galletas); }
+
+@container calprod (max-width: 37.5rem) {
+  /* «Calendario» queda como icono: el nombre sigue en aria-label. */
+  .prod-vista__volver { width: var(--prod-toque); padding: 0; }
+
+  .prod-vista__volver span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .prod-vista__titulo { font-size: var(--text-lg); }
+  .prod-vista__acciones { grid-column: 1 / -1; }
+  .prod-vista__acciones .btn { flex: 1 1 auto; }
+
+  .prod-selector:not(.prod-selector--areas) { display: flex; width: 100%; }
+  .prod-selector:not(.prod-selector--areas) .prod-selector__opcion { flex: 1 1 0; padding: 0 var(--space-2); }
+  .prod-selector--areas .prod-selector__opcion { padding: 0 var(--space-1); font-size: var(--text-sm); }
+
+  .prod-controles { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .prod-tabla { font-size: var(--text-sm); }
+}
+
+/* ---- Registrar ------------------------------------------------------------- */
+
+.reg__aviso {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid var(--nota-pendiente);
+  border-radius: var(--radius);
+  color: var(--nota-pendiente);
+  background: var(--nota-pendiente-suave);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* «Ver»: solo cuando cabe una columna. Su envoltorio no deja hueco en la rejilla. */
+.reg > :has(> .reg__vista) { display: contents; }
+.reg__vista { display: none; }
+
+.reg__columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.reg__buscador,
+.reg__dia,
+.reg__registradas { min-width: 0; }
+
+.reg__subtitulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+/* Buscar y cantidad quedan a mano al recorrer los resultados. */
+.reg__campos {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(5.5rem, 7rem);
+  align-items: end;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 calc(-1 * var(--space-1));
+  padding: var(--space-2) var(--space-1);
+  background: var(--surface);
+}
+
+.reg__campo {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.reg__campo--cantidad { min-width: 0; }
+.reg__buscar,
+.reg__cantidad { min-height: var(--prod-toque); }
+.reg__cantidad { font-variant-numeric: tabular-nums; }
+
+.reg__resultados,
+.reg__filas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+}
+
+.reg__resultados { margin-top: var(--space-2); }
+
+.reg__resultado {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line-cell);
+}
+
+.reg__resultado:hover { background: var(--surface-hover); }
+.reg__resultado:last-child,
+.reg__fila:last-child { border-bottom: 0; }
+
+.reg__resultado-texto,
+.reg__fila-texto {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reg__resultado-texto strong,
+.reg__fila-texto strong {
+  font-size: var(--text-base);
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+
+.reg__resultado-texto small,
+.reg__fila-texto small {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* «Añadir» es una acción repetida: secundaria con acento, no naranja relleno. */
+.reg__anadir {
+  flex: none;
+  border-color: var(--brand-deep);
+  color: var(--brand-deep);
+  background: var(--surface-card);
+}
+
+.calprod .reg__anadir { border-color: var(--brand-deep); color: var(--brand-deep); }
+.calprod .reg__anadir:hover { border-color: var(--brand-deep); color: var(--brand-deep); background: var(--surface-hover); }
+.calprod .reg__anadir:disabled { border-color: var(--line); color: var(--ink-3); }
+
+.reg__vacio {
+  margin: var(--space-2) 0 0;
+  list-style: none;
+}
+
+/* Fila registrada: rejilla fija, todas se parten igual. */
+.reg__fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-areas: 'texto estado tandas quitar';
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 4rem;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line-cell);
+}
+
+.reg__fila-texto { grid-area: texto; }
+.reg__fila > .prod-estado { grid-area: estado; justify-self: end; }
+
+.reg__fila-tandas {
+  grid-area: tandas;
+  display: grid;
+  grid-template-columns: var(--prod-toque) minmax(3.5rem, 4.5rem) var(--prod-toque);
+  gap: var(--space-1);
+}
+
+.reg__tandas {
+  width: 100%;
+  min-height: var(--prod-toque);
+  padding-inline: var(--space-2);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield;
+}
+
+.reg__tandas::-webkit-inner-spin-button,
+.reg__tandas::-webkit-outer-spin-button { margin: 0; appearance: none; }
+
+.reg__quitar { grid-area: quitar; }
+.reg__quitar svg { color: var(--danger); }
+.reg__quitar:disabled svg { color: var(--ink-3); }
+
+.reg__no-quitar {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.reg__total {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dos columnas: buscar a la izquierda y lo registrado, fijo, a la derecha. */
+@container calprod (min-width: 60rem) {
+  .reg__columnas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+  .reg__dia {
+    position: sticky;
+    top: var(--space-3);
+    max-height: var(--prod-alto-util);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Una columna: el conmutador «Ver» decide cuál se muestra. */
+@container calprod (max-width: 59.999rem) {
+  .reg__vista { display: flex; width: 100%; }
+  .reg__vista .prod-selector__opcion { flex: 1 1 0; }
+  .reg[data-panel='anadir'] .reg__dia,
+  .reg[data-panel='registradas'] .reg__buscador { display: none; }
+}
+
+@container calprod (max-width: 37.5rem) {
+  .reg__campos { grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 7rem); }
+  .reg__campo--buscar { grid-column: 1 / -1; }
+  .reg__campos > .reg__campo:not(.reg__campo--buscar):not(.reg__campo--cantidad) { min-width: 0; }
+
+  .reg__fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'texto estado' 'tandas quitar';
+  }
+
+  .reg__fila > .prod-estado { align-self: start; }
+  .reg__fila-tandas { justify-self: start; }
+
+  /* La columna la marca el estado, y «En preparación» es más ancho que
+     «Pendiente»: sin `justify-self`, la papelera bailaba 38 px entre filas. */
+  .reg__quitar { justify-self: end; width: var(--prod-toque); padding: 0; }
+
+  .reg__quitar span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* ---- Proyectar y Mi producción --------------------------------------------- */
+
+.proy__controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.proy__dia {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.proy__dia .btn[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--prod-activo); }
+
+/* En el orden del DOM: día, áreas (lo que crece) y filtro; se parten solos. */
+.proy__controles .prod-selector--areas { flex: 1 1 24rem; }
+.proy__controles .prod-selector--filtro { margin-left: auto; }
+
+.proy__aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border-left: 4px solid var(--nota-pendiente);
+  border-radius: var(--radius);
+  color: var(--nota-pendiente);
+  background: var(--nota-pendiente-suave);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.proy__aviso p { flex: 1 1 16rem; margin: 0; }
+
+/* `display: flex` gana a `[hidden]`: sin esto, el aviso y la asignación en
+   lote dejaban dos recuadros vacíos (una franja naranja y una caja blanca)
+   en Proyectar y en «Mi producción» siempre que no había nada que decir. */
+.proy__aviso[hidden],
+.proy__lote[hidden],
+.proy__aviso:empty,
+.proy__lote:empty { display: none; }
+
+/* Rótulo, desplegable y botón son HERMANOS (no un `label` que envuelva al
+   campo): en una sola línea, «Asignar las que faltan a [persona] [+ Asignar]».
+   Antes el campo se estiraba a todo el ancho y el bloque ocupaba tres filas
+   y 150 px de alto para elegir un nombre. */
+.proy__lote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+}
+
+.proy__lote label {
+  flex: none;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.proy__lote .field {
+  flex: 1 1 14rem;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.proy__columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.proy__lista { display: grid; gap: var(--space-3); min-width: 0; }
+.proy__vacio { min-width: 0; }
+
+/* El hueco agrupa: 24 px entre recetas y 8 px entre la tarjeta y su «Quién la
+   saca». Con los dos huecos iguales (8 px), el desplegable parecía suelto
+   entre dos tarjetas y no de la receta de arriba. */
+.proy__tarjetas {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proy-item {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.proy-tarjeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-1) var(--space-3);
+  width: 100%;
+  min-height: 4rem;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-left: var(--prod-franja) solid var(--area-otros);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.proy-tarjeta:hover { background: var(--surface-hover); }
+.proy-tarjeta:focus-visible { outline: 3px solid var(--prod-activo); outline-offset: 2px; }
+.proy-tarjeta--panaderia { border-left-color: var(--area-panaderia); }
+.proy-tarjeta--pasteleria { border-left-color: var(--area-pasteleria); }
+.proy-tarjeta--galletas { border-left-color: var(--area-galletas); }
+.proy-tarjeta--en_preparacion { box-shadow: inset 0 3px 0 var(--prod-en-curso); }
+.proy-tarjeta--lista { background: var(--ok-soft); }
+.proy-tarjeta--lista:hover { background: var(--ok-soft); border-color: var(--ok); }
+
+.proy-tarjeta[aria-pressed='true'],
+.proy-tarjeta[aria-expanded='true'] {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 2px var(--prod-activo);
+}
+
+.proy-tarjeta--lista[aria-pressed='true'],
+.proy-tarjeta--lista[aria-expanded='true'] { background: var(--ok-soft); }
+
+.proy-tarjeta__nombre {
+  min-width: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+
+.proy-tarjeta__datos {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.proy-tarjeta .prod-estado { grid-column: 2; grid-row: 1; justify-self: end; }
+
+/* «Quién la saca», bajo su tarjeta. */
+.proy-item__asignar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.proy-item__asignar .field { width: 100%; min-width: 0; }
+
+.proy--acordeon .proy-item--abierta {
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+.proy__detalle { min-width: 0; }
+
+@container calprod (min-width: 60rem) {
+  .proy__columnas { grid-template-columns: minmax(0, 22rem) minmax(0, 1fr); }
+
+  .proy__columnas > .proy__detalle {
+    position: sticky;
+    top: var(--space-3);
+    max-height: var(--prod-alto-util);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* El acordeón manda aunque el ancho dé para dos columnas. */
+.proy--acordeon .proy__columnas { grid-template-columns: minmax(0, 1fr); }
+
+.proy-detalle {
+  --detalle-pad: var(--space-5);
+
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--detalle-pad);
+  border: 1px solid var(--line);
+  border-top: var(--prod-franja) solid var(--area-otros);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+.proy-item .proy-detalle {
+  --detalle-pad: var(--space-4);
+}
+
+.proy-detalle--panaderia { border-top-color: var(--area-panaderia); }
+.proy-detalle--pasteleria { border-top-color: var(--area-pasteleria); }
+.proy-detalle--galletas { border-top-color: var(--area-galletas); }
+
+.proy-detalle__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.proy-detalle__titulo {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1.15;
+}
+
+.proy-detalle__titulo:focus { outline: none; }
+.proy-detalle__titulo:focus-visible { outline: 3px solid var(--prod-activo); outline-offset: 2px; }
+
+.proy-detalle__resumen { margin: 0; font-size: var(--text-base); color: var(--ink-2); }
+.proy-detalle__asignacion { display: grid; gap: var(--space-2); }
+.proy-detalle__campo { display: grid; gap: var(--space-1); max-width: 24rem; font-size: var(--text-sm); font-weight: 600; }
+.proy-detalle__asignado { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+
+.proy-detalle__aviso {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  color: var(--nota-pendiente);
+  background: var(--nota-pendiente-suave);
+  font-size: var(--text-sm);
+}
+
+.proy-detalle__futuro {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid var(--nota-tarea);
+  border-radius: var(--radius);
+  color: var(--nota-tarea);
+  background: var(--nota-tarea-suave);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.proy-detalle__subtitulo { margin: var(--space-2) 0 0; font-size: var(--text-lg); }
+.proy-detalle__ayuda { margin: 0; font-size: var(--text-sm); color: var(--ink-3); }
+.proy-detalle__componente h5 { margin: var(--space-2) 0; font-size: var(--text-sm); }
+.proy-detalle .prod-tabla td { font-size: var(--text-base); }
+.proy-detalle .prod-tabla__num { font-size: var(--text-md); font-weight: 700; }
+
+.proy-detalle__metodo summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--prod-toque);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.proy-detalle__metodo p { white-space: pre-line; }
+
+/* La acción del paso queda siempre a la vista, pegada abajo. */
+.proy-detalle__acciones {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--detalle-pad)) calc(-1 * var(--detalle-pad));
+  padding: var(--space-3) var(--detalle-pad);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: var(--prod-sombra-arriba);
+}
+
+.proy-detalle__acciones .btn--primary,
+.proy-detalle__empezar,
+.proy-detalle__confirmar,
+.proy-detalle__si {
+  min-height: var(--prod-toque-grande);
+  padding: 0 var(--space-5);
+  font-size: var(--text-base);
+}
+
+.proy-detalle__pregunta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--ok);
+  border-radius: var(--radius);
+  background: var(--ok-soft);
+}
+
+.proy-detalle__pregunta p { flex: 1 1 100%; margin: 0; font-size: var(--text-sm); color: var(--ink); }
+.proy-detalle__pregunta p:first-child { font-size: var(--text-base); font-weight: 700; }
+
+.proy-detalle__lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  color: var(--ok);
+  background: var(--ok-soft);
+  font-size: var(--text-sm);
+}
+
+.proy-detalle__lista strong { font-size: var(--text-base); }
+
+.proy-detalle__faltan {
+  width: 100%;
+  padding: var(--space-3);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: var(--text-sm);
+}
+
+.proy-detalle__faltan p { margin: 0; font-weight: 700; }
+.proy-detalle__faltan ul { margin: var(--space-2) 0; padding-left: var(--space-5); }
+.proy-detalle__faltan .btn { margin-top: var(--space-2); }
+
+@container calprod (max-width: 37.5rem) {
+  .proy__controles { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .proy__dia { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .proy__controles .prod-selector--filtro { margin-left: 0; }
+
+  .proy-item__asignar { grid-template-columns: minmax(0, 1fr); padding-left: 0; }
+
+  /* Celular: el rótulo ocupa su línea y el campo comparte la suya con el
+     botón. Con tres filas el bloque medía 150 px para elegir un nombre. */
+  .proy__lote label { flex: 1 1 100%; }
+  .proy__lote .field { flex: 1 1 8rem; max-width: none; }
+
+  .proy-detalle { --detalle-pad: var(--space-4); }
+  .proy-detalle__acciones { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .proy-detalle__acciones .btn { width: 100%; }
+}
+
+/* ---- Materiales ------------------------------------------------------------ */
+
+.mat__areas,
+.cos-areas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  /* Cada área mide lo que ocupa: estiradas, Pastelería arrastraba 300 px de
+     blanco para igualar a Panadería. */
+  align-items: start;
+  gap: var(--space-4);
+}
+
+/* Costos: una tabla por área, a lo ancho, una debajo de otra. */
+.cos-areas { grid-template-columns: minmax(0, 1fr); }
+
+.mat-area,
+.cos-area,
+.mat-total,
+.cos-ingredientes,
+.cos-confirmado {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--area-otros);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  overflow-x: auto;
+}
+
+.mat-total,
+.cos-ingredientes { border-top-color: var(--prod-activo); }
+
+/* Lo ya confirmado es el hermano de «lo que falta»: misma tarjeta, y el verde
+   de la franja lo distingue. Antes quedaba suelto al final, sin caja. */
+.cos-confirmado { border-top-color: var(--ok); }
+
+.mat-area--panaderia { border-top-color: var(--area-panaderia); }
+.mat-area--pasteleria { border-top-color: var(--area-pasteleria); }
+.mat-area--galletas { border-top-color: var(--area-galletas); }
+
+.mat-area h3,
+.cos-area h3,
+.mat-total h3,
+.cos-ingredientes h3 { margin: 0 0 var(--space-2); font-size: var(--text-lg); }
+
+.mat-area__cabecera p { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--ink-3); }
+
+.mat-area__detalle { margin: 0 0 var(--space-3); }
+
+.mat-area__detalle summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--prod-toque);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.mat-area__recetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.mat-area__recetas li {
+  padding: var(--prod-hueco-min) var(--space-2);
+  border-radius: var(--radius-pill);
+  color: var(--ink-2);
+  background: var(--surface-sunk);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.mat__contenido,
+.cos__contenido { display: grid; gap: var(--space-4); min-width: 0; }
+
+.mat__ver { flex: 0 1 auto; }
+.mat__tabla { margin-top: var(--space-2); }
+.mat__fila--unidades td:first-child { font-weight: 700; }
+.mat__nota { margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--ink-3); }
+
+@container calprod (max-width: 37.5rem) {
+  .prod-vista.mat .prod-vista__acciones .btn { width: 100%; }
+}
+
+/* ---- Costos ---------------------------------------------------------------- */
+
+.cos-area--panaderia { border-top-color: var(--area-panaderia); }
+.cos-area--pasteleria { border-top-color: var(--area-pasteleria); }
+.cos-area--galletas { border-top-color: var(--area-galletas); }
+
+/* Por debajo de este ancho la tarjeta se desplaza de lado, no la página. */
+.cos-area .prod-tabla { min-width: 34rem; }
+.cos details { min-width: 0; overflow-x: auto; }
+
+.cos-cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-3);
+}
+
+.cos-cifra {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+.cos-cifra__rotulo { font-size: var(--text-sm); font-weight: 700; color: var(--ink-3); }
+
+.cos-cifra__valor {
+  font-family: var(--font-num);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.cos-cifra__detalle { font-size: var(--text-xs); color: var(--ink-3); }
+
+.cos-semana { min-width: 0; overflow-x: auto; background: var(--surface-card); }
+
+.cos-ejemplo {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--nota-pendiente);
+  border-radius: var(--radius);
+  color: var(--nota-pendiente);
+  background: var(--nota-pendiente-suave);
+}
+
+.cos-ejemplo p { margin: 0; font-weight: 600; }
+.cos-ejemplo small { color: var(--ink-2); }
+.cos-ejemplo__estado:empty { display: none; }
+
+.cos-confirmado summary,
+.cos details > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--prod-toque);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cos-confirmado__item h4 { margin: var(--space-3) 0 var(--space-2); font-size: var(--text-sm); }
+
+/* Celular: cada receta es una ficha; el rótulo sale de `data-rotulo`. */
+@container calprod (max-width: 37.5rem) {
+  .cos-area { overflow: visible; }
+  .cos-area .prod-tabla { min-width: 0; }
+
+  .cos-area thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /* Una cifra por línea, rótulo a la izquierda y valor a la derecha: con dos
+     columnas, «Estimado» caía en un sitio en las recetas y en otro en el
+     total, porque el pie trae una celda vacía que ocupaba lugar. */
+  .cos-area tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--line-cell);
+  }
+
+  .cos-area tfoot tr {
+    padding-top: var(--space-3);
+    border-top: 2px solid var(--prod-line-control);
+    border-bottom: 0;
+  }
+
+  .cos-area td:empty { display: none; }
+
+  .cos-area tbody tr:hover { background: transparent; }
+
+  .cos-area td,
+  .cos-area tbody th,
+  .cos-area tfoot th,
+  .cos-area tfoot td {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .cos-area tr > :first-child {
+    grid-column: 1 / -1;
+    min-width: 0;
+    font-weight: 700;
+  }
+
+  .cos-area td[data-rotulo] {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    text-align: right;
+  }
+
+  .cos-area td[data-rotulo]::before {
+    content: attr(data-rotulo);
+    flex: none;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink-3);
+    text-align: left;
+  }
+}
+
+/* ---- Equipo ---------------------------------------------------------------- */
+
+.equipo__ayuda { margin: 0; font-size: var(--text-base); color: var(--ink-2); }
+.equipo__contenido { display: grid; gap: var(--space-3); }
+
+.equipo__lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+}
+
+.equipo__persona {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-cell);
+}
+
+.equipo__persona:last-child { border-bottom: 0; }
+.equipo__persona--inactiva { background: var(--surface-sunk); }
+.equipo__persona > :not(.equipo__datos):not(.equipo__campo):not(.prod-hecho) { grid-column: 1 / -1; }
+
+.equipo__datos { display: grid; min-width: 0; }
+.equipo__datos strong { font-size: var(--text-base); overflow-wrap: break-word; }
+.equipo__datos small { font-size: var(--text-sm); color: var(--ink-3); }
+.equipo__campo { min-width: 0; }
+.equipo__campo .field { width: 100%; min-width: 0; min-height: var(--prod-toque); }
+
+@container calprod (max-width: 37.5rem) {
+  .equipo__persona { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- Historial ------------------------------------------------------------- */
+
+.hist .historial {
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+@container calprod (max-width: 37.5rem) {
+  .hist .historial { padding: var(--space-3); }
+}
+
+/* ---- Movimiento ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .cal__celda,
+  .proy-tarjeta { transition: background-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
+
+  .proy-tarjeta--en_preparacion,
+  .proy-tarjeta--lista { transition-duration: var(--dur); }
+
+  .cal-ficha--area,
+  .dia__area-avance { transition: background var(--dur-slow) var(--ease); }
+
+  .prod-cambio { transition: background-color 1000ms var(--ease); }
+
+  .proy-detalle__metodo > summary::before,
+  .mat-area__detalle > summary::before,
+  .cos-ingredientes > summary::before,
+  .cos-confirmado > summary::before { transition: transform var(--dur-fast) var(--ease); }
+
+  /* Solo al cambiar de día: el panel se repinta en cada acción. */
+  .dia--nuevo { animation: prod-entra var(--dur) var(--ease) both; }
+
+  .dia__formulario,
+  .dia__areas { animation: prod-baja var(--dur-fast) var(--ease) both; }
+
+  .prod-hecho { animation: prod-aparece var(--dur) var(--ease) both; }
+
+  .calprod .btn[aria-busy='true']::before { animation: prod-latido 900ms var(--ease) infinite alternate; }
+  .prod-estado--en_preparacion::before { animation: prod-latido 1200ms var(--ease) infinite alternate; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calprod *,
+  .calprod *::before,
+  .calprod *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .calprod .btn:active:not(:disabled),
+  button.area-btn:active,
+  button.dia__area:active { transform: none; }
+}
+
+@keyframes prod-entra {
+  from { opacity: 0; transform: translateX(0.5rem); }
+}
+
+@keyframes prod-baja {
+  from { opacity: 0; transform: translateY(-0.25rem); }
+}
+
+@keyframes prod-aparece {
+  from { opacity: 0; }
+}
+
+@keyframes prod-latido {
+  from { opacity: 0.25; }
+  to { opacity: 1; }
+}
+
+/* ============================================================================
+   PROD-004: notas dirigidas a una persona y eliminar la produccion del dia
+   ========================================================================= */
+
+/* --- «Para» cuando se elige a una persona ------------------------------- */
+
+.dia__personas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.dia__persona {
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--prod-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dia__persona:hover { border-color: var(--prod-activo); }
+
+.dia__persona[aria-pressed='true'] {
+  border-color: var(--prod-activo);
+  background: var(--prod-activo);
+  color: var(--prod-activo-texto);
+}
+
+.dia__persona:focus-visible { outline: 3px solid var(--prod-activo); outline-offset: 2px; }
+
+.dia__equipo {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.dia__equipo--error { color: var(--danger); font-weight: 600; }
+
+/* Quien tiene la nota, en la tarjeta. Es texto, no color: el destinatario no
+   puede ir solo en un matiz (WCAG 1.4.1). */
+.nota__persona {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--prod-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+/* --- Eliminar la produccion del dia ------------------------------------- */
+
+.dia__borrado { display: flex; justify-content: flex-end; margin-top: var(--space-3); }
+
+/* Dos clases, para ganarle a `.btn--quiet`: con una sola, la única acción que
+   borra se veía igual que Materiales o Costos. #a31d1d sobre la superficie del
+   panel da 7,3:1, muy por encima del 4,5:1 que pide AA. */
+.dia__borrar.btn--quiet { color: var(--danger); border-color: var(--danger-soft); }
+.dia__borrar.btn--quiet:hover { border-color: var(--danger); background: var(--danger-soft); }
+.dia__borrar.btn--quiet svg { color: currentColor; }
+
+.dia__borrado-no {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.dia__eliminar {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.dia__eliminar-pregunta { margin: 0; font-size: var(--text-base); font-weight: 700; }
+.dia__eliminar-nota { margin: 0; color: var(--ink-2); font-size: var(--text-sm); }
+.dia__eliminar-otro { width: 100%; }
+
+.dia__eliminar-botones { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* --- Lo que me dejaron dicho, en «Mi producción» ------------------------ */
+
+.proy__notas {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+}
+
+.proy__notas-titulo { margin: 0; font-size: var(--text-base); font-weight: 700; }
+
+.proy__notas-lista { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+
+.proy-nota {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid var(--prod-line-control);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.proy-nota--tarea { border-left-color: var(--nota-tarea); }
+.proy-nota--pendiente { border-left-color: var(--nota-pendiente); }
+.proy-nota--recomendacion { border-left-color: var(--nota-recomendacion); }
+.proy-nota--felicitacion { border-left-color: var(--nota-felicitacion); }
+
+.proy-nota__texto { flex: 1 1 14rem; margin: 0; font-size: var(--text-base); line-height: 1.45; }
+
+.proy-nota__tipo {
+  margin-right: var(--space-2);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.proy-nota--hecha .proy-nota__texto { text-decoration: line-through; color: var(--ink-2); }
+
+.proy-nota__hecha {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* En su propia linea: junto a «Hecha» se leia como si la casilla fuera suya. */
+.proy-nota__autor { flex: 1 1 100%; margin: 0; color: var(--ink-2); font-size: var(--text-xs); }
+
+/* Resultado medido: independiente del consumo aprobado y de la receta base. */
+.rend { display: grid; gap: var(--space-3); min-width: 0; margin-top: var(--space-4); }
+.rend > h3, .rend > h4, .rend > p { margin: 0; }
+.rend__registro { min-width: 0; padding: var(--space-3); border: 1px solid var(--prod-line-control); border-radius: var(--radius); background: var(--surface); }
+.resultados-dia { display: grid; gap: var(--space-3); }
+.reg__cantidad-propia { display: grid; gap: var(--space-1); margin-top: var(--space-2); font-size: var(--text-sm); }
+.reg__cantidad-receta { width: 7rem; max-width: 100%; }
+.reg__ayuda-tandas, .reg__partidas, .reg__consumo { grid-column: 1 / -1; min-width: 0; }
+.reg__ayuda-tandas { margin: 0; color: var(--ink-2); font-size: var(--text-sm); }
+.reg__partidas { display: grid; gap: var(--space-2); }
+.reg__partida { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.reg__partida label { display: grid; gap: var(--space-1); font-size: var(--text-sm); }
+.reg__partida input { width: 7rem; }
+.reg__consumo summary { padding: var(--space-2) 0; cursor: pointer; font-weight: 600; }
+.reg__filas { display: grid; gap: var(--space-3); border: 0; background: transparent; }
+.reg__fila { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-3); background: var(--surface-card); }
+.reg__fila:last-child { border-bottom: 1px solid var(--line); }
+.rend__registro > h5 { margin: 0 0 var(--space-2); font-size: var(--text-base); }
+.rend__registro summary { cursor: pointer; font-weight: 600; padding-block: var(--space-2); }
+.rend__resumen { overflow-wrap: anywhere; }
+.rend__cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--space-3); }
+.rend__cifras dt { font-size: var(--text-sm); color: var(--ink-2); }
+.rend__cifras dd { margin: var(--space-1) 0 0; font-weight: 700; }
+.rend__pendiente { color: var(--ink-2); }
+.rend__campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--space-3); margin: var(--space-2) 0; padding: var(--space-3); min-width: 0; border: 1px solid var(--prod-line-control); border-radius: var(--radius); }
+.rend__campo { display: grid; gap: var(--space-1); min-width: 0; font-size: var(--text-sm); }
+.rend__campo .field { width: 100%; min-width: 0; }
+.rend__ayuda { grid-column: 1 / -1; font-size: var(--text-sm); color: var(--ink-2); margin: 0; }
+.rend__error { color: var(--danger); overflow-wrap: anywhere; }

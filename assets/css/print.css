@@ -5,6 +5,8 @@
 }
 
 @media print {
+  /* Las capturas de transición pertenecen a la pantalla, no al papel. */
+  ::view-transition { display: none !important; }
   @page {
     size: A4 portrait;
     margin: 14mm 15mm 16mm;

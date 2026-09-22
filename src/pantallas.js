@@ -41,9 +41,12 @@
  */
 
 import { trasPintar } from './lib/paint.js';
-import { setState, recetario, almacen } from './core/store.js';
+import { setState, recetario } from './core/store.js';
 import { getRoute, navigate } from './core/router.js';
-import { guardarLote, eliminarLote, sembrarDemo, descontarProduccion } from './app/almacen.js';
+import { guardarLote, eliminarLote, sembrarDemo, cargarDemoColombia, retirarDemoColombia } from './app/almacen.js';
+import * as produccion from './app/produccion.js';
+import { cargarEquipo, cargarPerfiles, cambiarArea } from './app/equipo.js';
+import { leerOperacion } from './core/bitacora.js';
 import { openPlan } from './views/plan.js';
 import { openIngredients } from './views/ingredients.js';
 import { openAlmacen } from './views/almacen.js';
@@ -65,6 +68,50 @@ let claveAbierta = null;
  */
 export function hayPantallaDeModulo() {
   return abierta !== null;
+}
+
+/**
+ * ¿El próximo pintado deja delante la MISMA pantalla de módulo que ya está?
+ *
+ * Entonces no hay transición que animar: la pantalla no se reconstruye y lo
+ * único que cambia son sus datos o un aviso. Animarlo igual tenía un coste
+ * real: mientras dura la View Transition el documento no recibe toques, y en
+ * producción cada guardado repinta, así que el toque siguiente (el «+» de
+ * otra receta, «Marcar lista») se perdía sin avisar.
+ *
+ * @param {object} state
+ * @param {object} route
+ * @returns {boolean}
+ */
+export function sigueLaMismaPantalla(state, route) {
+  if (abierta === null) return false;
+  const entrada = PANTALLAS.find((p) => p.modulo === route.modulo);
+  return Boolean(entrada) && entrada.clave(state) === claveAbierta;
+}
+
+/** Cuánto del panel tiene que verse para no mover la pantalla. */
+const MINIMO_VISIBLE = 220;
+
+/**
+ * Lleva un panel a la vista si quedó debajo de su referencia (una columna).
+ *
+ * Medir el DOM es de esta capa, no de las vistas (ver `scripts/verificar.mjs`):
+ * la de producción solo dice qué nodo quiere ver y respecto de cuál.
+ *
+ * @param {Element} panel
+ * @param {Element} referencia lo que en dos columnas queda a su lado
+ */
+function llevarALaVista(panel, referencia) {
+  if (!panel.isConnected || !referencia.isConnected) return;
+  const caja = panel.getBoundingClientRect();
+  // En dos columnas el panel esta al lado: no hay nada que desplazar.
+  if (caja.top < referencia.getBoundingClientRect().bottom - 1) return;
+  // Y si ya se ve lo bastante, tampoco: mover la pantalla sin necesidad
+  // esconderia el calendario que se acaba de tocar.
+  const alto = window.innerHeight || 0;
+  if (caja.top >= 0 && caja.top <= alto - MINIMO_VISIBLE) return;
+  const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  panel.scrollIntoView({ block: 'start', behavior: quieto ? 'auto' : 'smooth' });
 }
 
 /**
@@ -176,12 +223,11 @@ export function renderPantallas(state, route, avisos) {
 }
 
 /**
- * Plan de producción del día.
+ * Producción: el calendario (`views/plan.js`).
  *
- * Al pedir imprimir se guarda el plan en el estado y se sale: la hoja se genera
- * en `renderPrint` y `window.print()` se llama después del repintado, para que
- * el navegador encuentre la hoja ya montada. Sin esa espera se imprimiría lo que
- * hubiera antes.
+ * Al imprimir materiales, la hoja se genera en `renderPrint` sin cerrar la
+ * pantalla, que sigue montada con la vista abierta. `window.print()` espera al
+ * repintado para encontrar la hoja correcta.
  *
  * Esa espera es `trasPintar`, y no un `requestAnimationFrame`: el cuadro llega
  * antes que el pintado cuando hay una View Transition por medio. El trabajo se
@@ -191,25 +237,43 @@ export function renderPantallas(state, route, avisos) {
 function montarPlan(state) {
   return openPlan({
     recipes: state.recetario.recipes,
-    // El almacén viaja al plan para poder costear la producción. Se pasa como
-    // FUNCIÓN y no como lista: la pantalla no se reconstruye mientras está
-    // abierta, así que una lista capturada al montarla se quedaría congelada y
-    // seguiría costeando contra las existencias de hace media hora.
-    leerLotes: () => almacen().lotes,
-    onDescontar: descontarProduccion,
+    usuario: state.usuario,
+    // Se pasa como FUNCIÓN y no como documento: la pantalla no se reconstruye
+    // mientras está abierta, y un documento capturado al montarla seguiría
+    // enseñando la bodega y los planes de hace media hora.
+    leerDatos: leerOperacion,
+    acciones: {
+      fijarReceta: produccion.fijarReceta,
+      eliminarProduccion: produccion.eliminarProduccion,
+      guardarNota: produccion.guardarNota,
+      eliminarNota: produccion.eliminarNota,
+      iniciarPreparacion: produccion.iniciarPreparacion,
+      cancelarPreparacion: produccion.cancelarPreparacion,
+      asignarReceta: produccion.asignarReceta,
+        confirmarReceta: produccion.confirmarReceta,
+        guardarResultado: produccion.guardarResultado,
+      cargarEquipo,
+      cargarPerfiles,
+      cambiarArea,
+      sembrarDemo,
+    },
+    fechaInicial: getRoute().fecha,
+    onFecha: (fecha) => navigate({ fecha }, { replace: true }),
+    // Cuando falta materia prima, lo que resuelve es registrar la compra.
+    onBodega: () => navigate({ modulo: 'almacen', name: 'index', id: null }),
+    onLlevarALaVista: llevarALaVista,
     onMenu: irAlMenu,
     onVolver: vueltaALaFicha(),
     onSalir: salir,
-    onPrint: (plan) => {
+    onPrint: (hoja) => {
       trasPintar(() => {
         window.print();
-        // El plan deja de estar pendiente en cuanto se manda a imprimir: si se
-        // quedara, la siguiente impresión sacaría el plan en vez de la receta
-        // que se estuviera viendo.
+        // La hoja deja de estar pendiente en cuanto se manda a imprimir: si se
+        // quedara, la siguiente impresión sacaría los materiales en vez de la
+        // receta que se estuviera viendo.
         setState({ recetario: { planPrint: null } });
       });
-      setState({ recetario: { planPrint: plan } });
-      salirAlRecetario();
+      setState({ recetario: { planPrint: hoja } });
     },
   });
 }
@@ -222,6 +286,7 @@ function montarPlan(state) {
 function montarIngredientes(state) {
   return openIngredients({
     recipes: state.recetario.recipes,
+    lotes: state.almacen.lotes,
     onMenu: irAlMenu,
     onVolver: vueltaALaFicha(),
     onSalir: salir,
@@ -255,11 +320,14 @@ function montarIngredientes(state) {
  */
 function montarAlmacen() {
   return openAlmacen({
-    leerLotes: () => almacen().lotes,
+    leerLotes: () => leerOperacion().value?.lotes || [],
+    leerDatos: leerOperacion,
     ingredientes: recetario().ingredientes,
     onGuardar: guardarLote,
     onEliminar: eliminarLote,
     onSembrarDemo: sembrarDemo,
+    onDemoColombia: cargarDemoColombia,
+    onRetirarDemo: retirarDemoColombia,
     onMenu: irAlMenu,
     onVolver: vueltaALaFicha(),
     onSalir: salir,

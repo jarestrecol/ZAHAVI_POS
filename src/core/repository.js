@@ -23,7 +23,6 @@ import {
   canPublish as canPublishRemote,
   needsReload,
   serverStatus,
-  generacionAcceso as generacionAccesoRemota,
   verificarClave as verificarClaveRemota,
   setEditKey as setEditKeyRemota,
 } from './remote.js';
@@ -515,18 +514,6 @@ export function guardarClaveEdicion(password) {
  */
 export function publicacionEnCurso() {
   return publicando;
-}
-
-/**
- * Generacion de acceso que declara el servidor.
- *
- * Vive aqui porque el repositorio es la unica puerta al almacenamiento: las
- * vistas y el arranque no hablan con `remote.js`.
- *
- * @returns {number}
- */
-export function generacionAcceso() {
-  return generacionAccesoRemota();
 }
 
 export function needsReloadBeforePublish() {

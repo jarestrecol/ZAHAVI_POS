@@ -8,8 +8,8 @@
  * Lo que se fija aqui no es que la pantalla se pinte, sino las dos reglas que de
  * verdad protegen dinero:
  *
- *   1. Las unidades NO se convierten. Si el plan pide gramos y el almacen tiene
- *      unidades, esa linea sale sin precio en vez de inventarse un factor.
+ *   1. Las unidades se convierten a gramos con equivalencias declaradas.
+ *      Si falta una equivalencia, no se inventa un factor.
  *   2. Descontar nunca deja existencia negativa, y no se puede descontar dos
  *      veces la misma produccion.
  *
@@ -20,6 +20,153 @@
 import { test, expect } from '@playwright/test';
 import { entrar, abrirModulo, salirDelModulo } from './apoyo.js';
 
+for (const ancho of [1440, 390]) {
+  test(`demo Colombia: cobertura completa, carga única y retiro conserva compras · ${ancho}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: ancho, height: 900 });
+    await entrar(page);
+    await page.evaluate(async () => {
+      const { guardarLote } = await import('/src/app/almacen.js');
+      const { hoyLocal } = await import('/src/core/bitacora.js');
+      const r = await guardarLote({ ingrediente: 'HUEVOS', pesoCompra: 30, existencia: 30, unidad: 'UND',
+        equivalencias: { UND: 63 }, costoCompra: 18000, fechaCompra: hoyLocal() }, { responsable: 'QA Real' });
+      if (!r.ok) throw new Error(r.message);
+    });
+    await abrirAlmacen(page);
+    const antes = await page.evaluate(() => JSON.parse(localStorage.getItem('zahavi_almacen_v1')));
+    await page.getByRole('button', { name: 'Cargar bodega demo Colombia completa' }).click();
+    await expect(page.locator('.almacen__demo')).toContainText('DEMO activa · 159 ingredientes');
+    const cargado = await page.evaluate(() => JSON.parse(localStorage.getItem('zahavi_almacen_v1')));
+    expect(cargado.lotes.filter((l) => l.demo)).toHaveLength(159);
+    expect(cargado.lotes.find((l) => !l.demo)).toEqual(antes.lotes[0]);
+    expect(cargado.lotes.find((l) => l.demo && l.ingrediente === 'HUEVOS').equivalencias.UND).toBe(63);
+    const doble = await page.evaluate(async () => (await import('/src/app/almacen.js')).cargarDemoColombia());
+    expect(doble.code).toBe('demo_activa');
+    await page.getByLabel('Buscar ingrediente, marca o lote').fill('CREMA DE LECHE');
+    await page.getByText('Referencia y pesos DEMO', { exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Consultar referencia de precio' })).toHaveAttribute('href', /crema-de-leche/);
+    expect(await page.locator('.almacen').evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath('bodega-demo-colombia.png'), fullPage: true });
+    await page.reload();
+    await expect(page.locator('.almacen__demo')).toContainText('159 ingredientes');
+    const congelado = await page.evaluate(async () => {
+      const { getState } = await import('/src/core/store.js');
+      const { transaccionOperacion, hoyLocal } = await import('/src/core/bitacora.js');
+      const { guardarPlanEn, aprobarPlanEn, costeoPendiente } = await import('/src/core/produccion.js');
+      const r = await transaccionOperacion((datos) => {
+        const fecha = hoyLocal();
+        const guardado = guardarPlanEn(datos, { fecha, revision: 0, responsable: 'QA Demo', motivo: 'Prueba',
+          entradas: [{ id: 'R016', factor: 0.5 }] }, getState().recetario.recipes);
+        if (!guardado.ok) return guardado;
+        return aprobarPlanEn(datos, { fecha, revision: datos.planes[0].revision, responsable: 'QA Demo',
+          motivo: 'Prueba demo', costeo: costeoPendiente(datos, fecha) });
+      });
+      if (!r.ok) throw new Error(r.message);
+      return r.value.datos.ejecuciones;
+    });
+    await page.getByRole('button', { name: 'Retirar precios y lotes demo' }).click();
+    await expect(page.getByRole('button', { name: 'Cargar bodega demo Colombia completa' })).toBeVisible();
+    const retirado = await page.evaluate(() => JSON.parse(localStorage.getItem('zahavi_almacen_v1')));
+    expect(retirado.lotes).toEqual(antes.lotes);
+    expect(retirado.ejecuciones).toEqual(congelado);
+    expect(retirado.eventos.filter((e) => e.tipo === 'baja' && e.antes?.demo)).toHaveLength(159);
+  });
+}
+
+test('los casos de uso de demo rechazan al operario sin escribir', async ({ page }) => {
+  await entrar(page);
+  const r = await page.evaluate(async () => {
+    const { setState, getState } = await import('/src/core/store.js');
+    const { cargarDemoColombia, retirarDemoColombia } = await import('/src/app/almacen.js');
+    const antes = localStorage.getItem('zahavi_almacen_v1');
+    setState({ usuario: { ...getState().usuario, rol: 'operario' } });
+    return { carga: await cargarDemoColombia(), retiro: await retirarDemoColombia(),
+      intacto: antes === localStorage.getItem('zahavi_almacen_v1') };
+  });
+  expect(r.carga.code).toBe('permiso'); expect(r.retiro.code).toBe('permiso'); expect(r.intacto).toBe(true);
+});
+
+for (const ancho of [1440, 390]) {
+  test(`compra en litros y producción en ml se convierten a gramos · ${ancho}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: ancho, height: 900 });
+    await entrar(page);
+    await abrirAlmacen(page);
+    await page.getByRole('button', { name: 'Nuevo lote', exact: true }).click();
+    const recetarioAntes = await page.evaluate(async () => JSON.stringify((await import('/src/core/store.js')).getState().recetario.recipes));
+    await page.getByLabel('ingrediente', { exact: true }).fill('ACEITE VEGETAL');
+    await page.getByLabel('cantidad de compra').fill('10');
+    await page.getByLabel('unidad', { exact: true }).fill('LT');
+    await page.getByLabel('costo de compra').fill('92000');
+    await page.getByRole('textbox', { name: 'existencia', exact: true }).fill('10');
+    await page.getByRole('button', { name: 'Guardar lote' }).click();
+    await expect(page.locator('.form-error')).toContainText('equivalencia');
+    await page.getByLabel('Gramos de 1 ml (densidad)').fill('0,92');
+    await page.getByLabel('Gramos de 1 unidad', { exact: true }).fill('50');
+    await page.getByLabel('Gramos de 1 tanda', { exact: true }).fill('2500');
+    await expect(page.locator('fieldset')).toContainText('1 LT = 920 g');
+    expect(await page.locator('.almacen__form').evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath('conversion-compra.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Guardar lote' }).click();
+    await expect(page.locator('.almacen__fila')).toContainText('1 LT = 920 g');
+    await page.reload();
+    await expect(page.locator('.almacen__fila')).toContainText('920 g');
+    await page.getByText('Medidas por ingrediente (1)', { exact: true }).click();
+    await page.locator('.almacen__por-ingrediente summary').filter({ hasText: /^ACEITE VEGETAL$/ }).click();
+    const ficha = page.locator('.medidas-ing');
+    await expect(ficha.locator('tr[data-unidad="GR"]')).toContainText('9200 GR');
+    await expect(ficha.locator('tr[data-unidad="ML"]')).toContainText('10000 ML');
+    await expect(ficha.locator('tr[data-unidad="UND"]')).toContainText('184 UND');
+    await expect(ficha.locator('tr[data-unidad="TANDA"]')).toContainText('3,68 TANDA');
+    await page.getByRole('link', { name: 'Ingredientes', exact: true }).click();
+    await page.getByLabel('Buscar ingrediente', { exact: true }).fill('ACEITE VEGETAL');
+    await page.getByRole('button', { name: /^Con stock/ }).click();
+    await expect(page.locator('.ings__fila')).toHaveCount(1);
+    await page.locator('.ings__fila').click();
+    await expect(ficha.locator('tr[data-unidad="GR"]')).toContainText('9200 GR');
+    await expect(ficha.locator('tr[data-unidad="ML"]')).toContainText('0,92 g');
+    await expect(ficha.locator('.medidas-ing__formulas')).toContainText('conserva sus datos originales');
+    expect(await ficha.evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(1);
+    await ficha.locator('table').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('conversion-ingrediente.png'), fullPage: true });
+    // Plan de prueba aislado; no se modifica ninguna fórmula del recetario real.
+    const fecha = await page.evaluate(async () => {
+      const { transaccionOperacion, hoyLocal } = await import('/src/core/bitacora.js');
+      const { guardarPlanEn } = await import('/src/core/produccion.js');
+      const recipe = { id: 'QA-TEST-CONVERSION', nombre: 'QA-TEST-CONVERSION', categoria: 'PANADERÍA',
+        componentes: [{ nombre: 'BASE', items: [{ ingrediente: 'ACEITE VEGETAL', cantidad: '500', unidad: 'ML' }] }] };
+      const fecha = hoyLocal();
+      const r = await transaccionOperacion((d) => guardarPlanEn(d, { fecha, revision: 0,
+        responsable: 'QA', motivo: 'Prueba', entradas: [{ id: recipe.id, factor: 1 }] }, [recipe]));
+      if (!r.ok) throw new Error(r.message);
+      return fecha;
+    });
+    await page.goto(`/#/plan?fecha=${fecha}`);
+    await page.getByRole('button', { name: 'Costos', exact: true }).click();
+    await page.getByText('Por ingrediente: lo que falta por producir (lote a lote)', { exact: true }).click();
+    await expect(page.locator('.costeo__linea')).toContainText('460 GR');
+    await expect(page.locator('.costeo__linea')).toContainText('500 ML');
+    await page.locator('.costeo__lotes summary').click();
+    await expect(page.locator('.costeo__lotes-tabla')).toContainText('0,5 LT = 460 g');
+    expect(await page.locator('.costeo').evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath('conversion-costo.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Volver al calendario' }).click();
+    await page.getByRole('button', { name: 'Sacar producción', exact: true }).click();
+    await page.getByRole('group', { name: 'Área' }).getByRole('button', { name: /^Panadería/ }).click();
+    const tarjeta = page.locator('.proy-tarjeta');
+    const abierta = (await tarjeta.getAttribute('aria-expanded') ?? await tarjeta.getAttribute('aria-pressed')) === 'true';
+    if (!abierta) await tarjeta.click();
+    await page.getByRole('button', { name: 'Empezar a producir' }).click();
+    await page.getByRole('button', { name: 'Marcar lista' }).click();
+    await page.getByRole('button', { name: 'Sí, descontar de bodega' }).click();
+    await expect(page.locator('.proy-tarjeta')).toHaveClass(/proy-tarjeta--lista/);
+    const datos = await page.evaluate(() => JSON.parse(localStorage.getItem('zahavi_almacen_v1')));
+    expect(datos.lotes[0].existencia).toBe(9.5);
+    expect(datos.lotes[0].unidad).toBe('LT');
+    expect(datos.ejecuciones[0].costeo.costoTotal).toBe(4600);
+    expect(datos.ejecuciones[0].costeo.lineas[0].origen[0].gramosPorUnidad).toBe(920);
+    expect(await page.evaluate(async () => JSON.stringify((await import('/src/core/store.js')).getState().recetario.recipes))).toBe(recetarioAntes);
+  });
+}
+
 /**
  * Abre el almacen POR DONDE SE ABRE: la tarjeta del menu.
  *
@@ -28,6 +175,7 @@ import { entrar, abrirModulo, salirDelModulo } from './apoyo.js';
  */
 async function abrirAlmacen(page) {
   await abrirModulo(page, 'almacen');
+  await page.getByLabel('Responsable de bodega', { exact: true }).fill('QA Bodega');
 }
 
 /** Sale del modulo. Escape sigue siendo la salida. */
@@ -87,12 +235,12 @@ test.describe('Almacén', () => {
 
     const antes = await page.locator('.almacen__fila').count();
 
-    await page.getByRole('button', { name: '+ Nuevo lote' }).click();
+    await page.getByRole('button', { name: 'Nuevo lote', exact: true }).click();
     await page.getByLabel('ingrediente', { exact: true }).fill('QA-TEST-INGREDIENTE');
-    await page.getByLabel('peso de compra').fill('1000');
+    await page.getByLabel('cantidad de compra').fill('1000');
     await page.getByLabel('unidad', { exact: true }).fill('GR');
     await page.getByLabel('costo de compra').fill('50000');
-    await page.getByLabel('existencia').fill('1000');
+    await page.getByRole('textbox', { name: 'existencia', exact: true }).fill('1000');
     await page.getByRole('button', { name: 'Guardar lote' }).click();
 
     await expect(page.locator('.almacen__fila')).toHaveCount(antes + 1);
@@ -105,7 +253,7 @@ test.describe('Almacén', () => {
     await entrar(page);
     await conDatosDeEjemplo(page);
 
-    await page.getByRole('button', { name: '+ Nuevo lote' }).click();
+    await page.getByRole('button', { name: 'Nuevo lote', exact: true }).click();
     await page.getByLabel('ingrediente', { exact: true }).fill('QA-TEST-SIN-PESO');
     await page.getByLabel('costo de compra').fill('1000');
     await page.getByRole('button', { name: 'Guardar lote' }).click();
@@ -121,26 +269,48 @@ test.describe('Almacén', () => {
 
 test.describe('El costo de la producción, cruzado con el almacén', () => {
   /**
-   * Arma un plan con una receta y devuelve el panel de costeo.
+   * Registra el cheescake de hoy desde el calendario.
    *
-   * El buscador del plan filtra por NOMBRE, no por codigo, asi que aqui se
-   * busca por nombre. La receta elegida no es cualquiera: el cheescake lleva
-   * agua en GR -que el almacen de ejemplo no tiene a proposito- y yemas en GR
-   * -que el almacen tiene en UND-, asi que ejercita de una vez los dos motivos
-   * por los que una linea puede salir sin precio.
+   * El buscador filtra por NOMBRE, no por codigo, asi que aqui se busca por
+   * nombre. La receta elegida no es cualquiera: el cheescake lleva agua en GR y
+   * yemas en GR -que un almacen puede tener en UND-, asi que ejercita los dos
+   * motivos por los que una linea puede salir sin precio.
    */
-  async function planConReceta(page, receta = 'CHEESCAKE') {
+  async function registrarCheescake(page, tandas = 1) {
     await abrirModulo(page, 'plan');
-    await page.locator('#plan-buscar').fill(receta);
-    await page.locator('.plan__sugerencia').first().click();
-    await expect(page.locator('.costeo')).toBeVisible();
-    return page.locator('.costeo');
+    await page.getByRole('button', { name: 'Registrar producción', exact: true }).click();
+    await page.locator('.dia .area-btn--pasteleria').click();
+    await page.locator('#reg-buscar').fill('CHEESCAKE FRIO - SIN AZUCAR');
+    await page.locator('#reg-cantidad').fill(String(tandas));
+    await page.locator('.reg__anadir').first().click();
+    await expect(page.locator('.reg__fila')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Volver al calendario' }).click();
+  }
+
+  /** Registra el cheescake y devuelve el panel de Costos. */
+  async function planConReceta(page) {
+    await registrarCheescake(page);
+    await page.getByRole('button', { name: 'Costos', exact: true }).first().click();
+    // El detalle por ingrediente va plegado: es de auditoría, no de lectura diaria.
+    await page.locator('.cos-ingredientes > summary').first().click();
+    await expect(page.locator('.cos .costeo')).toBeVisible();
+    return page.locator('.cos .costeo');
+  }
+
+  /** Lo pide para producir y devuelve el boton de confirmar. */
+  async function proyectarCheescake(page, tandas) {
+    await registrarCheescake(page, tandas);
+    await page.getByRole('button', { name: 'Sacar producción', exact: true }).click();
+    await page.getByRole('group', { name: 'Área' }).getByRole('button', { name: 'Pastelería' }).click();
+    await page.getByRole('button', { name: 'Empezar a producir' }).click();
+    return page.getByRole('button', { name: 'Marcar lista' });
   }
 
   test('sin almacén lo dice, en vez de enseñar una tabla de ceros', async ({ page }) => {
     await entrar(page);
     const costeo = await planConReceta(page);
-    await expect(costeo.locator('.costeo__vacio')).toContainText('vacío');
+    await expect(page.locator('.prod-aviso').filter({ hasText: 'El costo sale incompleto' })).toBeVisible();
+    await expect(costeo.locator('.costeo__aviso').filter({ hasText: 'equivalencias de Bodega' })).toBeVisible();
   });
 
   test('con almacén sale un costo total y qué parte cubre la bodega', async ({ page }) => {
@@ -155,7 +325,7 @@ test.describe('El costo de la producción, cruzado con el almacén', () => {
     await expect(costeo.locator('.costeo__dato-cifra').first()).toHaveText(/%$/);
   });
 
-  test('lo que el almacén no tiene en esa MISMA unidad sale sin precio, no convertido', async ({ page }) => {
+  test('un costo incompleto explica cómo completar compras y equivalencias', async ({ page }) => {
     await entrar(page);
     await conDatosDeEjemplo(page);
     await cerrarVentana(page);
@@ -166,16 +336,16 @@ test.describe('El costo de la producción, cruzado con el almacén', () => {
     const sinPrecio = costeo.locator('.costeo__estado--sinprecio');
 
     if ((await sinPrecio.count()) > 0) {
-      await expect(sinPrecio.first()).toHaveText('Sin precio');
+      await expect(sinPrecio.first()).toHaveText(/Sin precio|Falta equivalencia/);
       // Puede haber mas de un aviso a la vez (lotes vencidos, lineas sin
       // precio): se busca el que explica las unidades, no "el aviso".
       await expect(
-        costeo.locator('.costeo__aviso', { hasText: 'unidades nunca se convierten' }),
+        costeo.locator('.costeo__aviso', { hasText: 'equivalencias de Bodega' }),
       ).toHaveCount(1);
     }
   });
 
-  test('descontar resta de la bodega, y no se puede descontar dos veces', async ({ page }) => {
+  test('un plan incompleto no permite aprobar un consumo parcial', async ({ page }) => {
     await entrar(page);
     await conDatosDeEjemplo(page);
 
@@ -185,14 +355,15 @@ test.describe('El costo de la producción, cruzado con el almacén', () => {
     const existenciaAntes = await fila.locator('.almacen__num').nth(2).textContent();
     await cerrarVentana(page);
 
-    const costeo = await planConReceta(page);
-    await costeo.getByRole('button', { name: 'Descontar del almacén' }).click();
-    await costeo.getByRole('button', { name: 'Sí, descontar' }).click();
-    await expect(costeo.locator('.costeo__hecho')).toBeVisible();
+    // Cien tandas: mucho mas de lo que hay. No se confirma una parte.
+    const confirmar = await proyectarCheescake(page, 100);
+    await expect(confirmar).toBeDisabled();
+    await expect(page.locator('.proy-detalle__faltan')).toContainText('No se puede marcar lista');
 
-    // Y la existencia bajó de verdad en la bodega.
-    await cerrarVentana(page);
-    await abrirAlmacen(page);
+    // Y la existencia NO bajo en la bodega. Desde una vista del calendario,
+    // Escape vuelve al calendario: a la bodega se va por la navegacion.
+    await page.locator('.system-nav__link').filter({ hasText: 'Bodega' }).click();
+    await expect(page.locator('.almacen__fila').first()).toBeVisible();
     const existenciaDespues = await page
       .locator('.almacen__fila', { hasText: 'MANTEQUILLA' })
       .first()
@@ -200,7 +371,7 @@ test.describe('El costo de la producción, cruzado con el almacén', () => {
       .nth(2)
       .textContent();
 
-    expect(existenciaDespues).not.toBe(existenciaAntes);
+    expect(existenciaDespues).toBe(existenciaAntes);
   });
 
   test('ninguna existencia queda en negativo', async ({ page }) => {
@@ -212,20 +383,10 @@ test.describe('El costo de la producción, cruzado con el almacén', () => {
     // de lo que hay comprado. El almacén tiene que quedarse en cero, nunca por
     // debajo: una existencia negativa no se ve mirando la pantalla y envenena
     // todas las cuentas de después.
-    await abrirModulo(page, 'plan');
-    await page.locator('#plan-buscar').fill('CHEESCAKE');
-    await page.locator('.plan__sugerencia').first().click();
-    await page.locator('.plan__tandas-input').first().fill('500');
-    await page.locator('.plan__tandas-input').first().blur();
-
-    const costeo = page.locator('.costeo');
-    await expect(costeo).toBeVisible();
-    await costeo.getByRole('button', { name: 'Descontar del almacén' }).click();
-    await costeo.getByRole('button', { name: 'Sí, descontar' }).click();
-    await expect(costeo.locator('.costeo__hecho')).toBeVisible();
-
-    await cerrarVentana(page);
-    await abrirAlmacen(page);
+    const confirmar = await proyectarCheescake(page, 100);
+    await expect(confirmar).toBeDisabled();
+    await page.locator('.system-nav__link').filter({ hasText: 'Bodega' }).click();
+    await expect(page.locator('.almacen__fila').first()).toBeVisible();
 
     const negativas = await page.evaluate(() =>
       [...document.querySelectorAll('.almacen__fila')]

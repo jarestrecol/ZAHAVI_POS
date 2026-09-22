@@ -53,17 +53,238 @@ export function cuantasEn(categoria) {
   return PUBLICADO.recipes.filter((r) => r.categoria === categoria).length;
 }
 
-/** La clave de instalación, con la que arranca un equipo que nunca ha entrado. */
-export const CLAVE = 'zahavi2026';
+/* ===========================================================================
+ *  SUPABASE SIMULADO
+ *
+ *  Cada persona entra con su codigo y su PIN, y quien los comprueba es Supabase
+ *  Auth. Las pruebas NO hablan con el proyecto real: harian falta un PIN de
+ *  verdad, gastarian intentos del limite de Auth y fallarian sin red. Se
+ *  intercepta la direccion del proyecto y se contesta con los mismos formatos
+ *  que devolvio el servidor real al medirlo.
+ *
+ *  La politica de seguridad de contenido sigue aplicandose: la peticion tiene
+ *  que estar permitida por `connect-src` para llegar a interceptarse, asi que
+ *  estas pruebas tambien vigilan que la aplicacion pueda hablar con Supabase.
+ * ======================================================================== */
+
+export const SUPABASE = 'https://xjcdeczfyghanrccgsxu.supabase.co';
+
+/** Codigo y PIN de la persona de prueba. */
+export const CODIGO = 'QA-TEST';
+export const PIN = '246810';
 
 /**
- * La clave que se pone en su lugar.
+ * El codigo que "muestra" la aplicacion autenticadora.
  *
- * El sistema no deja entrar con la de instalación: obliga a cambiarla en el
- * primer acceso de cada equipo. Las pruebas pasan por ese paso igual que
- * pasaría cualquiera al dar de alta una tableta nueva.
+ * La persona de prueba es administradora, y desde `0010` ese rol entra en dos
+ * pasos: PIN y codigo del celular. `entrar` lo escribe por las pruebas.
  */
-export const CLAVE_NUEVA = 'zahavi-pruebas';
+export const CODIGO_TOTP = '135790';
+
+/** El perfil que devuelve `perfiles` para esa persona. */
+export const PERFIL = Object.freeze({
+  id: 'aaaaaaaa-0000-4000-8000-000000000001',
+  nombre: 'QA-TEST Persona',
+  codigo_usuario: CODIGO,
+  rol: 'admin',
+  activo: true,
+  sede: Object.freeze({ id: 'bbbbbbbb-0000-4000-8000-000000000001', nombre: 'QA-TEST-SEDE' }),
+});
+
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'apikey, authorization, content-type, accept, prefer',
+  'access-control-allow-methods': 'GET, POST, PATCH, OPTIONS',
+};
+
+/**
+ * Los perfiles del equipo, como los ve administracion en `perfiles`. La vista
+ * `equipo_produccion` (0012) entrega de ellos solo id, nombre y area, y solo de
+ * quien tiene area: el simulador la contesta asi.
+ */
+export const EQUIPO = Object.freeze([
+  Object.freeze({ id: 'aaaaaaaa-0000-4000-8000-000000000011', nombre: 'Ana Panadera', codigo_usuario: 'ANA', rol: 'operario', area: 'PANADERÍA' }),
+  Object.freeze({ id: 'aaaaaaaa-0000-4000-8000-000000000012', nombre: 'Leo Galletas', codigo_usuario: 'LEO', rol: 'operario', area: 'GALLETAS' }),
+  Object.freeze({ id: 'aaaaaaaa-0000-4000-8000-000000000013', nombre: 'Sin Área', codigo_usuario: 'SINAREA', rol: 'operario', area: null }),
+]);
+
+/** Un Supabase simulado por contexto: lo comparten todas sus pestañas. */
+const simulaciones = new WeakMap();
+
+/**
+ * Instala el Supabase simulado en el contexto del navegador.
+ *
+ * Va en el CONTEXTO y no en la pagina: una segunda pestaña comparte la sesion
+ * guardada y la vuelve a comprobar al abrir, y sin simulacion saldria a
+ * preguntar al proyecto real con un testigo inventado.
+ *
+ * Devuelve el objeto de control. Cambiar `entrar`, `renovar` o `leerPerfil`
+ * sustituye esa respuesta: `{status, datos}` contesta eso, `'sin_red'` corta la
+ * conexion y `{demora}` responde lo normal pasado ese tiempo. `llamadas` guarda
+ * lo que la aplicacion pidio, para comprobar lo que viajo.
+ *
+ * @param {import('@playwright/test').BrowserContext} context
+ */
+export async function simularSupabase(context) {
+  if (simulaciones.has(context)) return simulaciones.get(context);
+
+  const sim = {
+    perfil: { ...PERFIL },
+    entrar: null,
+    renovar: null,
+    leerPerfil: null,
+    expiraEn: 3600,
+    emitidos: 0,
+    // La verificacion en dos pasos: que celulares tiene registrados la cuenta y
+    // con que nivel se emiten los testigos (`aal2` tras verificar el codigo).
+    factores: [{ id: 'factor-qa', factor_type: 'totp', status: 'verified' }],
+    nivel: 'aal1',
+    // Lo que contesta `equipo_produccion`; `leerEquipo` lo sustituye como las demas.
+    equipo: EQUIPO.map((p) => ({ ...p })),
+    leerEquipo: null,
+    llamadas: [],
+  };
+  simulaciones.set(context, sim);
+
+  await context.route(`${SUPABASE}/**`, async (route) => {
+    const peticion = route.request();
+    if (peticion.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+
+    const url = new URL(peticion.url());
+    let cuerpo = null;
+    try {
+      cuerpo = peticion.postDataJSON();
+    } catch {
+      cuerpo = null;
+    }
+    sim.llamadas.push({
+      ruta: url.pathname + url.search,
+      method: peticion.method(),
+      cuerpo,
+      autorizacion: peticion.headers().authorization || '',
+    });
+
+    const json = (status, datos) =>
+      route.fulfill({
+        status,
+        headers: { ...CORS, 'content-type': 'application/json' },
+        body: datos === undefined ? '' : JSON.stringify(datos),
+      });
+
+    const responder = async (sustituto, normal) => {
+      if (sustituto === 'sin_red') return route.abort('internetdisconnected');
+      if (sustituto && sustituto.demora) await new Promise((listo) => setTimeout(listo, sustituto.demora));
+      if (sustituto && sustituto.status) return json(sustituto.status, sustituto.datos);
+      return normal();
+    };
+
+    // Con forma de JWT: la aplicacion lee del testigo el `sub`, para no fiarse de
+    // la identidad guardada en el equipo, y el `aal`, que dice si la sesion paso
+    // por el segundo paso. La firma no la mira nadie aqui.
+    const jwt = (numero, aal) => {
+      const parte = (objeto) => Buffer.from(JSON.stringify(objeto)).toString('base64url');
+      return `${parte({ alg: 'HS256', typ: 'JWT' })}.${parte({ sub: PERFIL.id, n: numero, aal })}.firma-${numero}`;
+    };
+
+    const emitir = (aal = sim.nivel) => {
+      sim.emitidos += 1;
+      return {
+        access_token: jwt(sim.emitidos, aal),
+        refresh_token: `renovacion-${sim.emitidos}`,
+        token_type: 'bearer',
+        expires_in: sim.expiraEn,
+        expires_at: Math.floor(Date.now() / 1000) + sim.expiraEn,
+        user: { id: PERFIL.id, factors: sim.factores },
+      };
+    };
+
+    const concesion = url.searchParams.get('grant_type');
+
+    if (url.pathname === '/auth/v1/token' && concesion === 'password') {
+      return responder(sim.entrar, () =>
+        cuerpo && cuerpo.email === `${CODIGO.toLowerCase()}@usuarios.zahavi.internal` && cuerpo.password === PIN
+          ? json(200, emitir())
+          : json(400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' }),
+      );
+    }
+    if (url.pathname === '/auth/v1/token' && concesion === 'refresh_token') {
+      return responder(sim.renovar, () => json(200, emitir()));
+    }
+    if (url.pathname === '/auth/v1/logout') return json(204);
+
+    // --- El segundo paso ----------------------------------------------------
+    if (url.pathname.startsWith('/auth/v1/factors')) {
+      const resto = url.pathname.slice('/auth/v1/factors'.length);
+
+      if (peticion.method() === 'DELETE') {
+        const id = resto.slice(1);
+        sim.factores = sim.factores.filter((f) => f.id !== id);
+        return json(200, { id });
+      }
+      if (resto === '') {
+        sim.factores = [...sim.factores, { id: 'factor-nuevo', factor_type: 'totp', status: 'unverified' }];
+        return json(200, {
+          id: 'factor-nuevo',
+          type: 'totp',
+          totp: {
+            qr_code: '<?xml version="1.0"?>\n<!-- Generated by SVGo -->\n<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200"/></svg>',
+            secret: 'ABCDEFGHIJKLMNOP',
+            uri: 'otpauth://totp/Zahavi%20POS:qa-test?secret=ABCDEFGHIJKLMNOP',
+          },
+        });
+      }
+      if (resto.endsWith('/challenge')) {
+        return json(200, { id: 'reto-1', type: 'totp', expires_at: Math.floor(Date.now() / 1000) + 300 });
+      }
+      if (resto.endsWith('/verify')) {
+        if (!cuerpo || cuerpo.code !== CODIGO_TOTP) {
+          return json(422, { code: 422, error_code: 'mfa_verification_failed', msg: 'Invalid TOTP code entered' });
+        }
+        sim.factores = sim.factores.map((f) => ({ ...f, status: 'verified' }));
+        sim.nivel = 'aal2';
+        return json(200, emitir('aal2'));
+      }
+    }
+    if (url.pathname === '/rest/v1/equipo_produccion') {
+      return responder(sim.leerEquipo, () => json(200, sim.equipo
+        .filter((p) => p.area)
+        .map(({ id, nombre, area }) => ({ id, nombre, area }))));
+    }
+    // Como la base de datos: el area solo la cambia administracion con `aal2`,
+    // y a los demas se les contesta 200 con cero filas, no un error.
+    const administra = sim.perfil && sim.perfil.rol === 'admin' && sim.nivel === 'aal2';
+    if (url.pathname === '/rest/v1/perfiles' && peticion.method() === 'PATCH') {
+      const id = (url.searchParams.get('id') || '').replace(/^eq\./, '');
+      const persona = sim.equipo.find((p) => p.id === id);
+      if (!administra || !persona) return json(200, []);
+      persona.area = cuerpo.area;
+      return json(200, [{ id, area: persona.area }]);
+    }
+    if (url.pathname === '/rest/v1/perfiles' && !url.searchParams.has('id')) {
+      const propio = { ...sim.perfil, area: null };
+      return json(200, administra
+        ? [propio, ...sim.equipo.map((p) => ({ ...p, activo: true }))]
+        : [propio]);
+    }
+    if (url.pathname === '/rest/v1/perfiles') {
+      return responder(sim.leerPerfil, () => json(200, sim.perfil ? [sim.perfil] : []));
+    }
+    return json(404, { message: 'ruta no simulada' });
+  });
+
+  return sim;
+}
+
+/**
+ * Cuantas veces pidio la aplicacion una ruta de Supabase.
+ *
+ * @param {{llamadas: Array<{ruta: string}>}} sim
+ * @param {string} prefijo
+ * @returns {number}
+ */
+export function llamadasA(sim, prefijo) {
+  return sim.llamadas.filter((l) => l.ruta.startsWith(prefijo)).length;
+}
 
 /** Receta de tres componentes y catorce ingredientes: la de las pruebas. */
 export const RECETA = 'R016';
@@ -91,20 +312,25 @@ export async function entrar(page, hash = '#/recetario') {
     }
   });
 
+  const sim = await simularSupabase(page.context());
   await page.goto('/index.html');
 
   // Hay que dejar que termine de cargar el recetario antes de escribir: la
   // pantalla de entrada se repinta cuando llegan los datos, y con ella el
-  // campo. Escribir antes es tirar la clave a un nodo que ya no existe.
+  // campo del PIN, que no se conserva entre repintados.
   await page.waitForLoadState('networkidle');
 
-  await page.getByRole('textbox', { name: 'clave', exact: true }).fill(CLAVE);
+  await page.getByLabel('Código de usuario').fill(CODIGO);
+  await page.getByLabel('PIN', { exact: true }).fill(PIN);
   await page.getByRole('button', { name: 'Entrar' }).click();
 
-  // Con la clave de instalación no se entra: hay que poner una propia antes.
-  await page.getByLabel('clave nueva', { exact: true }).fill(CLAVE_NUEVA);
-  await page.getByLabel('repetir la clave nueva').fill(CLAVE_NUEVA);
-  await page.getByRole('button', { name: 'Guardar y entrar' }).click();
+  // El segundo paso, para los roles que lo piden. Se decide por el ROL del
+  // perfil simulado y no esperando a ver que pantalla aparece: esperar a una de
+  // dos pantallas es una carrera, y este proyecto ya la sufrio con el menu.
+  if (sim.perfil && (sim.perfil.rol === 'gerencia' || sim.perfil.rol === 'admin')) {
+    await page.getByLabel('Código de verificación').fill(CODIGO_TOTP);
+    await page.getByRole('button', { name: 'Verificar' }).click();
+  }
 
   // Lo primero que aparece es el menu de modulos.
   await page.locator('.inicio').waitFor();
@@ -227,7 +453,7 @@ export async function interceptarImpresion(page) {
       window.__hojaImpresa = hoja
         ? {
             titulo: hoja.querySelector('.sheet__title')?.textContent || '',
-            texto: hoja.innerText,
+              texto: document.querySelector('#print-root').innerText,
           }
         : null;
     };

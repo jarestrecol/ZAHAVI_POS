@@ -24,4 +24,4 @@
 export const APP_VERSION = '2.0.0';
 
 /** Fase de la hoja de ruta que corresponde a esta version. */
-export const APP_FASE = 'Fase 1';
+export const APP_FASE = 'Fase 2';

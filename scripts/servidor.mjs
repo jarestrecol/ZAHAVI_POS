@@ -19,7 +19,7 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { extname, join, normalize, dirname } from 'node:path';
+import { extname, join, normalize, dirname, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,9 +37,6 @@ const TIPOS = {
   '.webmanifest': 'application/manifest+json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
-  // El fondo de la pantalla de entrada. Sin esto se servia como descarga
-  // binaria y el navegador no lo pintaba como imagen.
-  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
@@ -64,43 +61,96 @@ function cabecerasDe(ruta) {
   return salida;
 }
 
+/** Solo la aplicacion y sus recursos son superficie publica del servidor local. */
+function esRecursoPublico(relativa) {
+  const ruta = relativa.replaceAll('\\', '/');
+  return (
+    ['index.html', '404.html', '500.html', 'robots.txt', 'manifest.webmanifest', 'sw.js'].includes(ruta) ||
+    ['assets/', 'data/', 'src/'].some((prefijo) => ruta.startsWith(prefijo))
+  );
+}
+
+async function responderNoEncontrado(respuesta, ruta) {
+  try {
+    const pagina = await readFile(join(raiz, '404.html'));
+    respuesta.writeHead(404, { 'Content-Type': TIPOS['.html'], ...cabecerasDe(ruta) });
+    respuesta.end(pagina);
+  } catch {
+    respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    respuesta.end('No encontrado');
+  }
+}
+
 const servidor = createServer(async (peticion, respuesta) => {
-  const ruta = decodeURIComponent(new URL(peticion.url, 'http://local').pathname);
-  // `normalize` mas el recorte de barras iniciales impide salir de la carpeta
-  // del proyecto con una ruta como `/../../secreto`.
-  const relativa = normalize(ruta === '/' ? '/index.html' : ruta).replace(/^[/\\]+/, '');
+  if (!['GET', 'HEAD'].includes(peticion.method || 'GET') && !peticion.url?.startsWith('/api/')) {
+    respuesta.writeHead(405, {
+      Allow: 'GET, HEAD',
+      'Content-Type': 'text/plain; charset=utf-8',
+    });
+    respuesta.end('Metodo no permitido');
+    return;
+  }
+
+  let ruta;
+  try {
+    ruta = decodeURIComponent(new URL(peticion.url, 'http://local').pathname);
+  } catch {
+    respuesta.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    respuesta.end('Solicitud invalida');
+    return;
+  }
+
+  // `resolve` confirma, ademas de normalizar, que una ruta codificada o con
+  // barras de Windows no pueda salir del proyecto al servirse localmente.
+  const relativa = normalize(ruta === '/' ? 'index.html' : ruta).replace(/^[/\\]+/, '');
+  const absoluta = resolve(raiz, relativa);
+  const base = resolve(raiz);
+  if (isAbsolute(relativa) || (absoluta !== base && !absoluta.startsWith(`${base}${sep}`))) {
+    respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    respuesta.end('No encontrado');
+    return;
+  }
+
+  // La API de publicacion es una funcion de Vercel y aqui no existe: el
+  // recetario ya sabe caer al archivo publicado cuando no responde.
+  if (ruta.startsWith('/api/')) {
+    respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...cabecerasDe(ruta) });
+    respuesta.end('No encontrado');
+    return;
+  }
+
+  if (!esRecursoPublico(relativa)) {
+    // Conserva el 404 y la restricción de archivos, con una salida visual útil.
+    await responderNoEncontrado(respuesta, ruta);
+    return;
+  }
 
   try {
-    const contenido = await readFile(join(raiz, relativa));
+    const contenido = await readFile(absoluta);
     respuesta.writeHead(200, {
       'Content-Type': TIPOS[extname(relativa)] || 'application/octet-stream',
       ...cabecerasDe(ruta),
     });
     respuesta.end(contenido);
   } catch {
-    // La API de publicacion es una funcion de Vercel y aqui no existe: el
-    // recetario ya sabe caer al archivo publicado cuando no responde. Se
-    // contesta en texto plano porque quien pregunta es codigo, no una persona.
-    if (ruta.startsWith('/api/')) {
-      respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...cabecerasDe(ruta) });
-      respuesta.end('No encontrado');
-      return;
-    }
-
     // Cualquier otra direccion que no existe: la misma pagina que sirve Vercel,
     // y con el mismo estado 404. Servirla aqui es lo que permite comprobarla
     // sin desplegar.
-    try {
-      const pagina = await readFile(join(raiz, '404.html'));
-      respuesta.writeHead(404, { 'Content-Type': TIPOS['.html'], ...cabecerasDe(ruta) });
-      respuesta.end(pagina);
-    } catch {
-      respuesta.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      respuesta.end('No encontrado');
-    }
+    await responderNoEncontrado(respuesta, ruta);
   }
 });
 
 servidor.listen(puerto, '127.0.0.1', () => {
   console.log(`Recetario en http://127.0.0.1:${puerto} con las cabeceras de produccion`);
 });
+
+// Playwright termina su servidor de pruebas con SIGTERM. Cerrar de forma
+// explicita evita que un socket vivo deje procesos locales retenidos entre dos
+// pasadas; el limite es solo una red de seguridad para no bloquear el runner.
+function detener() {
+  servidor.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 1_000).unref();
+}
+
+process.once('SIGTERM', detener);
+process.once('SIGINT', detener);

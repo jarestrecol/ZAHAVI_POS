@@ -8,6 +8,8 @@ node_modules/
 test-results/
 playwright-report/
 .playwright-mcp/
+test-results-*/
+test-results-*.json
 
 # Datos reales de la panaderia. Nunca deben entrar al repositorio publico.
 RESPALDO-PRIVADO-*.json
@@ -27,6 +29,8 @@ desktop.ini
 # Entorno
 .env
 .env.*
+!.env.example
+*.log
 
 # Resultado del build. Se regenera con `npm run build`; lo que se versiona es la
 # fuente. Vercel lo construye de nuevo en cada despliegue.

@@ -6,9 +6,9 @@
  */
 
 import { el } from '../lib/dom.js';
-import { titleCase, splitName, formatQty } from '../lib/format.js';
+import { titleCase, splitName, formatQty, pesos } from '../lib/format.js';
 import { filterRecipes, sortRecipes, countItems } from '../core/search.js';
-import { rendimientoEscalado } from '../core/scale.js';
+import { rendimientoEscalado, escalarReceta } from '../core/scale.js';
 import { ALL_CATEGORIES } from '../core/router.js';
 
 /** Orden de las categorias en el indice impreso. */
@@ -151,7 +151,31 @@ export function renderIndexSheet(params) {
  * @returns {HTMLElement}
  */
 export function renderPlanSheet(plan) {
-  const fecha = new Date().toLocaleDateString('es', { day: '2-digit', month: 'long', year: 'numeric' });
+  if (plan.grupos) return el('div', { class: 'ordenes-impresas' }, plan.grupos.map((g) =>
+    el('section', { class: 'orden-impresa' }, [
+      el('div', { class: 'sheet orden-impresa__portada' }, [
+        el('h1', { class: 'sheet__title', text: titleCase(g.categoria) }),
+        // La hoja de materiales (calendario de produccion) no lleva dinero: va
+        // al puesto de trabajo, y ahi el costo no hace falta ni debe circular.
+        plan.sinCostos
+          ? el('p', { text: `${plan.alcance} · Versión ${plan.revision} · Solo materiales. Esta hoja no autoriza descuentos.` })
+          : el('p', { text: `${plan.alcance} · ${plan.borrador ? 'BORRADOR SIN GUARDAR' : `Versión ${plan.revision}`} · ${plan.responsable || 'Sin responsable guardado'}` }),
+        plan.sinCostos ? null : el('p', { text: `Costo estimado cubierto: ${pesos(g.costo)}${g.incompleto ? ' · INCOMPLETO: faltan ingredientes' : ''}` }),
+        plan.sinCostos ? null : el('p', { text: 'Costos de ingredientes con bodega actual, prorrateados por cantidad utilizada. Excluyen faltantes, mano de obra y otros gastos. No son costos históricos. Esta hoja no autoriza descuentos.' }),
+      ]),
+      renderPlanSheet({ ...g.plan, fecha: plan.fecha }),
+        ...g.entradas.map((e) => el('section', { class: 'orden-impresa__receta' }, [
+        el('p', { class: 'sheet__section', text: plan.sinCostos
+          ? `${plan.fecha} · ${titleCase(g.categoria)} · ${String(e.factor).replace('.', ',')} ${e.factor === 1 ? 'tanda' : 'tandas'}`
+          : `${plan.fecha} · ${titleCase(g.categoria)} · ${pesos(e.costo)} estimados cubiertos${e.incompleto ? ' (incompleto)' : ''}` }),
+        plan.soloMateriales
+          ? el('div', {}, [el('p', { text: `TANDA ×${String(e.factor).replace('.', ',')} · Materiales convertidos a gramos` }), renderPlanSheet({ ...e.materiales, fecha: plan.fecha })])
+          : renderRecipeSheet(escalarReceta(e.recipe, e.factor), e.factor),
+      ])),
+    ])));
+  const fecha = plan.fecha
+    ? new Date(plan.fecha + 'T12:00:00Z').toLocaleDateString('es', { timeZone: 'UTC', day: '2-digit', month: 'long', year: 'numeric' })
+    : new Date().toLocaleDateString('es', { timeZone: 'America/Bogota', day: '2-digit', month: 'long', year: 'numeric' });
 
   return el('div', { class: 'sheet' }, [
     el('header', { class: 'sheet__head' }, [
@@ -186,7 +210,7 @@ export function renderPlanSheet(plan) {
         el('div', { class: 'sheet__item' }, [
           el('span', { class: 'sheet__item-name', text: titleCase(linea.ingrediente) }),
           el('span', { class: 'sheet__item-qty' }, [
-            formatQty(linea.cantidad),
+            linea.cantidad === null ? 'Falta equivalencia' : formatQty(linea.cantidad),
             el('span', { class: 'sheet__item-unit', text: ' ' + linea.unidad.toLowerCase() }),
           ]),
         ]),

@@ -36,6 +36,19 @@ export function trasPintar(trabajo) {
 }
 
 /**
+ * ¿Hay algo esperando al repintado?
+ *
+ * Quien decide COMO pintar lo consulta: imprimir guarda la hoja, navega y
+ * espera, y esa secuencia cuenta con que el pintado llegue despues de la
+ * navegacion (ver `sigueLaMismaPantalla` en `pantallas.js`).
+ *
+ * @returns {boolean}
+ */
+export function hayTrasPintar() {
+  return pendientes.length > 0;
+}
+
+/**
  * Ejecuta y vacia lo que estuviera esperando al repintado.
  *
  * La llama el pintado, una vez, cuando la pantalla ya esta puesta.

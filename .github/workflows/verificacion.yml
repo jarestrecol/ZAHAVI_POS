@@ -1,6 +1,6 @@
 # Verificacion del recetario en cada envio.
 #
-# Dos capas, y las dos tienen que pasar antes de publicar:
+# Tres puertas, y las tres tienen que pasar antes de publicar:
 #
 #   1. `verificar`  la logica y los datos, sin navegador. Segundos.
 #   2. `qa`         el navegador de verdad, en escritorio, celular y tableta.
@@ -8,6 +8,7 @@
 #                   primera capa no puede ver: el foco que no entra en una
 #                   ventana, la hoja que se imprime antes de existir, la barra
 #                   que se cree flotante y esta atrapada.
+#   3. `build`      construye el artefacto estatico y su carcasa offline.
 name: Verificacion
 
 on:
@@ -42,6 +43,21 @@ jobs:
 
       - name: Datos, esquemas y coherencia del CSS
         run: npm run verificar
+
+      # `verificar` todavia no los incluye: el calendario de produccion (PROD-002)
+      # y el gasto por periodo (PROD-001) se prueban aqui como pasos propios.
+      - name: Calendario de produccion y gasto por periodo
+        run: npm run test:calendario && npm run test:informes
+
+      # El panel de inteligencia de negocio del Resumen (BI-001): indicadores,
+      # metas y datos de ejemplo, que nunca se escriben en la bodega.
+      - name: Indicadores del Resumen y datos de ejemplo
+        run: npm run test:bi && npm run test:bi-ejemplo
+
+      # El despliegue actual sirve la fuente, pero el artefacto estatico debe
+      # seguir siendo entregable para cualquier alojamiento futuro o recuperacion.
+      - name: Construir el artefacto estatico
+        run: npm run build
 
       # Solo Chromium: las pruebas comprueban el reparto de la pantalla y el
       # comportamiento del teclado, no diferencias entre motores.

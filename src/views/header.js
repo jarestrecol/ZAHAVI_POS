@@ -31,7 +31,7 @@
  *  lo que afectan.
  */
 
-import { el, svg } from '../lib/dom.js';
+import { el, icon } from '../lib/dom.js';
 import { APP_VERSION } from '../core/version.js';
 import { ICON_MENU } from '../lib/iconos.js';
 
@@ -139,11 +139,7 @@ function accionBarra(options) {
       on: { click: options.onClick },
     },
     [
-      svg(
-        'svg',
-        { class: 'btn__icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' },
-        options.icon.map((d) => svg('path', { d })),
-      ),
+      icon(options.icon, { class: 'btn__icon' }),
       options.soloIcono ? null : el('span', { class: 'btn__label', text: options.label }),
     ],
   );
@@ -186,7 +182,7 @@ export function renderBadges(options) {
   if (aislado) {
     badges.push(
       el('p', { class: 'context-badge context-badge--warn no-print', attrs: { role: 'status' } }, [
-        aislado + ' ',
+        el('span', { class: 'context-badge__text', text: aislado }),
         el('button', {
           type: 'button',
           class: 'context-badge__action',

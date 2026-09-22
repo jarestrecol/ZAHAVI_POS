@@ -3,25 +3,19 @@
 /* ---- Entrada ---- */
 
 /*
- * LA PANTALLA DE ENTRADA SE PARTE EN DOS.
+ * ACCESO SIN DISTRACCIONES.
  *
- * A la izquierda el obrador, a plena intensidad. A la derecha el formulario,
- * sobre blanco limpio. Nada se superpone, asi que la fotografia no tiene que
- * pagar el peaje de un velo para que el texto se lea: cada mitad hace una sola
- * cosa y la hace entera.
- *
- * La imagen se pinta con un pseudo-elemento y no con un `div` nuevo. Es una
- * decision consciente: es decoracion pura, no aporta contenido, y ponerla en el
- * marcado obligaria a que `views/login.js` supiera de ella. Asi la pantalla de
- * entrada sigue siendo un formulario y nada mas.
+ * El primer paso del sistema es una tarea, no una pieza promocional. Por eso el
+ * fondo queda neutro y el formulario concentra marca, contexto y accion.
  */
 .login {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
   min-height: 100dvh;
   padding: 0;
-  background: var(--surface-card);
+  background: var(--surface-sunk);
 
   /*
    * ESTA PANTALLA SI SE DESPLAZA, y es la excepcion a proposito.
@@ -41,51 +35,33 @@
   overflow-y: auto;
 }
 
-/*
- * La mitad de la fotografia.
- *
- * `--surface` debajo no es decorativo: es lo que se ve si el archivo falta o no
- * carga. Sin el quedaria media pantalla en blanco sin explicacion.
- */
+/* El acceso no necesita una ilustración para explicar su función. Quitarla
+   evita una primera pantalla promocional y deja el foco donde corresponde:
+   clave, identidad y acción de entrar. */
 .login::before {
   content: '';
-  flex: 1 1 50%;
-  background-color: var(--surface);
-  background-image: url('../fondo-entrada.webp');
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  display: none;
 }
 
 /*
- * La mitad del formulario.
- *
- * Este contenedor existe por dos motivos. El primero es de siempre: dentro se
- * cambia un momento por otro -escribir la clave, o renovarla- sin reconstruir la
- * pantalla entera. El segundo es nuevo: es la mitad derecha de la particion.
- *
- * Llevaba `display: contents` justamente porque antes NO aportaba geometria. Al
- * partir la pantalla se convirtio en un problema silencioso: esa declaracion
- * borra la caja, el formulario pasaba a ser hijo directo de `.login` y se
- * estiraba a toda la altura en vez de centrarse en su mitad.
+ * Este contenedor conserva la geometria del acceso al cambiar entre escribir y
+ * renovar la clave, sin reconstruir la pantalla entera.
  */
 .login__host {
   display: flex;
-  flex: 1 1 50%;
+  flex: 1 1 auto;
+  min-height: 100%;
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
-  background: var(--surface-card);
 }
 
-/*
- * Sobre blanco liso la tarjeta ya no necesita marco ni sombra: no hay nada de
- * lo que despegarse. El formulario respira en su mitad y se acabo.
- */
+/* La tarjeta separa el acceso de la superficie general; el borde superior usa
+   la marca sin convertir el botón ni el formulario en una pieza llamativa. */
 .login .login__card {
-  border: none;
-  box-shadow: none;
-  background: transparent;
+  border-top: 3px solid var(--brand-strong);
+  box-shadow: var(--shadow-lg);
+  background: var(--surface-card);
 }
 
 .login__card {
@@ -101,9 +77,8 @@
 /*
  * Alineado a la izquierda, no centrado.
  *
- * Centrado tenia sentido cuando la tarjeta flotaba sola en mitad de la
- * pantalla. Ahora que ocupa su propia mitad, el eje izquierdo da a la marca, a
- * la etiqueta del campo y al aviso una linea comun por donde entra la vista.
+ * El eje izquierdo da a la marca, a la etiqueta del campo y al aviso una linea
+ * comun por donde entra la vista.
  */
 .login__brand {
   margin-bottom: var(--space-6);
@@ -117,7 +92,7 @@
   width: 100%;
   max-width: 13rem;
   height: auto;
-  margin: 0 auto var(--space-4);
+  margin: 0 0 var(--space-4);
   border-radius: var(--radius);
 }
 
@@ -134,6 +109,37 @@
   margin-top: var(--space-2);
   font-size: var(--text-base);
   color: var(--ink-3);
+}
+
+/* El codigo se guarda en mayusculas: se ve como se guarda desde que se teclea,
+   sin reescribir el valor del campo, que movería el cursor. */
+.login__codigo {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* PIN y boton de mostrar en la misma fila: el boton pertenece al campo. */
+.login__pin {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.login__pin .field {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-num);
+  letter-spacing: 0.2em;
+}
+
+.login__mostrar {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+}
+
+/* La regla del PIN va pegada al campo, no separada como las demas pistas. */
+.login__pin + .login__hint {
+  margin-top: var(--space-2);
 }
 
 .login__error:not(:empty) {
@@ -183,6 +189,81 @@
   border-top: 1px solid var(--line);
 }
 
+/* ---------------------------------------------------------------------------
+   EL SEGUNDO PASO: LA VERIFICACION DE GERENCIA Y ADMINISTRACION
+
+   Es una tarjeta con instrucciones, y no solo un campo: la primera vez hay que
+   registrar el celular, y quien lo hace esta de pie frente a una tableta con un
+   telefono en la mano. Por eso los pasos van numerados y el QR es grande.
+   --------------------------------------------------------------------------- */
+.login__pasos {
+  margin: var(--space-3) 0 var(--space-4);
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-2);
+  text-align: left;
+}
+
+.login__pasos li + li {
+  margin-top: var(--space-2);
+}
+
+/* El QR va sobre blanco SIEMPRE: el fondo de la aplicacion es hueso, y una
+   camara lee peor un codigo cuyo blanco no es blanco. */
+.login__qr {
+  display: block;
+  width: 200px;
+  max-width: 100%;
+  height: auto;
+  /* El SVG del servidor puede venir sin medidas propias: sin esto se pintaria
+     con la altura por defecto y el codigo saldria aplastado. */
+  aspect-ratio: 1 / 1;
+  margin: 0 auto var(--space-4);
+  padding: var(--space-3);
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+/* Escribir la clave a mano es la salida cuando la camara no coopera: se ofrece
+   plegada para no llenar la pantalla de caracteres a quien si puede escanear. */
+.login__manual {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  text-align: left;
+}
+
+.login__manual summary {
+  cursor: pointer;
+}
+
+.login__secreto {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* Los seis numeros, centrados y separados: se copian mirando el celular, asi
+   que la vista salta del telefono a la tableta y tiene que reencontrar el sitio. */
+.login__codigo-verificacion {
+  font-family: var(--font-num);
+  font-size: var(--text-lg);
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+/* Volver es la salida, no la accion principal: separado del boton de verificar
+   para que nadie lo pulse por inercia. */
+.login__volver {
+  margin-top: var(--space-2);
+}
+
 /* La version: la letra mas pequena de la pantalla, porque se lee cuando se
    busca y no debe competir con el formulario. */
 .login__version {
@@ -222,6 +303,10 @@
   background: var(--danger-soft);
   border-bottom-color: var(--danger);
   color: var(--ink);
+}
+
+.context-badge__text {
+  min-width: 0;
 }
 
 .context-badge__action {
@@ -379,4 +464,3 @@
     animation: none;
   }
 }
-

@@ -16,7 +16,8 @@
  *  ve (ver `data-view` en responsive.css).
  */
 
-import { el, svg } from '../lib/dom.js';
+import { el, icon } from '../lib/dom.js';
+import { ICON_BUSCAR, ICON_CERRAR } from '../lib/iconos.js';
 import { titleCase, splitName, indexLetter } from '../lib/format.js';
 import { filterRecipes, sortRecipes, availableCategories, categoryCounts } from '../core/search.js';
 import { navigate, buildHash, getRoute } from '../core/router.js';
@@ -130,19 +131,15 @@ function renderSearch(query, focusSearch) {
 
   return el('div', { class: 'sidebar__search search' }, [
     el('label', { class: 'sr-only', for: SEARCH_ID, text: 'Buscar receta' }),
-    svg('svg', { class: 'search__icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, [
-      svg('circle', { cx: 11, cy: 11, r: 7 }),
-      svg('line', { x1: 21, y1: 21, x2: 16.65, y2: 16.65 }),
-    ]),
+    icon(ICON_BUSCAR, { class: 'search__icon' }),
     field,
     query
       ? el('button', {
           type: 'button',
           class: 'search__clear',
-          text: '×',
           attrs: { 'aria-label': 'Borrar la búsqueda' },
           on: { click: () => navigate({ name: 'index', id: null, query: '' }, { replace: true }) },
-        })
+        }, [icon(ICON_CERRAR, { class: 'icon--control' })])
       : // La tecla de atajo se anuncia solo cuando el campo esta vacio, para no
         // taparla con el boton de borrar.
         el('kbd', { class: 'search__key', text: '/', attrs: { 'aria-hidden': 'true' } }),

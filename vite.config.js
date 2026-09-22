@@ -1,9 +1,9 @@
 /**
  * Vite solo empaqueta. No transforma el codigo del proyecto.
  *
- * `manifest: true` es lo que hace posible generar la lista de precarga del
- * service worker en vez de escribirla a mano: sin el, los nombres con hash del
- * build no se pueden conocer desde fuera.
+ * La lista de precarga del service worker se genera leyendo `dist/` despues de
+ * compilar. Asi incluye exactamente los nombres con hash que Vite emitio sin
+ * dejar un manifiesto de compilacion que ningun proceso consume.
  *
  * `data/` NO se mueve. `api/recipes.js` lo referencia por ruta constante y
  * cuatro scripts lo leen de ahi; moverlo romperia la publicacion. Se copia al
@@ -20,11 +20,10 @@ export default defineConfig({
   base: './',
   publicDir: false,
   build: {
-    manifest: true,
     outDir: 'dist',
     emptyOutDir: true,
-    // Sin minificar de momento: se quiere poder comparar el resultado con la
-    // fuente durante esta tarea, que es la que decide si el build es fiable.
-    minify: false,
+    // La fuente sigue sin transformarse; el artefacto si se minimiza para que
+    // un alojamiento estatico no descargue comentarios y espacios de trabajo.
+    minify: 'oxc',
   },
 });

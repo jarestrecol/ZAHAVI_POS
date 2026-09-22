@@ -58,6 +58,8 @@ import { ESCALA_POR_DEFECTO } from './preferencias.js';
  * @typedef {Object} State
  * @property {boolean} ready datos ya cargados
  * @property {boolean} authed sesion iniciada
+ * @property {{id: string, nombre: string, codigo: string, rol: string, sede: {id: string, nombre: string}|null}|null} usuario
+ *   quien entro, tal como lo devuelve `perfiles`. Ver `core/sesion.js`
  * @property {boolean} online hay conexion en este momento
  * @property {boolean} settingsOpen
  * @property {boolean} pedirClave hay que pedir la clave de edicion para publicar
@@ -66,6 +68,12 @@ import { ESCALA_POR_DEFECTO } from './preferencias.js';
  * @property {string} notice mensaje visible para la persona usuaria
  * @property {'info'|'error'|'success'} noticeKind
  * @property {string} loginError
+ * @property {''|'codigo'|'pin'|'verificacion'} loginCampo dato que hay que corregir tras un error de ingreso
+ * @property {boolean} loginEnCurso se esta comprobando el codigo y el PIN, o el codigo del celular
+ * @property {''|'verificar'|'inscribir'} loginPaso segundo paso pendiente de gerencia o administracion
+ * @property {string} loginQr codigo QR (SVG) para registrar la aplicacion autenticadora
+ * @property {string} loginSecreto la misma clave del QR, para escribirla a mano
+ * @property {number} turnoHasta cuando termina el turno, en milisegundos; 0 sin sesion
  * @property {string} escalaTexto tamano del texto de las recetas en este aparato
  * @property {EstadoRecetario} recetario
  * @property {EstadoAlmacen} almacen
@@ -131,6 +139,7 @@ const ALMACEN_INICIAL = Object.freeze({
 const INITIAL = Object.freeze({
   ready: false,
   authed: false,
+  usuario: null,
   online: true,
   settingsOpen: false,
   // Se acaba de guardar algo que puede publicarse pero falta la clave de
@@ -144,6 +153,15 @@ const INITIAL = Object.freeze({
   notice: '',
   noticeKind: 'info',
   loginError: '',
+  loginCampo: '',
+  loginEnCurso: false,
+  // El segundo paso de gerencia y administracion. Viven en el ESTADO por lo mismo
+  // que el error: la pantalla de entrada se repinta entera con cualquier cambio.
+  // El QR y su clave solo existen en memoria y se borran al entrar o al volver.
+  loginPaso: '',
+  loginQr: '',
+  loginSecreto: '',
+  turnoHasta: 0,
   // Tamano del texto de las recetas. Es TRANSVERSAL y no del modulo de recetas:
   // es una preferencia del aparato, como lo seria el idioma, y el dia que haya
   // costeo o inventario tendra que valer alli tambien. `main.js` la sustituye

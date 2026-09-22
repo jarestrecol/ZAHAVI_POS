@@ -39,6 +39,7 @@
 import { el, replaceChildren } from '../lib/dom.js';
 import { renderBarra } from './header.js';
 import { ICON_VOLVER } from '../lib/iconos.js';
+import { renderNavigation, pageHeading } from './navigation.js';
 
 /**
  * @param {Object} options
@@ -107,12 +108,11 @@ export function crearPantalla(options) {
         ],
       }),
 
+      renderNavigation(options.modulo),
       avisos,
 
       el('div', { class: 'pantalla__cuerpo' }, [
-        options.meta
-          ? el('p', { class: 'pantalla__meta', text: options.meta })
-          : null,
+        pageHeading({ almacen: 'Control de bodega', ingredientes: 'Catálogo de ingredientes', plan: 'Producción' }[options.modulo] || options.subtitulo, options.meta || ''),
         options.cuerpo,
       ]),
 

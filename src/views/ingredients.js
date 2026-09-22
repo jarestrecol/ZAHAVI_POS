@@ -21,7 +21,7 @@
  */
 
 import { el, clear } from '../lib/dom.js';
-import { titleCase, splitName, formatQty, yieldLabel } from '../lib/format.js';
+import { titleCase, splitName, formatQty, formatMedida, yieldLabel } from '../lib/format.js';
 import { aCSV, descargarCSV, nombreConFecha } from '../lib/csv.js';
 import { navigate } from '../core/router.js';
 import {
@@ -33,6 +33,9 @@ import {
   resumenCatalogo,
 } from '../core/ingredients.js';
 import { crearPantalla } from './pantalla.js';
+import { metric } from './navigation.js';
+import { medidasDeIngrediente } from '../core/medidas-ingrediente.js';
+import { fichaMedidasIngrediente } from './medidas-ingrediente.js';
 
 /**
  * @param {{recipes: Array, onClose: () => void}} options
@@ -41,6 +44,11 @@ import { crearPantalla } from './pantalla.js';
 export function openIngredients(options) {
   const catalogo = catalogoIngredientes(options.recipes);
   const cuenta = resumenCatalogo(catalogo);
+  const medidas = new Map(catalogo.map((i) => [i.nombre, medidasDeIngrediente(i.nombre, options.lotes || [])]));
+  const tieneStock = (ingrediente) => medidas.get(ingrediente.nombre).disponibles > 0;
+  const stockTexto = (ingrediente) => medidas.get(ingrediente.nombre).originales
+    .map((m) => `${formatMedida(m.cantidad)} ${m.unidad}`).join(' · ') || 'Sin stock';
+  let filtro = 'todos';
 
   /** Orden vigente: por uso o alfabetico. */
   let orden = 'uso';
@@ -59,6 +67,22 @@ export function openIngredients(options) {
 
   const lista = el('ul', { class: 'ings__lista' });
   const contador = el('p', { class: 'ings__contador', attrs: { role: 'status' } });
+  const opcionesFiltro = [
+    ['todos', 'Todos', () => true],
+    ['stock', 'Con stock', tieneStock],
+    ['sin_stock', 'Sin stock', (i) => !tieneStock(i)],
+    ['unidades', 'Varias unidades', (i) => i.totales.length > 1],
+    ['una_receta', 'Uso puntual', (i) => i.recetas === 1],
+  ];
+  const botonesFiltro = opcionesFiltro.map(([clave, nombre, acepta]) => el('button', {
+    type: 'button', class: 'filter-tabs__button', dataset: { filtro: clave },
+    attrs: { 'aria-pressed': String(clave === filtro) },
+    on: { click: () => {
+      filtro = clave;
+      for (const boton of botonesFiltro) boton.setAttribute('aria-pressed', String(boton.dataset.filtro === filtro));
+      dibujar();
+    } },
+  }, [el('span', { text: nombre }), el('span', { class: 'filter-tabs__count', text: String(catalogo.filter(acepta).length) })]));
 
   const botonUso = el('button', {
     type: 'button',
@@ -88,7 +112,8 @@ export function openIngredients(options) {
    * ------------------------------------------------------------------ */
 
   function dibujar() {
-    const filtrados = filtrarIngredientes(catalogo, buscador.value);
+    const acepta = opcionesFiltro.find(([clave]) => clave === filtro)[2];
+    const filtrados = filtrarIngredientes(catalogo, buscador.value).filter(acepta);
     const ordenados = orden === 'uso' ? ordenarPorUso(filtrados) : ordenarPorNombre(filtrados);
 
     contador.textContent =
@@ -117,6 +142,8 @@ export function openIngredients(options) {
   function renderIngrediente(ingrediente) {
     const estaAbierto = abierto === ingrediente.nombre;
     const variasUnidades = ingrediente.totales.length > 1;
+    const resumen = medidas.get(ingrediente.nombre);
+    const gramos = resumen.cantidades.find((m) => m.unidad === 'GR');
 
     return el('li', { class: 'ings__item' + (variasUnidades ? ' ings__item--unidades' : '') }, [
       // Toda la fila es UN SOLO boton con tres columnas por dentro: nombre,
@@ -139,7 +166,7 @@ export function openIngredients(options) {
             // nombre y el recuento, y la columna del medio no existia.
             'aria-label': `${ingrediente.nombre}, ${totalesTexto(ingrediente)}, en ${ingrediente.recetas} ${
               ingrediente.recetas === 1 ? 'receta' : 'recetas'
-            }. ${estaAbierto ? 'Ocultar' : 'Ver'} cuáles`,
+            }. Stock disponible: ${stockTexto(ingrediente)}. ${estaAbierto ? 'Ocultar' : 'Ver'} medidas y recetas`,
           },
           on: {
             click: () => {
@@ -173,6 +200,11 @@ export function openIngredients(options) {
               text: ingrediente.recetas === 1 ? 'receta' : 'recetas',
             }),
           ]),
+          el('span', { class: 'ings__stock' }, [
+            el('span', { text: stockTexto(ingrediente) }),
+            el('small', { text: gramos.sinConversion ? 'Gramos: equivalencia pendiente' : `Equivale a ${formatMedida(gramos.cantidad)} g` }),
+            el('small', { class: 'status-pill', dataset: { tone: tieneStock(ingrediente) ? 'ok' : 'neutral' }, text: tieneStock(ingrediente) ? 'Con stock' : 'Sin stock' }),
+          ]),
         ],
       ),
 
@@ -182,10 +214,11 @@ export function openIngredients(options) {
       variasUnidades
         ? el('p', {
             class: 'ings__aviso',
-            text: `Se mide de ${ingrediente.totales.length} formas distintas. Para ponerle precio habrá que unificar la unidad.`,
+            text: `Se mide de ${ingrediente.totales.length} formas distintas. Consulta sus equivalencias; las fórmulas originales se conservan.`,
           })
         : null,
 
+      estaAbierto ? fichaMedidasIngrediente(ingrediente.nombre, options.lotes || [], { resumen, totales: ingrediente.totales }) : null,
       estaAbierto ? renderRecetas(ingrediente) : null,
     ]);
   }
@@ -319,11 +352,15 @@ export function openIngredients(options) {
 
   const body = el('div', { class: 'ings' }, [
     el('div', { class: 'ings__resumen' }, [
-      ...dato(String(cuenta.distintos), 'distintos'),
-      ...dato(String(cuenta.lineas), 'líneas'),
-      ...dato(String(cuenta.enUnaSolaReceta), 'en una sola receta'),
-      ...dato(String(cuenta.conVariasUnidades), 'con varias unidades'),
+      metric(cuenta.distintos, 'Ingredientes', 'Catálogo consolidado de recetas', 'metric--featured'),
+      metric(catalogo.filter(tieneStock).length, 'Con stock', 'Al menos una unidad con existencias'),
+      metric(cuenta.conVariasUnidades, 'Varias unidades', 'Equivalencias para el costeo'),
+      metric(cuenta.enUnaSolaReceta, 'Uso puntual', 'Presentes en una sola receta'),
     ]),
+    el('div', { class: 'section-heading' }, [
+      el('div', {}, [el('h2', { text: 'Materias primas' }), el('p', { text: 'Consulta dónde se utiliza cada ingrediente y su disponibilidad en bodega.' })]),
+    ]),
+    el('div', { class: 'filter-tabs', attrs: { role: 'group', 'aria-label': 'Filtrar ingredientes' } }, botonesFiltro),
 
     el('div', { class: 'ings__controles' }, [
       el('div', { class: 'ings__buscar' }, [
@@ -343,8 +380,9 @@ export function openIngredients(options) {
     // de 159 lineas en algo que se lee como tabla.
     el('div', { class: 'ings__encabezado', attrs: { 'aria-hidden': 'true' } }, [
       el('span', { text: 'Ingrediente' }),
-      el('span', { text: 'Total' }),
+      el('span', { text: 'Total en fórmulas' }),
       el('span', { text: 'Recetas' }),
+      el('span', { text: 'Stock disponible' }),
     ]),
 
     lista,
@@ -353,7 +391,7 @@ export function openIngredients(options) {
   return crearPantalla({
     modulo: 'ingredientes',
     subtitulo: 'ingredientes',
-    meta: `${cuenta.distintos} ingredientes distintos en ${cuenta.lineas} líneas de receta.`,
+    meta: `${cuenta.distintos} ingredientes en ${cuenta.lineas} líneas de receta. Stock por unidad, sin incluir lotes vencidos.`,
     cuerpo: body,
     onMenu: options.onMenu,
     onVolver: options.onVolver,
@@ -361,7 +399,7 @@ export function openIngredients(options) {
     pie: [
       el('p', {
         class: 'pantalla__nota',
-        text: 'Los totales de cada unidad no se suman entre sí. Base para el costeo por receta.',
+        text: 'Abre un ingrediente para ver cantidades, equivalencias y compras. Las conversiones no modifican el recetario.',
       }),
       el('div', { class: 'pantalla__acciones' }, [
         el('button', {
@@ -403,15 +441,6 @@ function totalesTexto(ingrediente) {
 }
 
 /** Una cifra del resumen de cabecera. */
-function dato(valor, etiqueta) {
-  return [
-    el('div', { class: 'ings__dato' }, [
-      el('span', { class: 'ings__dato-num', text: valor }),
-      el('span', { class: 'ings__dato-label', text: etiqueta }),
-    ]),
-  ];
-}
-
 /**
  * El catalogo como tabla para Excel.
  *

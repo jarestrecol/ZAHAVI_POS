@@ -27,11 +27,13 @@
  *  Esta vista no escribe estado: todo sale por callbacks (regla 12).
  */
 
-import { el, clear } from '../lib/dom.js';
+import { el, clear, icon } from '../lib/dom.js';
 import { announce } from '../lib/a11y.js';
+import { ICON_ELIMINAR, ICON_NUEVA } from '../lib/iconos.js';
+import { aCSV, descargarCSV, nombreConFecha } from '../lib/csv.js';
 import { comboboxIngrediente } from '../lib/combobox.js';
-import { formatQty, normalize, pesos, fechaCorta } from '../lib/format.js';
-import { UNITS } from '../core/schema.js';
+import { formatMedida as formatQty, normalize, pesos, fechaCorta } from '../lib/format.js';
+import { UNIDADES_COMPRA, factorGramos, normalizarEquivalencias } from '../core/conversiones.js';
 import {
   PRESENTACIONES,
   estadoVencimiento,
@@ -41,6 +43,11 @@ import {
   valorUnitario,
 } from '../core/almacen.js';
 import { crearPantalla } from './pantalla.js';
+import { metric } from './navigation.js';
+import { renderHistorial } from './historial.js';
+import { hoyLocal } from '../core/bitacora.js';
+import { fichaMedidasIngrediente } from './medidas-ingrediente.js';
+import { esLoteDemo, PRECIOS_DEMO } from '../core/precios-demo.js';
 
 /** Como se rotula cada estado de vencimiento. El color nunca va solo. */
 const ROTULO_ESTADO = {
@@ -79,9 +86,13 @@ export function openAlmacen(options) {
    * repintar nada.
    */
   let orden = 'nombre';
+  let filtro = 'todos';
   let editando = null;
   /** Listas de sugerencias vivas del formulario, para poder soltarlas. */
   let combosDelForm = [];
+  const responsable = el('input', { type: 'text', class: 'field', placeholder: 'Nombre de quien registra', attrs: { 'aria-label': 'Responsable de bodega' } });
+  const avisoOperacion = el('p', { class: 'historial__alerta', attrs: { role: 'status' } });
+  const historial = renderHistorial({ leerDatos: options.leerDatos, tipo: 'bodega' });
 
   const buscador = el('input', {
     type: 'search',
@@ -89,13 +100,31 @@ export function openAlmacen(options) {
     class: 'field',
     placeholder: 'Buscar ingrediente, marca o lote…',
     autocomplete: 'off',
+    attrs: { 'aria-label': 'Buscar ingrediente, marca o lote' },
     on: { input: () => dibujar() },
   });
 
   const resumenHost = el('div', { class: 'almacen__resumen' });
+  const demoHost = el('section', { class: 'almacen__demo', attrs: { 'aria-label': 'Bodega demo Colombia' } });
   const formHost = el('div', { class: 'almacen__form-host' });
   const tablaHost = el('div', { class: 'almacen__tabla' });
+  const medidasHost = el('div', { class: 'almacen__por-ingrediente' });
   const contador = el('p', { class: 'almacen__contador', attrs: { role: 'status' } });
+  const filtros = el('div', { class: 'filter-tabs', attrs: { role: 'group', 'aria-label': 'Filtrar lotes' } });
+  const opcionesFiltro = [
+    ['todos', 'Todos'], ['disponibles', 'Con existencias'], ['proximo', 'Por vencer'],
+    ['vencido', 'Vencidos'], ['agotados', 'Agotados'], ['sin_fecha', 'Sin fecha'],
+  ];
+  const botonesFiltro = opcionesFiltro.map(([clave, nombre]) => el('button', {
+    type: 'button', class: 'filter-tabs__button', dataset: { filtro: clave },
+    attrs: { 'aria-pressed': String(clave === filtro) },
+    on: { click: () => {
+      filtro = clave;
+      for (const boton of botonesFiltro) boton.setAttribute('aria-pressed', String(boton.dataset.filtro === filtro));
+      dibujar();
+    } },
+  }, [el('span', { text: nombre }), el('span', { class: 'filter-tabs__count' })]));
+  for (const boton of botonesFiltro) filtros.appendChild(boton);
 
   const botonesOrden = [
     { clave: 'nombre', texto: 'A–Z' },
@@ -123,20 +152,30 @@ export function openAlmacen(options) {
   const botonNuevo = el('button', {
     type: 'button',
     class: 'btn btn--accent',
-    text: '+ Nuevo lote',
     on: { click: () => abrirFormulario(null) },
-  });
+  }, [icon(ICON_NUEVA, { class: 'btn__icon' }), el('span', { class: 'btn__label', text: 'Nuevo lote' })]);
 
   const cuerpo = el('div', { class: 'almacen' }, [
     resumenHost,
+    demoHost,
+    el('div', { class: 'historial__filtros' }, [el('label', {}, ['Responsable de los movimientos', responsable]),
+      el('button', { type: 'button', class: 'btn btn--quiet', text: 'Actualizar bodega', on: { click: dibujar } })]),
+    avisoOperacion,
+    el('div', { class: 'section-heading' }, [
+      el('div', {}, [el('h2', { text: 'Inventario de lotes' }), el('p', { text: 'Compras, existencias y trazabilidad de tus materias primas.' })]),
+      botonNuevo,
+    ]),
+    filtros,
     el('div', { class: 'almacen__barra' }, [
       buscador,
       el('div', { class: 'almacen__orden' }, botonesOrden),
-      botonNuevo,
+      el('button', { type: 'button', class: 'btn btn--quiet', text: 'Exportar inventario', on: { click: exportar } }),
     ]),
     formHost,
+    medidasHost,
     contador,
     tablaHost,
+    historial.node,
   ]);
 
   /* =========================================================================
@@ -144,14 +183,14 @@ export function openAlmacen(options) {
    * ====================================================================== */
 
   function lotesVisibles() {
-    const todos = options.leerLotes() || [];
+    const todos = (options.leerLotes() || []).filter((lote) => coincideFiltro(lote, filtro));
     const aguja = normalize(buscador.value || '').trim();
 
     const filtrados =
       aguja === ''
         ? todos
         : todos.filter((l) =>
-            [l.ingrediente, l.marca, l.lote, l.presentacion]
+            [l.ingrediente, l.marca, l.proveedor, l.lote, l.presentacion]
               .map((t) => normalize(t || ''))
               .join(' ')
               .includes(aguja),
@@ -169,11 +208,28 @@ export function openAlmacen(options) {
   }
 
   function dibujar() {
+    historial.actualizar();
     const todos = options.leerLotes() || [];
+    pintarDemo(todos);
     pintarResumen(todos);
+    for (const boton of botonesFiltro) {
+      boton.querySelector('.filter-tabs__count').textContent = String(todos.filter((lote) => coincideFiltro(lote, boton.dataset.filtro)).length);
+    }
 
     const visibles = lotesVisibles();
     clear(tablaHost);
+    clear(medidasHost);
+    const nombres = [...new Set(visibles.map((l) => l.ingrediente))].sort((a, b) => a.localeCompare(b, 'es'));
+    if (nombres.length) medidasHost.appendChild(el('details', {}, [
+      el('summary', { text: `Medidas por ingrediente (${nombres.length})` }),
+      el('p', { text: 'Consulta todos los lotes de cada ingrediente encontrado y sus cantidades equivalentes.' }),
+      ...nombres.map((nombre) => {
+        const contenido = el('div');
+        return el('details', { on: { toggle: (e) => {
+          if (e.currentTarget.open && !contenido.childElementCount) contenido.appendChild(fichaMedidasIngrediente(nombre, todos));
+        } } }, [el('summary', { text: nombre }), contenido]);
+      }),
+    ]));
 
     if (todos.length === 0) {
       contador.textContent = '';
@@ -191,31 +247,70 @@ export function openAlmacen(options) {
 
     if (visibles.length === 0) {
       tablaHost.appendChild(
-        el('p', { class: 'almacen__sin-resultados', text: 'Ningún lote coincide con esa búsqueda.' }),
+        el('p', { class: 'almacen__sin-resultados', text: 'Ningún lote coincide con los filtros seleccionados.' }),
       );
     }
+  }
+
+  function pintarDemo(todos) {
+    clear(demoHost);
+    if (!options.onDemoColombia) return;
+    const activos = todos.filter(esLoteDemo), reales = todos.length - activos.length;
+    demoHost.append(el('h3', { text: activos.length ? `DEMO activa · ${activos.length} ingredientes` : 'Probar producción con bodega completa' }),
+      el('p', { text: `${PRECIOS_DEMO.length} ingredientes del recetario: precios en COP, presentaciones de compra y pesos de prueba. Referencias consultadas el 22/09/2026; los valores sin cotización se marcan como estimados.` }),
+      el('p', { text: 'Se conservan las equivalencias existentes. Los pesos que falten serán supuestos DEMO visibles. Harina y mantequilla tienen recetas en UND que requieren revisión antes de operar con datos reales.' }));
+    if (activos.length && reales) demoHost.append(el('p', { text: 'Hay compras reales junto a la demo: la producción utiliza ambos inventarios según FEFO. Revisa los lotes de origen antes de confirmar.' }));
+    const estado = el('p', { attrs: { role: 'status' } });
+    const boton = el('button', { type: 'button', class: 'btn btn--accent',
+      text: activos.length ? 'Retirar precios y lotes demo' : 'Cargar bodega demo Colombia completa',
+      on: { click: async () => {
+        boton.disabled = true;
+        try {
+          const r = await (activos.length ? options.onRetirarDemo() : options.onDemoColombia());
+          if (!r.ok) { estado.textContent = r.message; return; }
+          avisoOperacion.textContent = activos.length ? 'Demo retirada; las compras reales y los costos ya confirmados se conservan.' : `${r.value} ingredientes demo cargados. Puedes probar Producción.`;
+          dibujar(); demoHost.querySelector('button')?.focus();
+        } catch { estado.textContent = 'No se pudo completar la carga. Inténtalo otra vez.'; }
+        finally { boton.disabled = false; }
+      } } });
+    demoHost.append(boton, estado, el('small', { text: 'Retirar borra únicamente estos lotes demo disponibles. Las pruebas ya confirmadas conservan su historial y costo.' }));
   }
 
   function pintarResumen(lotes) {
     const r = resumenAlmacen(lotes);
     clear(resumenHost);
 
-    const datos = [
-      { cifra: pesos(r.valorTotal), rotulo: 'valor en bodega' },
-      { cifra: String(r.lotes), rotulo: r.lotes === 1 ? 'lote' : 'lotes' },
-      { cifra: String(r.ingredientes), rotulo: 'ingredientes' },
-      { cifra: String(r.proximos), rotulo: 'vencen pronto' },
-      { cifra: String(r.vencidos), rotulo: r.vencidos === 1 ? 'vencido' : 'vencidos' },
-    ];
+    for (const nodo of [
+      metric(pesos(r.valorTotal), 'Valor en bodega', 'Valor de las existencias · COP', 'metric--featured'),
+      metric(r.lotes, 'Lotes registrados', `${r.ingredientes} ingredientes / unidades`),
+      metric(r.proximos, 'Vencen pronto', 'En los próximos 30 días'),
+      metric(r.vencidos, 'Lotes vencidos', `${r.sinExistencia} lotes agotados`, r.vencidos ? 'metric--attention' : ''),
+    ]) resumenHost.appendChild(nodo);
+  }
 
-    for (const dato of datos) {
-      resumenHost.appendChild(
-        el('div', { class: 'almacen__dato' }, [
-          el('span', { class: 'almacen__dato-cifra', text: dato.cifra }),
-          el('span', { class: 'almacen__dato-rotulo', text: dato.rotulo }),
-        ]),
-      );
-    }
+  function coincideFiltro(lote, clave) {
+    if (clave === 'todos') return true;
+    if (clave === 'agotados') return !(lote.existencia > 0);
+    if (clave === 'disponibles') return lote.existencia > 0;
+    return estadoVencimiento(lote) === clave;
+  }
+
+  function exportar() {
+    // Prefijo de texto para que nombres y códigos no se ejecuten como fórmulas en Excel.
+    const seguro = (valor) => /^[\s]*[=+@-]/.test(String(valor || '')) ? "'" + valor : valor;
+    const filas = lotesVisibles().map((lote) => [
+      lote.id, seguro(lote.ingrediente), seguro(lote.marca), seguro(lote.lote),
+      seguro(lote.presentacion), lote.pesoCompra, seguro(lote.unidad), lote.costoCompra,
+      valorUnitario(lote), lote.existencia, valorRestante(lote), lote.vencimiento, ROTULO_ESTADO[estadoVencimiento(lote)],
+      factorGramos(lote.unidad, lote.equivalencias) ?? '',
+      factorGramos(lote.unidad, lote.equivalencias) === null ? '' : lote.existencia * factorGramos(lote.unidad, lote.equivalencias),
+    ]);
+    descargarCSV(nombreConFecha('zahavi-inventario'), aCSV(filas, [
+      'ID', 'Ingrediente', 'Marca', 'Lote', 'Presentación', 'Compra', 'Unidad', 'Costo compra',
+      'Costo unitario', 'Existencia', 'Valor restante', 'Vencimiento', 'Estado',
+      'Gramos por unidad de compra', 'Existencia en gramos',
+    ]));
+    announce(`${filas.length} lotes exportados.`);
   }
 
   /**
@@ -227,6 +322,7 @@ export function openAlmacen(options) {
    */
   function pintarVacio() {
     return el('div', { class: 'almacen__vacio' }, [
+      el('h3', { text: 'Registra tu primera compra' }),
       el('p', { text: 'El almacén de este equipo está vacío.' }),
       el('p', {
         class: 'almacen__vacio-nota',
@@ -238,8 +334,10 @@ export function openAlmacen(options) {
         class: 'btn btn--quiet',
         text: 'Cargar lotes de ejemplo',
         on: {
-          click: () => {
-            const r = options.onSembrarDemo();
+          click: async (evento) => {
+            evento.currentTarget.disabled = true;
+            const r = await options.onSembrarDemo();
+            if (!r.ok) { avisoOperacion.textContent = r.message; dibujar(); }
             if (r && r.ok) {
               announce(`${r.value} lotes de ejemplo cargados.`);
               dibujar();
@@ -301,8 +399,9 @@ export function openAlmacen(options) {
   function fila(lote) {
     const estado = estadoVencimiento(lote);
     const unitario = valorUnitario(lote);
+    const factor = factorGramos(lote.unidad, lote.equivalencias);
 
-    return el('div', { class: 'almacen__fila' }, [
+    return el('div', { class: 'almacen__fila', dataset: { estado } }, [
       el('div', { class: 'almacen__ing' }, [
         el('span', { class: 'almacen__nombre', text: lote.ingrediente }),
         el('span', {
@@ -311,6 +410,12 @@ export function openAlmacen(options) {
           // permite identificar el saco fisico en la estanteria.
           text: [lote.marca, lote.lote ? 'lote ' + lote.lote : ''].filter(Boolean).join(' · ') || lote.id,
         }),
+        esLoteDemo(lote) ? el('details', {}, [
+          el('summary', { text: 'Referencia y pesos DEMO' }),
+          el('p', { text: `${lote.demo.tipo} · ${pesos(lote.demo.precio)} por ${formatQty(lote.demo.cantidad)} ${lote.demo.unidad}. ${lote.demo.nota}` }),
+          el('p', { text: lote.demo.notaPesos }),
+          lote.demo.fuente && /^https:\/\//.test(lote.demo.fuente) ? el('a', { text: 'Consultar referencia de precio', attrs: { href: lote.demo.fuente, target: '_blank', rel: 'noopener noreferrer' } }) : null,
+        ]) : null,
       ]),
       el('span', { class: 'almacen__celda' }, [
         rotulo('presentación'),
@@ -335,10 +440,15 @@ export function openAlmacen(options) {
         unitario === null
           ? null
           : el('span', { class: 'almacen__unitario-und', text: `por 1 ${lote.unidad}` }),
+        el('small', { text: factor === null ? 'Falta equivalencia en gramos'
+          : `1 ${lote.unidad} = ${formatQty(factor)} g · $${((unitario || 0) / factor).toLocaleString('es-CO', { maximumFractionDigits: 6 })}/g` }),
       ]),
-      el('span', { class: 'almacen__num' }, [
+      el('span', { class: 'almacen__num almacen__stock' }, [
         rotulo('existencia'),
         el('span', { text: `${formatQty(lote.existencia)} ${lote.unidad}` }),
+        factor === null ? null : el('small', { text: `${formatQty(lote.existencia * factor)} g disponibles` }),
+        el('progress', { class: 'stock-meter', value: Number(lote.existencia) || 0, max: Number(lote.pesoCompra) || 1,
+          attrs: { 'aria-label': 'Existencia restante respecto a la compra' } }),
       ]),
       el('div', { class: 'almacen__vence' }, [
         rotulo('vence'),
@@ -361,10 +471,9 @@ export function openAlmacen(options) {
         el('button', {
           type: 'button',
           class: 'btn-icon',
-          text: '×',
           attrs: { 'aria-label': `Eliminar el lote ${lote.id} de ${lote.ingrediente}` },
           on: { click: () => pedirBaja(lote) },
-        }),
+        }, [icon(ICON_ELIMINAR, { class: 'icon--control' })]),
       ]),
     ]);
   }
@@ -382,16 +491,24 @@ export function openAlmacen(options) {
    * persona esta mirando.
    */
   function pedirBaja(lote) {
+    cerrarFormulario();
+    const motivoBaja = el('input', { type: 'text', class: 'field', placeholder: 'Merma, devolución, corrección…', attrs: { 'aria-label': 'Motivo de la baja' } });
     const aviso = el('div', { class: 'almacen__confirmar' }, [
       el('span', { text: `¿Eliminar el lote ${lote.id} de ${lote.ingrediente}?` }),
+      motivoBaja,
       el('button', {
         type: 'button',
         class: 'btn btn--destructive',
         text: 'Eliminar',
         on: {
-          click: () => {
-            const r = options.onEliminar(lote.id);
+          click: async (evento) => {
+            const boton = evento.currentTarget;
+            boton.disabled = true;
+            const r = await options.onEliminar(lote.id, { antes: lote, responsable: responsable.value, motivo: motivoBaja.value });
+            boton.disabled = false;
+            if (!r.ok) avisoOperacion.textContent = r.message;
             if (r && r.ok) {
+              cerrarFormulario();
               dibujar();
               // La fila que tenia el foco ya no existe: se devuelve a la barra.
               botonNuevo.focus();
@@ -405,6 +522,7 @@ export function openAlmacen(options) {
         text: 'Conservar',
         on: {
           click: () => {
+            cerrarFormulario();
             dibujar();
             botonNuevo.focus();
           },
@@ -433,6 +551,9 @@ export function openAlmacen(options) {
   function abrirFormulario(lote) {
     cerrarFormulario();
     editando = lote ? { ...lote } : loteVacio('');
+    editando.equivalencias = { ...editando.equivalencias };
+    if (!lote) editando.fechaCompra = hoyLocal();
+    const motivoCambio = el('input', { type: 'text', class: 'field', attrs: { 'aria-label': 'Motivo del movimiento' }, placeholder: lote ? 'Explica la corrección' : 'Recepción de compra' });
 
     const error = el('p', { class: 'form-error', attrs: { role: 'alert' } });
 
@@ -461,7 +582,7 @@ export function openAlmacen(options) {
       });
 
     const campoIngrediente = texto('alm-ing', 'ingrediente', { mayusculas: true });
-    const campoPresentacion = texto('alm-pres', 'presentación', { mayusculas: true });
+    const campoPresentacion = texto('alm-pres', 'presentacion', { mayusculas: true });
     const campoUnidad = texto('alm-und', 'unidad', { mayusculas: true });
 
     const cajaIngrediente = el('div', { class: 'combo' }, [campoIngrediente]);
@@ -472,7 +593,7 @@ export function openAlmacen(options) {
      * EL INGREDIENTE SE ELIGE DEL RECETARIO, NO SE TECLEA A CIEGAS.
      *
      * Es lo que hace que el cruce con el plan del dia funcione. El almacen y las
-     * recetas se casan por NOMBRE Y UNIDAD (`claveDe`), asi que escribir
+     * recetas se casan por NOMBRE del ingrediente, asi que escribir
      * "HARINA" donde el recetario dice "HARINA DE TRIGO" deja ese lote invisible
      * para el costeo: no daria error, simplemente esa linea saldria sin precio y
      * nadie sabria por que.
@@ -485,12 +606,12 @@ export function openAlmacen(options) {
         onElegir: (opcion) => {
           campoIngrediente.value = String(opcion.nombre).toUpperCase();
           editando.ingrediente = campoIngrediente.value;
-          // Se propone la unidad con la que ese ingrediente se mide en las
-          // recetas: es la que hace que el cruce encuentre el lote.
+          // La unidad de compra puede diferir de la receta; solo se sugiere.
           if (opcion.unidad && campoUnidad.value.trim() === '') {
             campoUnidad.value = String(opcion.unidad).toUpperCase();
             editando.unidad = campoUnidad.value;
           }
+          actualizarConversion();
         },
       }),
     );
@@ -511,10 +632,11 @@ export function openAlmacen(options) {
       comboboxIngrediente({
         input: campoUnidad,
         contenedor: cajaUnidad,
-        opciones: UNITS.map((u) => ({ nombre: u })),
+        opciones: UNIDADES_COMPRA.map((u) => ({ nombre: u })),
         onElegir: (opcion) => {
           campoUnidad.value = opcion.nombre;
           editando.unidad = opcion.nombre;
+          actualizarConversion();
         },
       }),
     );
@@ -527,6 +649,30 @@ export function openAlmacen(options) {
       on: { input: (evento) => { editando.vencimiento = evento.target.value; } },
     });
 
+    const vistaConversion = el('p', { class: 'historial__nota', attrs: { role: 'status' } });
+    function actualizarConversion() {
+      const factor = factorGramos(editando.unidad, normalizarEquivalencias(editando.equivalencias));
+      const compra = Number(String(editando.pesoCompra).replace(',', '.'));
+      const costo = Number(String(editando.costoCompra).replace(',', '.'));
+      vistaConversion.textContent = factor === null
+        ? 'Completa el peso neto equivalente de la unidad de compra para calcular en gramos.'
+        : `1 ${editando.unidad} = ${formatQty(factor)} g.` + (compra > 0 && Number.isFinite(compra * factor)
+          ? ` Compra: ${formatQty(compra * factor)} g. Costo: $${(costo / (compra * factor)).toLocaleString('es-CO', { maximumFractionDigits: 6 })} por g.` : '');
+    }
+    const equivalencias = el('fieldset', { class: 'almacen__equivalencias' }, [
+      el('legend', { text: 'Conversión a gramos del ingrediente' }),
+      el('p', { text: 'Registra el peso neto aprovechable. Completa las medidas que uses en compras o recetas. Los gramos y kilogramos se convierten automáticamente; un litro contiene 1.000 ml.' }),
+      el('div', { class: 'almacen__campos' }, [
+        ['ML', 'Gramos de 1 ml (densidad)'], ['UND', 'Gramos de 1 unidad'],
+        ['TANDA', 'Gramos de 1 tanda'], ['CM', 'Gramos de 1 cm'],
+      ].map(([u, etiqueta]) => campo(`alm-gramos-${u}`, etiqueta, el('input', {
+        id: `alm-gramos-${u}`, type: 'text', inputMode: 'decimal', class: 'field field--num',
+        value: String(editando.equivalencias[u] ?? ''),
+        on: { input: (e) => { editando.equivalencias[u] = e.target.value; actualizarConversion(); } },
+      })))),
+      vistaConversion,
+    ]);
+
     const form = el('form', { class: 'almacen__form' }, [
       el('h3', {
         class: 'section-label',
@@ -535,14 +681,19 @@ export function openAlmacen(options) {
       el('div', { class: 'almacen__campos' }, [
         campo('alm-ing', 'ingrediente', cajaIngrediente),
         campo('alm-marca', 'marca', texto('alm-marca', 'marca')),
+        campo('alm-proveedor', 'proveedor', texto('alm-proveedor', 'proveedor')),
+        campo('alm-fecha-compra', 'fecha de compra', el('input', { type: 'date', id: 'alm-fecha-compra', class: 'field', value: editando.fechaCompra,
+          max: hoyLocal(), on: { input: (e) => { editando.fechaCompra = e.target.value; } } })),
         campo('alm-pres', 'presentación', cajaPresentacion),
-        campo('alm-peso', 'peso de compra', texto('alm-peso', 'pesoCompra', { numerico: true })),
+        campo('alm-peso', 'cantidad de compra', texto('alm-peso', 'pesoCompra', { numerico: true })),
         campo('alm-und', 'unidad', cajaUnidad),
         campo('alm-costo', 'costo de compra', texto('alm-costo', 'costoCompra', { numerico: true })),
         campo('alm-exist', 'existencia', texto('alm-exist', 'existencia', { numerico: true })),
         campo('alm-lote', 'lote', texto('alm-lote', 'lote')),
         campo('alm-vence', 'vencimiento', campoVence),
       ]),
+      equivalencias,
+      motivoCambio,
       error,
       el('div', { class: 'almacen__form-pie' }, [
         el('button', { type: 'submit', class: 'btn btn--accent', text: 'Guardar lote' }),
@@ -554,10 +705,16 @@ export function openAlmacen(options) {
         }),
       ]),
     ]);
+    form.addEventListener('input', () => { error.textContent = ''; actualizarConversion(); });
+    actualizarConversion();
 
-    form.addEventListener('submit', (evento) => {
+    form.addEventListener('submit', async (evento) => {
       evento.preventDefault();
-      const r = options.onGuardar(editando);
+      const guardar = form.querySelector('button[type="submit"]');
+      if (guardar.disabled) return;
+      guardar.disabled = true;
+      const r = await options.onGuardar({ ...editando }, { antes: lote, responsable: responsable.value, motivo: motivoCambio.value });
+      guardar.disabled = false;
       if (!r.ok) {
         // El error se enseña DENTRO del formulario, donde se esta mirando, y se
         // anuncia. Nunca en un `alert()`.
@@ -565,6 +722,7 @@ export function openAlmacen(options) {
         announce(r.message, 'assertive');
         return;
       }
+      avisoOperacion.textContent = r.value.alertas?.length ? 'Cambio detectado: ' + r.value.alertas.join(' ') : 'Movimiento registrado. Puedes consultarlo en el historial del producto.';
       cerrarFormulario();
       dibujar();
       botonNuevo.focus();
@@ -588,9 +746,7 @@ export function openAlmacen(options) {
     // El costo por unidad se explica AQUI porque es la cifra que nadie teclea y
     // todo el mundo pregunta. Corto a proposito: en un telefono, cada renglon
     // de mas es un lote menos a la vista.
-    meta:
-      'Lo que hay comprado, a qué precio y cuándo vence. El costo por unidad sale de '
-      + 'dividir lo que costó el bulto entre lo que trae. Se guarda solo en este equipo.',
+    meta: 'Controla compras, costos y vencimientos. Inventario guardado en este equipo.',
     cuerpo,
     onMenu: options.onMenu,
     onVolver: options.onVolver,

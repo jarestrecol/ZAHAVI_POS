@@ -22,8 +22,8 @@
  *
  *  NO TOCA LOS DATOS
  *  -----------------
- *  Igual que el escalado, es una transformacion de lectura. El plan vive en la
- *  pantalla mientras se usa y no se guarda en ningun sitio.
+ *  Igual que el escalado, es una transformación de lectura. La persistencia
+ *  de planes por fecha pertenece a core/bitacora.js y app/produccion.js.
  */
 
 import { normalize } from '../lib/format.js';
@@ -55,7 +55,9 @@ export function consolidar(seleccion) {
         if (!nombre) continue;
 
         const unidad = String(item.unidad || '').trim().toUpperCase();
-        const cantidad = numero(item.cantidad);
+        // El recetario mantiene las dimensiones en CM. El papel, en cambio,
+        // es un consumible de cada tanda al preparar la lista de materiales.
+        const cantidad = numero(item.cantidad) * (unidad === 'CM' && normalize(nombre) === 'PAPEL PARAFINADO' ? factor : 1);
         // Se descarta lo que no es una cantidad que se pueda pesar. El cero no
         // aporta nada a una lista de lo que hay que sacar del almacen, y una
         // cantidad negativa restaria del total sin que nada lo indicara: la

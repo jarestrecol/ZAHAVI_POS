@@ -10,7 +10,14 @@
  * ingrediente sigue, lo que necesita reconocer de un vistazo es la cifra.
  */
 
-import { el, svg } from '../lib/dom.js';
+import { el, icon } from '../lib/dom.js';
+import {
+  ICON_VOLVER,
+  ICON_PESAR,
+  ICON_IMPRIMIR,
+  ICON_EDITAR,
+  ICON_ELIMINAR,
+} from '../lib/iconos.js';
 import { titleCase, splitName, splitYield, formatQty } from '../lib/format.js';
 import { navigate } from '../core/router.js';
 import { countItems } from '../core/search.js';
@@ -61,38 +68,6 @@ function estacion(indice) {
  *  que se vean como una familia y no como cuatro dibujos sueltos.
  */
 
-/** Flecha a la izquierda: volver al listado. */
-const ICON_VOLVER = ['M19 12H5', 'M12 19l-7-7 7-7'];
-
-/** Balanza: pesar. */
-const ICON_PESAR = ['M12 4v16', 'M8 20h8', 'M4 8h16', 'M4 8l-2.5 5.5a3 3 0 0 0 5 0z', 'M20 8l2.5 5.5a3 3 0 0 1-5 0z'];
-
-/** Impresora: imprimir. */
-const ICON_IMPRIMIR = ['M6 9V3h12v6', 'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2', 'M6 14h12v7H6z'];
-
-/** Lapiz: editar. */
-const ICON_EDITAR = ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z'];
-
-/** Papelera: eliminar. */
-const ICON_ELIMINAR = ['M3 6h18', 'M8 6V4h8v2', 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6', 'M10 11v6', 'M14 11v6'];
-
-/**
- * Construye el icono de un boton a partir de sus trazos.
- *
- * Queda oculto a los lectores de pantalla: el texto del boton, que va al lado,
- * ya dice lo mismo, y anunciarlo dos veces solo estorba.
- *
- * @param {Array<string>} paths lista de atributos `d`
- * @returns {SVGElement}
- */
-function icon(paths) {
-  return svg(
-    'svg',
-    { class: 'btn__icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' },
-    paths.map((d) => svg('path', { d })),
-  );
-}
-
 /**
  * Boton de la barra de acciones de la receta: icono + texto.
  *
@@ -111,7 +86,7 @@ function actionButton(options) {
     // La etiqueta lleva clase propia porque en la barra flotante del celular
     // las acciones secundarias se quedan solo con el icono: sin un gancho para
     // ocultarla, los cinco botones se reparten el ancho y el texto no cabe.
-    [icon(options.icon), el('span', { class: 'btn__label', text: options.label })],
+    [icon(options.icon, { class: 'btn__icon' }), el('span', { class: 'btn__label', text: options.label })],
   );
 }
 
@@ -482,13 +457,7 @@ function renderMethod(recipe, canEdit, recipeId) {
 export function renderPlaceholder(params) {
   return el('div', { class: 'welcome', id: 'contenido' }, [
     el('div', { class: 'welcome__inner' }, [
-      el('img', {
-        class: 'welcome__logo',
-        src: './assets/logo-zahavi.png',
-        alt: 'Zahavi, panadería, repostería y café',
-        width: 254,
-        height: 78,
-      }),
+      el('p', { class: 'eyebrow', text: 'CATÁLOGO / FICHAS TÉCNICAS' }),
       el('h1', { class: 'welcome__title', text: 'Recetario de producción' }),
       // El texto decia "busca por nombre o ingrediente" y la busqueda NO mira
       // los ingredientes: solo nombre y codigo. Prometer lo que no se hace es
@@ -504,6 +473,15 @@ export function renderPlaceholder(params) {
         ...stat('Categorías', String(params.categories)),
         ...stat('Ingredientes', String(params.ingredients)),
         ...stat('Con método', `${params.withMethod} de ${params.count}`),
+      ]),
+      el('div', { class: 'recipe-workflow' }, [
+        ...[
+          ['01', 'Consulta la ficha técnica', 'Ingredientes, cantidades y procedimiento en una sola vista.'],
+          ['02', 'Ajusta la producción', 'Escala cada fórmula según el tamaño de tu tanda.'],
+          ['03', 'Lleva la receta al obrador', 'Pesa paso a paso o imprime la ficha para tu equipo.'],
+        ].map(([numero, titulo, detalle]) => el('div', { class: 'recipe-workflow__step' }, [
+          el('span', { text: numero }), el('span', {}, [el('strong', { text: titulo }), el('small', { text: detalle })]),
+        ])),
       ]),
       el('p', { class: 'welcome__hint' }, [
         'Pulsa ',

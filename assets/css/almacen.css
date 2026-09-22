@@ -367,6 +367,62 @@
   gap: var(--space-3);
 }
 
+.almacen__equivalencias {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.almacen__equivalencias > p {
+  margin-block: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.costeo__ing small {
+  display: block;
+  white-space: normal;
+  font-weight: 400;
+}
+
+.medidas-ing,
+.almacen__por-ingrediente > details {
+  min-width: 0;
+  margin-block: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.almacen__por-ingrediente summary,
+.medidas-ing summary {
+  padding-block: var(--space-3);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.medidas-ing p { margin-block: var(--space-2); }
+.medidas-ing ul { padding-inline-start: var(--space-4); }
+.medidas-ing__nota { color: var(--ink-3); }
+.medidas-ing__tabla { overflow-x: auto; margin-block: var(--space-3); }
+.medidas-ing__tabla table { width: 100%; border-collapse: collapse; }
+.medidas-ing__tabla th,
+.medidas-ing__tabla td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.medidas-ing__tabla tbody td { font-variant-numeric: tabular-nums; }
+.medidas-ing__formulas,
+.medidas-ing__lotes article {
+  margin-block-start: var(--space-3);
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
 .almacen__campo {
   display: flex;
   flex-direction: column;
@@ -731,3 +787,42 @@
     text-align: left;
   }
 }
+
+/* De qué compras sale cada línea del costeo (calendario de producción). */
+.costeo__lotes {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.costeo__lotes summary {
+  cursor: pointer;
+  min-height: var(--tap-min, 2.75rem);
+  display: flex;
+  align-items: center;
+}
+
+.costeo__lotes-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.costeo__lotes-tabla th {
+  text-align: left;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--ink-4);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-sunk);
+}
+
+.costeo__lotes-tabla td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--line-cell);
+  overflow-wrap: anywhere;
+}
+/* Demostración temporal, siempre identificada y separada de las compras. */
+.almacen__demo { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; margin-block: 1rem; overflow-wrap: anywhere; }
+.almacen__demo p { margin-block: .5rem; }
+.almacen__demo small { display: block; margin-top: .5rem; }

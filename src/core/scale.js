@@ -30,7 +30,7 @@
  *  dejan tal cual y se marcan para que la interfaz pueda avisarlo.
  */
 
-import { splitYield, formatQty } from '../lib/format.js';
+import { splitYield, formatMedida } from '../lib/format.js';
 
 /** Factor sin escalado: la receta tal como esta escrita. */
 export const FACTOR_ORIGINAL = 1;
@@ -129,7 +129,7 @@ export function rendimientoEscalado(nombre, factor) {
     return `${cantidad}${unidad ? ' ' + unidad : ''}`.toLowerCase();
   }
 
-  return `${formatQty(base * factor)}${unidad ? ' ' + unidad : ''}`.toLowerCase();
+  return `${formatMedida(base * factor)}${unidad ? ' ' + unidad : ''}`.toLowerCase();
 }
 
 /**

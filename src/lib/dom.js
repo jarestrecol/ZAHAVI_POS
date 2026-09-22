@@ -46,6 +46,25 @@ export function svg(tag, attrs = {}, children = []) {
 }
 
 /**
+ * Construye un icono de la familia visual del producto.
+ *
+ * Los trazados se guardan como datos en `iconos.js`; esta es la unica pieza que
+ * fija el lienzo y los atributos de accesibilidad. Asi un cierre, una busqueda
+ * y una accion de receta no acaban con tres tamanos ni tres interpretaciones.
+ *
+ * @param {Array<string>} paths trazados SVG sobre una cuadricula de 24
+ * @param {Object<string, string|number|boolean>} [attrs] atributos del SVG
+ * @returns {SVGElement}
+ */
+export function icon(paths, attrs = {}) {
+  return svg(
+    'svg',
+    { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false', ...attrs },
+    paths.map((d) => svg('path', { d })),
+  );
+}
+
+/**
  * Crea un nodo de texto plano. Atajo explicito para dejar claro en el codigo
  * que el contenido es texto y no marcado.
  *

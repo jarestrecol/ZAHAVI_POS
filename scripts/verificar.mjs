@@ -13,12 +13,11 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { normalize } from '../src/lib/format.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let failed = 0;
@@ -51,6 +50,8 @@ function run(script, args = []) {
     stdio: 'pipe',
   });
 }
+
+paso('Producción e historial auditable', () => run('test-produccion.mjs').trim().split('\n').at(-1));
 
 /**
  * Quita comentarios antes de buscar. Sin esto, un comentario que EXPLIQUE por
@@ -207,6 +208,7 @@ function comprobarArquitectura() {
     // baja y descontar del inventario lo que se va a producir. Vive en `app/`,
     // no construye pantallas, y es el unico sitio que escribe el modulo.
     'src/app/almacen.js',
+    'src/app/produccion.js',
     // `store.js` es donde `setState` se declara: `notify` lo usa por dentro.
     'src/core/store.js',
   ];
@@ -252,18 +254,8 @@ function comprobarArquitectura() {
  * propaga en silencio hasta que alguien mira la pantalla del obrador.
  */
 function comprobarCodificacion() {
-  /*
-   * `CLAUDE.md`, `MANUAL.md` y `docs/` ENTRAN AQUI, y antes no entraban.
-   *
-   * La regla 23 afirmaba que este bloque cubre la documentacion, y la lista de
-   * abajo no incluia `CLAUDE.md`: o sea, el unico archivo del proyecto que YA se
-   * corrompio -95 lineas- era justo el que nadie miraba. Una comprobacion que no
-   * ve lo que dice vigilar es peor que no tenerla, porque ademas tranquiliza.
-   *
-   * Al partir la documentacion en `docs/` esto pasa de ser un descuido a ser
-   * urgente: son diez archivos de prosa acentuada en vez de uno.
-   */
-  const carpetas = ['src', 'api', 'scripts', 'tests', 'assets/css', 'docs'];
+  const carpetas = ['src', 'api', 'scripts', 'tests', 'assets/css', 'coordinacion'];
+  if (existsSync(join(root, 'docs'))) carpetas.push('docs');
   const sueltos = [
     'sw.js',
     'index.html',
@@ -271,14 +263,18 @@ function comprobarCodificacion() {
     '500.html',
     'README.md',
     'vercel.json',
-    'CLAUDE.md',
     'MANUAL.md',
+    'AGENTS.md',
+    'CLAUDE.md',
+    'COORDINACION.md',
+    'PLAN-PRODUCCION-SUPABASE.md',
+    'PRECIOS-DEMO.md',
   ];
   const problemas = [];
 
   const archivos = [
     ...carpetas.flatMap((c) => walk(join(root, c), (n) => /\.(js|mjs|css|html|md)$/.test(n))),
-    ...sueltos.map((n) => join(root, n)),
+    ...sueltos.map((n) => join(root, n)).filter((f) => existsSync(f)),
   ];
 
   for (const file of archivos) {
@@ -490,6 +486,11 @@ paso('Validacion del servidor', () => {
   return `${(out.match(/^\s+OK\s/gm) || []).length} comprobaciones`;
 });
 
+paso('Servidor local y superficie publica', () => {
+  const out = run('test-servidor.mjs');
+  return `${(out.match(/^\s+OK\s/gm) || []).length} comprobaciones`;
+});
+
 paso('Alta y baja masiva', () => {
   const out = run('test-qa.mjs');
   const total = (out.match(/^\s+OK\s/gm) || []).length;
@@ -587,340 +588,11 @@ paso('Integridad de las recetas', () => {
   );
 });
 
-/*
- * LO QUE `CLAUDE.md` AFIRMA TIENE QUE SER VERDAD.
- *
- * POR QUE EXISTE ESTE BLOQUE
- * --------------------------
- * `CLAUDE.md` es la unica documentacion del proyecto y esta escrito con mucha
- * seguridad, que es su virtud y tambien su riesgo: la prosa COMPROBADA y la
- * prosa CREIDA se ven exactamente igual. Ya ha mentido tres veces.
- *
- *   - Afirmaba en negrita que "ningun bloque escribe su cifra a mano" cuando las
- *     comprobaciones de dentro estaban llenas de numeros escritos a mano.
- *   - Afirmaba que la publicacion no se habia usado nunca cuando llevaba ocho
- *     commits hechos por ella.
- *   - Llego a tener 95 lineas con doble codificacion.
- *
- * La primera y la tercera ya las caza la maquina. Esta cierra la familia que
- * faltaba: las CIFRAS de la seccion 12, que es donde mas barato sale equivocarse
- * y donde mas caro sale creerselo.
- *
- * DOS NIVELES, Y LA RAZON IMPORTA
- * -------------------------------
- * Las cifras del PROGRAMA (version, carcasa, modulos, bloques) solo cambian
- * cuando alguien toca el codigo, y quien toca el codigo puede corregir el
- * documento en el mismo cambio. Esas FALLAN.
- *
- * Las cifras de los DATOS (recetas, componentes, lineas, catalogo, tamano, sha)
- * cambian cuando la panaderia publica una receta desde el obrador, y esa
- * publicacion es un commit automatico de `api/recipes.js` que no puede tocar
- * `CLAUDE.md`. Si fallaran, el CI se pondria rojo cada vez que alguien hace su
- * trabajo, y un CI que se pone rojo por hacer lo correcto se acaba ignorando,
- * que es justo el defecto que este bloque viene a evitar. Esas AVISAN, con el
- * valor nuevo ya escrito para que corregirlo sea copiar y pegar.
- */
-
-/**
- * El valor de una fila de la tabla de la seccion 12.
- *
- * Se comparan las dos partes sin acentos graves, asi que las etiquetas se
- * escriben aqui en limpio y no hay que replicar el formato del documento.
- *
- * @param {string} doc
- * @param {string} etiqueta
- * @returns {string}
- */
-function filaDeCLAUDE(doc, etiqueta) {
-  const limpio = (t) => t.replace(/`/g, '').trim();
-  const fila = doc
-    .split('\n')
-    .find((linea) => linea.startsWith('|') && limpio(linea.split('|')[1] || '') === etiqueta);
-
-  if (!fila) throw new Error(`CLAUDE.md ya no tiene la fila "${etiqueta}" en la seccion 12`);
-  return limpio(fila.split('|')[2] || '');
-}
-
-paso('Cifras de CLAUDE.md', () => {
-  const doc = readFileSync(join(root, 'CLAUDE.md'), 'utf8');
-  const crudoDatos = readFileSync(join(root, 'data/recipes.json'), 'utf8');
-  const data = JSON.parse(crudoDatos);
-
-  // --- Lo que es verdad ahora mismo ----------------------------------------
-  const porCategoria = {};
-  for (const r of data.recipes) porCategoria[r.categoria] = (porCategoria[r.categoria] || 0) + 1;
-
-  const componentes = data.recipes.reduce((n, r) => n + r.componentes.length, 0);
-  const items = data.recipes.reduce(
-    (n, r) => n + r.componentes.reduce((m, c) => m + c.items.length, 0),
-    0,
-  );
-
-  const catalogo = new Set();
-  for (const r of data.recipes) {
-    for (const c of r.componentes) {
-      for (const i of c.items) {
-        const nombre = String(i.ingrediente || '').trim();
-        if (nombre) catalogo.add(normalize(nombre).replace(/\s+/g, ' '));
-      }
-    }
-  }
-
-  const bytes = Buffer.byteLength(crudoDatos);
-  const sha = createHash('sha256').update(JSON.stringify(data.recipes)).digest('hex').slice(0, 8);
-  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  const carcasa = readFileSync(join(root, 'sw.js'), 'utf8').match(/CACHE_VERSION\s*=\s*'([^']+)'/);
-  const modulos = walk(join(root, 'src'), (n) => n.endsWith('.js')).length;
-  const bloques = (readFileSync(join(root, 'scripts/verificar.mjs'), 'utf8').match(/^paso\(/gm) || [])
-    .length;
-
-  // --- Cifras del PROGRAMA: fallan -----------------------------------------
-  const duras = [
-    ['Versión', filaDeCLAUDE(doc, 'Versión').split(' ')[0], pkg.version],
-    ['CACHE_VERSION de sw.js', filaDeCLAUDE(doc, 'CACHE_VERSION de sw.js'), carcasa ? carcasa[1] : '?'],
-    ['Módulos en src/', filaDeCLAUDE(doc, 'Módulos en src/'), String(modulos)],
-    [
-      'Bloques de verificar',
-      filaDeCLAUDE(doc, 'Bloques de verificar / pruebas de qa').split('/')[0].trim(),
-      String(bloques),
-    ],
-  ];
-
-  const rotas = duras
-    .filter(([, dice, es]) => dice !== es)
-    .map(([fila, dice, es]) => `"${fila}" dice ${dice} y es ${es}`);
-
-  // --- Cifras de los DATOS: avisan -----------------------------------------
-  //
-  // Se comparan CIFRAS, no formato. El punto de los millares es opcional en
-  // español por debajo de diez mil (1285 y 1.285 son la misma cantidad bien
-  // escrita), y hacer fallar el aviso por eso seria pedirle al documento que
-  // adivine como formatea Node.
-  const soloCifras = (t) => t.replace(/(\d)\.(\d{3})/g, '$1$2');
-  const miles = (n) => n.toLocaleString('es-ES');
-
-  const blandas = [
-    [
-      'Recetas',
-      filaDeCLAUDE(doc, 'Recetas'),
-      `${data.recipes.length} (Pastelería ${porCategoria['PASTELERÍA'] || 0}, ` +
-        `Panadería ${porCategoria['PANADERÍA'] || 0}, Galletas ${porCategoria['GALLETAS'] || 0})`,
-    ],
-    [
-      'Componentes / líneas de ingrediente',
-      filaDeCLAUDE(doc, 'Componentes / líneas de ingrediente'),
-      `${componentes} / ${miles(items)}`,
-    ],
-    ['Catálogo de ingredientes', filaDeCLAUDE(doc, 'Catálogo de ingredientes'), String(catalogo.size)],
-    /*
-     * Los ingredientes que se miden de mas de una forma.
-     *
-     * La cifra NO se calcula aqui: se le pide a `sembrar-recetas.mjs`, que es
-     * quien tiene la regla de la unidad base. Calcularla dos veces seria tener
-     * dos respuestas posibles a la misma pregunta.
-     *
-     * Esta fila existe porque estas cifras ya envejecieron una vez sin que
-     * nadie lo notara: CLAUDE.md decia 15 ingredientes en 67 lineas de 47
-     * recetas, que era cierto con 121 recetas. Al publicarse la 122 pasaron a
-     * ser 16, 71 y 48, y el documento siguio diciendo lo de antes.
-     */
-    [
-      'Ingredientes con más de una unidad',
-      filaDeCLAUDE(doc, 'Ingredientes con más de una unidad'),
-      (() => {
-        const cifras = JSON.parse(run('sembrar-recetas.mjs', ['--cifras']));
-        return `${cifras.ambiguos}, en ${cifras.minoritarias} líneas de ${cifras.recetasAfectadas} recetas`;
-      })(),
-    ],
-    ['sha de integridad', filaDeCLAUDE(doc, 'sha de integridad'), sha],
-    [
-      'data/recipes.json',
-      filaDeCLAUDE(doc, 'data/recipes.json'),
-      `${Math.round(bytes / 1024)} KB (${miles(bytes)} bytes), version: ${data.version}`,
-    ],
-  ];
-
-  const desfasadas = blandas
-    .filter(([, dice, es]) => soloCifras(dice) !== soloCifras(es))
-    .map(([fila, dice, es]) => `"${fila}" dice «${dice}» y ahora es «${es}»`);
-
-  // El diagnostico sale entero de una vez, duras y blandas juntas: arreglar una
-  // cosa y descubrir la siguiente en la ejecucion de despues son dos viajes
-  // para lo que cabe en uno.
-  if (rotas.length) {
-    const aviso = desfasadas.length
-      ? '\n  Y ademas, de los datos (esto no hace falta arreglarlo hoy):\n  ' +
-        desfasadas.join('\n  ')
-      : '';
-
-    throw new Error(
-      'La seccion 12 de CLAUDE.md ya no dice la verdad:\n  ' +
-        rotas.join('\n  ') +
-        '\n  Corrigelo en el mismo cambio: un indice desactualizado cuesta mas que no tenerlo.' +
-        aviso,
-    );
-  }
-
-  if (desfasadas.length) {
-    return (
-      `${duras.length} del programa cuadran · AVISO, ${desfasadas.length} de datos no: ` +
-      desfasadas.join(' · ')
-    );
-  }
-
-  return `${duras.length + blandas.length} cifras cuadran con la realidad`;
-});
-
-/*
- * LA DOCUMENTACION PARTIDA SIGUE SIENDO UNA SOLA COSA.
- *
- * POR QUE EXISTE ESTE BLOQUE
- * --------------------------
- * `CLAUDE.md` llego a 2.099 lineas -unos 38.000 tokens- porque cada linea que
- * alguien anadia tenia razon por separado. Se partio en un nucleo y `docs/`, y
- * la objecion evidente es que las partes acaben contradiciendose.
- *
- * La objecion seria decisiva si un solo archivo lo evitara, y no lo evita: hoy
- * mismo `README.md` lleva cifras falsas al lado de un `CLAUDE.md` correcto. Lo
- * unico que ha contenido la deriva en este repositorio dos veces es una
- * comprobacion automatica: el `SHELL` de `sw.js` contra los archivos reales, y
- * las cifras de la seccion 2 contra los datos.
- *
- * El indice es a `docs/` lo que `SHELL` es a los archivos reales: mismo patron,
- * mismo tipo de fallo, misma solucion. Se comprueba EN LOS DOS SENTIDOS.
- *
- * QUE NO COMPRUEBA, DICHO CLARO
- * -----------------------------
- * Que la prosa de una referencia siga siendo CIERTA. Eso no lo cubria el archivo
- * unico y tampoco lo cubre esto. Comprueba el esqueleto -que las partes existan,
- * se citen, se encuentren, quepan y no se pisen-, no el contenido.
- */
-
-/** Las etiquetas de la seccion 2 que `filaDeCLAUDE` busca por su nombre. */
-const ETIQUETAS_VIGILADAS = [
-  'Recetas',
-  'Componentes / líneas de ingrediente',
-  'Catálogo de ingredientes',
-  'data/recipes.json',
-  'sha de integridad',
-  'Versión',
-  'CACHE_VERSION de sw.js',
-  'Módulos en src/',
-  'Bloques de verificar / pruebas de qa',
-  'Ingredientes con más de una unidad',
-];
-
-const TOPE_LINEAS = 420;
-const TOPE_BYTES = 24000;
-
-paso('Documentacion', () => {
-  const problemas = [];
-  const nucleo = readFileSync(join(root, 'CLAUDE.md'), 'utf8');
-
-  // --- 1. EL PRESUPUESTO ----------------------------------------------------
-  //
-  // Es la parte que de verdad sostiene todo lo demas. Sin un numero que ponga
-  // esto en rojo, el nucleo vuelve a crecer sin que nadie lo decida: el tope
-  // convierte "anadir al nucleo" en un acto que obliga a quitar otra cosa.
-  const lineas = nucleo.split('\n').length;
-  const bytes = Buffer.byteLength(nucleo);
-  if (lineas > TOPE_LINEAS || bytes > TOPE_BYTES) {
-    problemas.push(
-      `CLAUDE.md: ${lineas} lineas / ${bytes} bytes (tope ${TOPE_LINEAS} / ${TOPE_BYTES}). ` +
-        'Lo que sobra va a docs/, no al final del archivo.',
-    );
-  }
-
-  // --- 2. EL INDICE, EN LOS DOS SENTIDOS ------------------------------------
-  const declaradas = new Map();
-  for (const m of nucleo.matchAll(/\*\*\[([^\]]+\.md)\]\([^)]+\)\s*·\s*([\d.]+)\s*líneas\*\*/g)) {
-    declaradas.set(m[1], Number(m[2].replace('.', '')));
-  }
-
-  const reales = readdirSync(join(root, 'docs'))
-    .filter((n) => n.endsWith('.md'))
-    .map((n) => `docs/${n}`);
-
-  for (const f of reales) {
-    if (!declaradas.has(f)) problemas.push(`${f} existe y el indice no lo cita: nadie lo abrira`);
-  }
-  for (const f of declaradas.keys()) {
-    if (f !== 'MANUAL.md' && !reales.includes(f)) {
-      problemas.push(`el indice cita ${f} y no existe`);
-    }
-  }
-
-  // --- 3. EL PRECIO NO MIENTE -----------------------------------------------
-  //
-  // Cada entrada declara su tamano para que la decision de abrirla sea
-  // coste/beneficio y no un impulso. Se tolera un 25 %: por debajo de eso el
-  // numero sigue informando igual, y un CI que se pone rojo por tres lineas se
-  // acaba ignorando, que es justo lo que este bloque viene a evitar.
-  for (const [archivo, dice] of declaradas) {
-    const real = readFileSync(join(root, archivo), 'utf8').split('\n').length;
-    if (Math.abs(real - dice) > real * 0.25) {
-      problemas.push(`el indice dice que ${archivo} son ${dice} lineas y son ${real}`);
-    }
-  }
-
-  // --- 4. TODO ENLACE RESUELVE ----------------------------------------------
-  const documentos = [['CLAUDE.md', nucleo], ...reales.map((f) => [f, readFileSync(join(root, f), 'utf8')])];
-  for (const [archivo, texto] of documentos) {
-    for (const m of texto.matchAll(/\]\((?!https?:)([^)#\s]+\.md)(?:#[^)]*)?\)/g)) {
-      const destino = resolve(root, dirname(archivo), m[1]);
-      try {
-        statSync(destino);
-      } catch {
-        problemas.push(`${archivo} enlaza a ${m[1]}, que no existe`);
-      }
-    }
-  }
-
-  // --- 5. UN HECHO, UN DUENO ------------------------------------------------
-  //
-  // Dos cosas de una: prohibe copiar una cifra de la seccion 2 a otra tabla, y
-  // protege literalmente a `filaDeCLAUDE()`, que se queda con la PRIMERA fila
-  // que encaje. Una tabla nueva mas arriba con la misma etiqueta secuestraria
-  // la comprobacion de cifras sin que nada avisara.
-  const etiquetasDe = (texto) =>
-    texto
-      .split('\n')
-      .filter((l) => l.startsWith('|'))
-      .map((l) => (l.split('|')[1] || '').replace(/`/g, '').trim());
-
-  for (const etiqueta of ETIQUETAS_VIGILADAS) {
-    const enNucleo = etiquetasDe(nucleo).filter((e) => e === etiqueta).length;
-    if (enNucleo > 1) {
-      problemas.push(`"${etiqueta}" aparece ${enNucleo} veces en CLAUDE.md: la cifra tendria dos duenos`);
-    }
-    for (const f of reales) {
-      if (etiquetasDe(readFileSync(join(root, f), 'utf8')).includes(etiqueta)) {
-        problemas.push(`${f} repite la cifra "${etiqueta}" de la seccion 2: citala, no la copies`);
-      }
-    }
-  }
-
-  // --- 6. EL README DICE LA VERSION DE VERDAD -------------------------------
-  //
-  // Es la unica cifra que queda escrita a mano en la presentacion publica, y ya
-  // mintio: anunciaba la 1.5.1 con el proyecto en la 2.0.0, junto a cuatro
-  // recuentos igual de viejos. Los recuentos se quitaron -viven en la seccion 2,
-  // que si se comprueba-; esta se queda porque un README sin version no dice
-  // nada, asi que se comprueba.
-  const readme = readFileSync(join(root, 'README.md'), 'utf8');
-  const anunciada = readme.match(/\*\*Versión\s+(\d+\.\d+\.\d+)/);
-  const real = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
-  if (!anunciada) {
-    problemas.push('README.md ya no anuncia ninguna version');
-  } else if (anunciada[1] !== real) {
-    problemas.push(`README.md anuncia la ${anunciada[1]} y el proyecto va por la ${real}`);
-  }
-
-  if (problemas.length) throw new Error(problemas.slice(0, 8).join('\n'));
-  return `nucleo ${lineas}/${TOPE_LINEAS} lineas y ${Math.round(bytes / 1024)} KB, ${declaradas.size} referencias`;
-});
+// El contexto se mantiene breve; versiones/datos ya se comprueban arriba.
+paso('Coordinación y documentación vigente', () => run('check-coordinacion.mjs').trim());
+paso('Regresiones de coordinación', () => run('test-coordinacion.mjs').trim().split('\n').at(-1));
 
 console.log(
-  failed === 0 ? '\nTodo correcto. El proyecto se puede publicar.\n' : `\n${failed} comprobacion(es) fallan.\n`,
+  failed === 0 ? '\nTodas las comprobaciones ejecutadas son correctas.\n' : `\n${failed} comprobacion(es) fallan.\n`,
 );
 process.exit(failed === 0 ? 0 : 1);

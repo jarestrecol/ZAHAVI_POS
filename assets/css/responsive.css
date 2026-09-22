@@ -234,7 +234,12 @@
    * cuatro acciones hay dos.
    */
   .topbar {
-    padding: var(--space-1) var(--space-3);
+    /* En una PWA a pantalla completa el recorte lateral existe tambien en
+       horizontal. La marca y las acciones no pueden quedar debajo del notch. */
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    padding-left: max(var(--space-3), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--space-3), env(safe-area-inset-right, 0px));
   }
 
   .topbar__wordmark {
@@ -345,8 +350,8 @@
      la separa de la franja del gesto de inicio en iPhone. */
   .sheet-head__actions {
     position: fixed;
-    left: var(--space-2);
-    right: var(--space-2);
+    left: max(var(--space-2), env(safe-area-inset-left, 0px));
+    right: max(var(--space-2), env(safe-area-inset-right, 0px));
     bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
     z-index: 90;
     gap: var(--space-2);
@@ -420,7 +425,14 @@
 
   /* Hueco al final para que la barra flotante no tape el ultimo ingrediente. */
   .sheet-view {
-    padding-bottom: 6rem;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Un aviso llega justo despues de guardar o publicar. En una ficha abierta
+     comparte el borde inferior con la barra fija; elevarlo evita que su texto
+     o su cierre queden debajo de la accion de pesar. */
+  .app[data-view='detail'] ~ .notice {
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .facts {
@@ -630,13 +642,21 @@
   }
 
   .welcome__stats {
-    /* Cuatro cifras en fila no caben: dos y dos. */
-    flex-wrap: wrap;
-    gap: var(--space-4) var(--space-5);
+    /* Cuatro cifras en fila no caben: dos y dos, con el mismo bloque continuo
+       que se lee como resumen de operación en escritorio. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .welcome__stat {
-    flex: 1 1 40%;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .welcome__stat:nth-child(2n) {
+    border-right: none;
+  }
+
+  .welcome__stat:nth-last-child(-n + 2) {
+    border-bottom: none;
   }
 
   /*
@@ -659,6 +679,25 @@
   }
 
   /* --- Avisos ----------------------------------------------------------- */
+  /* El estado de sincronizacion es importante, pero en un telefono no debe
+     robar media pantalla. El texto puede partirse dentro de su columna y la
+     accion conserva un ancho fijo y alcanzable al lado. */
+  .context-badge {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  .context-badge__text {
+    flex: 1 1 auto;
+  }
+
+  .context-badge__action {
+    flex: 0 0 auto;
+  }
+
   .notice {
     left: var(--space-2);
     right: var(--space-2);

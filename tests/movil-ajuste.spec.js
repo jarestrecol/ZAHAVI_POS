@@ -203,6 +203,43 @@ test.describe('La etiqueta viewport', () => {
   });
 });
 
+test('la preferencia de alto contraste refuerza los limites de trabajo', async ({ page }) => {
+  await page.emulateMedia({ contrast: 'more' });
+  await page.goto('/index.html');
+
+  // No basta con que exista una media query: se comprueba el token que recibe
+  // toda la interfaz. Asi un cambio de orden que la deje tapada por la paleta
+  // normal se detecta antes de llegar a la tableta bajo luz directa.
+  const tokens = await page.evaluate(() => {
+    const estilo = getComputedStyle(document.documentElement);
+    return {
+      linea: estilo.getPropertyValue('--line-strong').trim(),
+      textura: estilo.getPropertyValue('--texture-dot').trim(),
+    };
+  });
+
+  expect(tokens.linea).toBe('#4a443c');
+  expect(tokens.textura).toBe('none');
+});
+
+test('el aviso de trabajo aislado conserva su accion sin ocupar media pantalla', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await entrar(page, '#/');
+
+  const aviso = page.locator('.context-badge--warn');
+  await expect(aviso).toBeVisible();
+  await expect(aviso.getByRole('button', { name: 'Ver estado' })).toBeVisible();
+
+  const medida = await aviso.evaluate((elemento) => {
+    const avisoRect = elemento.getBoundingClientRect();
+    const botonRect = elemento.querySelector('button').getBoundingClientRect();
+    return { alto: avisoRect.height, altoBoton: botonRect.height };
+  });
+
+  expect(medida.alto, 'el aviso no debe desplazar el trabajo fuera de vista').toBeLessThanOrEqual(72);
+  expect(medida.altoBoton, 'Ver estado debe seguir siendo un blanco tactil').toBeGreaterThanOrEqual(44);
+});
+
 for (const tamano of TAMANOS) {
   test.describe(`Ajuste a la pantalla · ${tamano.nombre}`, () => {
     test.use({ viewport: { width: tamano.width, height: tamano.height } });

@@ -114,9 +114,9 @@ test.describe('Celular', () => {
     expect(caja.alFondo).toBeLessThanOrEqual(1);
     expect(caja.ocupaElAncho).toBe(true);
 
-    // Y el pie con «Imprimir la lista» se ve sin desplazar: es lo que se venia
-    // a hacer, y estaba al final de la lista.
-    await expect(page.getByRole('button', { name: 'Imprimir la lista' })).toBeInViewport();
+    // Y el mes se ve sin desplazar: elegir el dia es lo que se viene a hacer.
+    // Las acciones generales van debajo del calendario en el telefono.
+    await expect(page.locator('.cal__mes')).toBeInViewport();
   });
 });
 

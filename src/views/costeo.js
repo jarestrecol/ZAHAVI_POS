@@ -22,15 +22,15 @@
  *  vista llamando a otra para pintar una pantalla, es una pieza que se monta
  *  dentro de otra.
  *
- *  NO ESCRIBE NADA POR SU CUENTA. El calculo es una transformacion de lectura
- *  (`core/costeo.js`) y descontar es una accion explicita que sale por callback
- *  hasta `app/almacen.js`.
+ *  NO ESCRIBE NADA. El calculo es una transformacion de lectura
+ *  (`core/costeo.js`). Descontar de bodega ya no se hace aqui: desde PROD-002
+ *  es confirmar una receta en «Sacar producción» (`core/preparacion.js`).
  */
 
 import { el, clear } from '../lib/dom.js';
-import { announce } from '../lib/a11y.js';
-import { formatQty, pesos, titleCase } from '../lib/format.js';
+import { formatMedida as formatQty, pesos, titleCase } from '../lib/format.js';
 import { costearPlan } from '../core/costeo.js';
+import { agruparGramos } from '../core/materiales-produccion.js';
 
 /** Rotulo de cada estado. El color nunca es la unica señal. */
 const ROTULO = {
@@ -38,6 +38,7 @@ const ROTULO = {
   parcial: 'No alcanza',
   sin_existencia: 'Sin existencia',
   sin_precio: 'Sin precio',
+  sin_conversion: 'Falta equivalencia',
 };
 
 const CLASE = {
@@ -45,6 +46,7 @@ const CLASE = {
   parcial: 'costeo__estado--parcial',
   sin_existencia: 'costeo__estado--parcial',
   sin_precio: 'costeo__estado--sinprecio',
+  sin_conversion: 'costeo__estado--sinprecio',
 };
 
 /**
@@ -53,14 +55,15 @@ const CLASE = {
  * @param {Object} options
  * @param {{lineas: Array}} options.plan lo que devuelve `consolidar()`
  * @param {Array<object>} options.lotes existencias del almacen
- * @param {(costeo: object) => object} options.onDescontar
+ * @param {string} [options.rotulo] que representa la cifra total
+ * @param {object} [options.costeo] costeo ya calculado, para no repetir la cuenta
  * @returns {HTMLElement}
  */
 export function renderCosteo(options) {
   const caja = el('section', { class: 'costeo' });
   const lotes = options.lotes || [];
 
-  if (lotes.length === 0) {
+  if (lotes.length === 0 && !options.costeo && !options.plan?.lineas?.length) {
     // Sin almacen no hay nada que cruzar, y decirlo es mas util que enseñar una
     // tabla de ceros: la salida es dar de alta las compras.
     caja.appendChild(
@@ -73,7 +76,7 @@ export function renderCosteo(options) {
     return caja;
   }
 
-  const costeo = costearPlan(options.plan.lineas, lotes);
+  const costeo = options.costeo || costearPlan(options.plan.lineas, lotes, options.hoy);
   pintar();
   return caja;
 
@@ -88,13 +91,13 @@ export function renderCosteo(options) {
           el('span', { class: 'costeo__total-cifra', text: pesos(costeo.costoTotal) }),
           el('span', {
             class: 'costeo__total-rotulo',
-            text: 'costo de esta producción, con lo que hay en bodega',
+            text: options.rotulo || 'costo cubierto de las tandas pendientes; excluye faltantes',
           }),
         ]),
         el('div', { class: 'costeo__datos' }, [
-          dato(`${cubierto}%`, 'cubierto por el almacén'),
-          dato(String(costeo.lineasConFaltante), 'hay que comprar'),
-          dato(String(costeo.lineasSinPrecio), 'sin precio'),
+          dato(`${cubierto}%`, 'cobertura media por ingrediente'),
+        dato(String(costeo.lineasConFaltante), 'por completar'),
+        dato(String(costeo.lineasSinPrecio), 'sin precio o equivalencia'),
         ]),
       ]),
     );
@@ -124,7 +127,7 @@ export function renderCosteo(options) {
         el('p', {
           class: 'costeo__aviso',
           text:
-            'Lo marcado como «sin precio» no está en el almacén con esa misma unidad de medida. Las unidades nunca se convierten solas: decidir si son lo mismo es cosa de la panadería.',
+            'El costo se calcula en gramos con las equivalencias de Bodega. Completa los pesos equivalentes y las compras que falten; una equivalencia desconocida no se supone.',
         }),
       );
     }
@@ -141,9 +144,8 @@ export function renderCosteo(options) {
       ]),
     );
 
-    caja.appendChild(el('ul', { class: 'costeo__lista' }, costeo.lineas.map(linea)));
+    caja.appendChild(el('ul', { class: 'costeo__lista' }, agruparGramos(costeo.lineas).map(linea)));
 
-    caja.appendChild(pie());
   }
 
   function dato(cifra, rotulo) {
@@ -154,9 +156,12 @@ export function renderCosteo(options) {
   }
 
   function linea(l) {
-    return el('li', { class: 'costeo__linea' }, [
-      el('span', { class: 'costeo__ing', text: titleCase(l.ingrediente) }),
-      el('span', { class: 'costeo__num', text: `${formatQty(l.cantidad)} ${l.unidad}` }),
+    return el('li', { class: 'costeo__linea', dataset: { ingrediente: l.ingrediente } }, [
+      el('span', { class: 'costeo__ing' }, [el('span', { text: titleCase(l.ingrediente) }),
+        el('small', { text: ' · Fórmula: ' + (l.fuentes || [l]).map((f) =>
+          `${formatQty(f.cantidadReceta ?? f.cantidad)} ${f.unidadReceta || f.unidad} → ${f.cantidad === null ? 'sin convertir' : formatQty(f.cantidad) + ' g'}`).join(' + ') }),
+        l.motivo ? el('small', { text: ` · ${l.motivo}` }) : null]),
+      el('span', { class: 'costeo__num', text: l.cantidad === null ? 'Sin convertir' : `${formatQty(l.cantidad)} ${l.unidad}` }),
       el('span', { class: 'costeo__num', text: formatQty(l.disponible) }),
       el('span', {
         class: 'costeo__num',
@@ -173,99 +178,34 @@ export function renderCosteo(options) {
       }),
       el('span', { class: 'costeo__num costeo__costo', text: l.costo > 0 ? pesos(l.costo) : '—' }),
       el('span', { class: 'costeo__estado ' + CLASE[l.estado], text: ROTULO[l.estado] }),
+      l.origen && l.origen.length ? lotesDe(l) : null,
     ]);
   }
 
   /**
-   * El pie, con la accion destructiva.
-   *
-   * Descontar del almacen no se hace de un toque: se pregunta primero, y la
-   * pregunta dice exactamente cuanto se va a restar. Es la unica accion de esta
-   * pantalla que cambia datos.
+   * De que compras sale la cifra: el ingrediente UNICO es el lote comprado,
+   * con su proveedor, su vencimiento y su precio. Es lo que permite comprobar
+   * el costo contra la factura en vez de creerlo.
    */
-  function pie() {
-    const host = el('div', { class: 'costeo__acciones' });
-
-    const botonDescontar = el('button', {
-      type: 'button',
-      class: 'btn btn--primary',
-      text: 'Descontar del almacén',
-      disabled: costeo.costoTotal <= 0,
-      on: { click: () => preguntar() },
-    });
-
-    host.appendChild(
-      el('p', {
-        class: 'costeo__nota',
-        text: 'Descontar resta del almacén lo que esta producción va a consumir. Solo se resta lo que hay.',
-      }),
-    );
-    host.appendChild(botonDescontar);
-
-    function preguntar() {
-      clear(host);
-      host.appendChild(
-        el('div', { class: 'costeo__confirmar' }, [
-          el('span', {
-            text: `¿Descontar del almacén ${pesos(costeo.costoTotal)} de materia prima? Esto cambia las existencias.`,
-          }),
-          el('button', {
-            type: 'button',
-            class: 'btn btn--primary',
-            text: 'Sí, descontar',
-            on: {
-              click: () => {
-                const r = options.onDescontar(costeo);
-                const texto =
-                  r && r.ok
-                    ? 'Descontado del almacén. Las existencias ya están actualizadas.'
-                    : (r && r.message) || 'No se pudo descontar.';
-
-                /*
-                 * EL RESULTADO RECOGE EL FOCO.
-                 *
-                 * El boton que se acaba de pulsar desaparece con este repintado,
-                 * asi que sin esto el foco caeria al `body`: la ventana dejaria
-                 * de responder al teclado y Escape no la cerraria, que es como
-                 * alguien que navega sin raton se queda atrapado dentro.
-                 *
-                 * `tabindex="-1"` lo hace enfocable por programa sin meterlo en
-                 * el recorrido del tabulador, que es el patron correcto para el
-                 * resultado de una accion.
-                 */
-                const aviso = el('p', {
-                  class: r && r.ok ? 'costeo__hecho' : 'costeo__aviso',
-                  text: texto,
-                  attrs: { tabindex: '-1' },
-                });
-
-                clear(host);
-                host.appendChild(aviso);
-                aviso.focus();
-                announce(texto, 'assertive');
-              },
-            },
-          }),
-          el('button', {
-            type: 'button',
-            class: 'btn btn--quiet',
-            text: 'Ahora no',
-            on: {
-              click: () => {
-                pintar();
-                // El boton que se pulso ya no existe: el foco vuelve a la accion
-                // de la que se acaba de salir.
-                const volver = caja.querySelector('.costeo__acciones button');
-                if (volver) volver.focus();
-              },
-            },
-          }),
-        ]),
-      );
-      const primero = host.querySelector('button');
-      if (primero) primero.focus();
-    }
-
-    return host;
+  function lotesDe(l) {
+    const nombre = titleCase(l.ingrediente);
+    return el('details', { class: 'costeo__lotes' }, [
+      el('summary', { text: `${l.origen.length === 1 ? 'De 1 compra' : `De ${l.origen.length} compras`} (vence antes, sale antes)` }),
+      el('table', { class: 'costeo__lotes-tabla' }, [
+        el('caption', { class: 'sr-only', text: `Compras de bodega que cubren ${nombre}` }),
+        el('thead', {}, [el('tr', {}, ['Lote', 'Proveedor', 'Vence', 'Sale', 'Precio / und', 'Costo']
+          .map((t) => el('th', { scope: 'col', text: t })))]),
+        el('tbody', {}, l.origen.map((t) => el('tr', {}, [
+          el('td', { text: [t.loteId, t.lote].filter(Boolean).join(' · ') }),
+          el('td', { text: t.proveedor || t.marca || '—' }),
+          el('td', { text: t.vencimiento || 'sin fecha' }),
+          el('td', { class: 'costeo__num', text: `${formatQty(t.cantidad)} ${t.unidad || l.unidad}${t.cantidadGramos === undefined ? '' : ` = ${formatQty(t.cantidadGramos)} g`}` }),
+          el('td', { class: 'costeo__num', text: t.precioUnitario === null ? 'sin precio'
+            : '$' + (Math.round(t.precioUnitario * 1000) / 1000).toLocaleString('es-CO') + `/${t.unidad || l.unidad}`
+              + (t.precioPorGramo === undefined ? '' : ` · $${t.precioPorGramo.toLocaleString('es-CO', { maximumFractionDigits: 6 })}/g`) }),
+          el('td', { class: 'costeo__num', text: pesos(t.costo) }),
+        ]))),
+      ]),
+    ]);
   }
 }
