@@ -218,6 +218,7 @@ try {
   console.log(limpiar(correrSql('db/local/pruebas-api.sql')));
   console.log(limpiar(correrSql('db/local/pruebas-api-plan.sql')));
   console.log(limpiar(correrSql('db/local/pruebas-api-confirmar.sql')));
+  console.log(limpiar(correrSql('db/local/pruebas-api-notas.sql')));
 
   // -------------------------------------------------------------------------
   //  EL SERVIDOR COSTEA IGUAL QUE LA APLICACION

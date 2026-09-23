@@ -29,7 +29,7 @@ Cuerpo `{ code, message }`, con un `message` listo para mostrar.
 
 Un fallo de red o un 5xx en un comando deja el resultado **incierto**. Se consulta con `{tipo:'solicitud', id}` antes de ofrecer repetirlo.
 
-## Acciones (v1: bodega, plan, preparaciones y confirmación; notas, resultados y metas en la siguiente capa)
+## Acciones (v1 completa)
 | accion | rol mínimo | revision | datos |
 |---|---|---|---|
 | `registrar_lote` | obrador | 0 | `ingrediente_id`, `unidad` (GR KG MG LT ML UND TANDA CM), `peso_compra` > 0, `costo_compra` ≥ 0, `origen` (`compra`\|`conteo_inicial`), y opcionales: `existencia` (solo en conteo inicial, ≤ peso), `presentacion`, `marca`, `proveedor`, `lote_proveedor`, `vencimiento`, `fecha_compra` (≤ hoy), `equivalencias` `{ML,UND,TANDA,CM: gramos>0}`, `motivo` |
@@ -40,6 +40,10 @@ Un fallo de red o un 5xx en un comando deja el resultado **incierto**. Se consul
 | `cancelar_preparacion` | operario (misma regla) | 0 | `fecha`, `receta_id` |
 | `asignar_preparacion` | obrador | 0 | `fecha`, `receta_id`, `persona_id` (null = sin asignar; activo, de la sede y del área de la receta) |
 | `confirmar_receta` | operario (misma regla que iniciar) | revisión del plan (la de la cotización) | `fecha` (≤ hoy), `receta_id`, `huella` (la de la cotización), `motivo?` |
+| `guardar_nota` | operario (crear/cambiar: obrador; quien la tiene asignada solo cambia `hecha`) | revisión de la nota (0 si es nueva) | `id?`, `fecha`, `tipo` (tarea pendiente recomendacion felicitacion), `texto` (1–280), `area?` o `persona_id?` (nunca los dos), `hecha?` |
+| `eliminar_nota` | obrador | revisión de la nota | `id` |
+| `guardar_resultado` | operario (su primera medición; corregir o la de otro: obrador) | revisión del resultado (0 si es nuevo) | `ejecucion_id`, `receta_id`, `vendible`, `rechazado`, `unidad?` y `esperado?` (se ignoran si el nombre dice «X n UND»), `merma_preparacion_gr?`, `merma_coccion_gr?`, `motivo` (obligatorio si hay pérdida, diferencia o corrección) |
+| `fijar_meta` | gerencia | 0 | `clave` (presupuestoMensual cumplimientoPlan rendimientoMinimo rechazoMaximo coberturaMinima avisoVencimiento alzaPrecio), `valor` (en su rango; solo el presupuesto admite null) |
 
 - `confirmar_receta` va en **una sola transacción**: bloquea el plan y los lotes, recalcula, crea la ejecución con el costeo congelado, un consumo y una salida por lote, descuenta saldos y marca las partidas. Si la huella no coincide, 409, y hay que volver a cotizar. Si faltan ingredientes o equivalencias, 422, y no se toca nada. El resultado trae `ejecucion_id`.
 - El plan guarda cada receta **congelada** en sus partidas. Una partida con `ejecucion_id` ya está producida. Un día sin recetas y sin producción no conserva plan.
@@ -51,3 +55,6 @@ Un fallo de red o un 5xx en un comando deja el resultado **incierto**. Se consul
 - `{tipo:'bodega', con_existencia?: bool (por defecto true), despues?: codigo, limite?: 1–200 (por defecto 100)}` → `{version, tipo, lotes:[...], siguiente: codigo|null}`. Cada lote trae `id, codigo, revision, ingrediente_id, ingrediente, unidad, peso_compra, existencia, vencimiento, fecha_compra, presentacion, marca, proveedor, lote_proveedor, equivalencias{}`. Solo gerencia recibe además `costo_compra` y `valor_unitario`.
 - `{tipo:'dia', fecha}` → `{version, tipo, fecha, plan: null | {id, fecha, revision, responsable, motivo, actualizado, recetas:[{receta_id, codigo, nombre, categoria, tandas, producido, pendiente, partidas[], estado: pendiente|en_preparacion|lista, preparacion: {iniciada, iniciada_por, asignado:{id,nombre,area}}|null}]}}`.
 - `{tipo:'cotizacion', fecha, receta_id}` → `{version, tipo, fecha, receta_id, plan_revision, pendiente, costeo, huella, listo}`. Tiene la misma forma que `costearPlan`, calculado por el servidor sin bloquear. Quien no es gerencia la recibe sin dinero, pero con la misma `huella`. `listo = false` significa que no se puede confirmar.
+- `{tipo:'notas', fecha}` → `{version, tipo, fecha, notas:[{id, fecha, tipo, texto, area, persona, hecha, revision, creada, actualizada, autor, cambiada_por}]}`, en el orden del panel.
+- `{tipo:'producido', fecha}` → `{version, tipo, fecha, ejecuciones:[{id, instante, receta_id, nombre, area, tandas, responsable, autor_id, rendimiento_previsto:{cantidad,unidad}, resultado|null, costo_total (solo gerencia)}]}`.
+- `{tipo:'metas'}` → `{version, tipo, metas:{clave:{valor, fijada, desde, responsable}}}`. Lo que nunca se fijó trae el valor base. `presupuestoMensual` y `alzaPrecio` solo llegan a gerencia.
