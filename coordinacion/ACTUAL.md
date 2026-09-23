@@ -2,7 +2,7 @@
 
 Objetivo: ejecutar [el plan](../PLAN-PRODUCCION-SUPABASE.md) en orden 0–10.
 GitHub: **jarestrecol/ZAHAVI_POS**, rama `main`, ya publicado con historial.
-Activa: **fase 0 de Supabase**, rama `codex/centralizacion-fase0`. Ningún dato operativo migrado.
+Activa: **centralización Supabase**, rama `main` en `ZAHAVI_POS`. Migración operativa pendiente de verificar.
 
 Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
 (`node scripts/checklist.mjs` dice qué está libre ahora).
