@@ -267,7 +267,7 @@ begin
   end if;
   raise notice '  OK    el obrador ve los umbrales del panel y NO el presupuesto';
 
-  select count(*) into n from eventos_operacion;
+  select count(*) into n from eventos_operacion where tipo = 'precio';
   if n <> 0 then
     raise exception 'FALLA: el obrador lee la bitacora con precios (% filas)', n;
   end if;
@@ -298,7 +298,7 @@ begin
   if n <> 2 then
     raise exception 'FALLA: gerencia deberia ver las 2 metas y ve %', n;
   end if;
-  select count(*) into n from eventos_operacion;
+  select count(*) into n from eventos_operacion where tipo = 'precio';
   if n <> 1 then
     raise exception 'FALLA: gerencia deberia ver la bitacora y ve % filas', n;
   end if;

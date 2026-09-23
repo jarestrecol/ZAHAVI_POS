@@ -353,9 +353,14 @@ comprobar(
   !/create policy[^;]*on movimientos\s+for delete/i.test(todo),
 );
 comprobar(
-  'y el permiso concedido es solo de insercion',
-  /grant insert on movimientos to authenticated/i.test(todo) &&
-    !/grant[^;]*\b(update|delete)\b[^;]*\bon movimientos\b/i.test(todo),
+  'nunca se concede `update` ni `delete` sobre `movimientos`',
+  !/grant[^;]*\b(update|delete)\b[^;]*\bon movimientos\b/i.test(todo),
+);
+// Desde 0023 el libro solo lo escriben las funciones de la API: la insercion
+// directa que concedia 0005 se revoca.
+comprobar(
+  'y desde 0023 nadie inserta en el libro directamente',
+  /revoke insert[^;]*\bon table\b[^;]*\bmovimientos\b[^;]*from anon, authenticated/i.test(todo),
 );
 
 /* ===========================================================================

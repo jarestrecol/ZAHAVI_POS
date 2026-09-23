@@ -42,7 +42,7 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 - [x] F3-2 · 14/14 casos idénticos en probar-sql con el ajuste de Supabase (entregas/F3-1.md) · Claude ← F3-1, F0-9
 - [x] F3-3 · Escrituras por API 0018–0022: bodega, plan, preparaciones, notas, resultados, metas (entregas/F3-3.md) · Claude ← F0-9
 - [x] F3-4 · `confirmar_receta` atómica (0021): bloqueo, idempotencia, revisión, huella · Claude ← F3-2, F3-3
-- [ ] F3-5 · Cerrar las escrituras directas que se saltarían la función · Claude ← F3-4
+- [x] F3-5 · 0023: sin escritura directa en operación; saldo = libro garantizado por la base · Claude ← F3-4
 - [~] F3-6 · Cliente remoto: transporte, controlador y contrato RPC · Codex
 - [ ] F3-7 · Casos de uso remotos y lecturas paginadas · Codex ← F3-6, F3-3
 - [ ] F3-8 · Pruebas de concurrencia contra PostgreSQL real ← F3-4

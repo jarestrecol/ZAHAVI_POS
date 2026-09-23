@@ -11,11 +11,12 @@ Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
 
 | ID | Responsable / revisor | Estado | Archivos reservados |
 |---|---|---|---|
+| UI-ZAHAVI | Codex / revisión pendiente | en curso: fichas de producto y diseño compacto | src/views/{almacen,historial,ingredients}.js, assets/css/pos.css, index.html, sw.js, tests/almacen.spec.js, tests/ui-productos.spec.js |
 | GIT-001 | Codex / Claude pendiente | lista para revisión | Ninguno; subida verificada y reservas liberadas |
 | COORD-OPT | Codex / Claude pendiente | lista para revisión | Ninguno; entrega abajo |
 | F0-LOCAL | Codex / Claude pendiente | herramienta lista; conciliación pendiente | Ninguno; ver entregas/F0-LOCAL.md |
 | F0-REMOTO | Claude / Codex pendiente | lista para revisión | Ninguno; ver entregas/F0-REMOTO.md |
-| MIGRACION | Claude / Codex | F3-3/F3-4 hechas (0018–0022, API completa); sigue F3-5 | db/migraciones/0014_operacion.sql, db/migraciones/0015…0023_*.sql, db/local/pruebas-{operacion,api}.sql, entregas/CONTRATO-RPC.md, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
+| MIGRACION | Claude / Codex | F3-3/4/5 hechas (0018–0023); sigue F3-8 y F3-11 | db/migraciones/0014_operacion.sql, db/migraciones/0015…0023_*.sql, db/local/pruebas-{operacion,api}.sql, entregas/CONTRATO-RPC.md, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
 | CLIENTE-REMOTO | Codex / Claude | X-1/X-2 corregidos y probados | Ninguno; ver entregas/PERMISOS-COSTOS.md |
 | F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F2-CONCILIACION.md |
 
@@ -37,7 +38,7 @@ COORD-OPT en lo documental; no restaurar MANUAL/docs borrados ajenos. README nue
   `probar-sql` cubre la operación. Respaldo nocturno verificado; ensayo pendiente.
 - Hecho: `privado.costear()` igual al cliente en los 14 casos (F3-1/F3-2).
 - Hecho: API de operación completa (0018–0022), contrato en entregas/CONTRATO-RPC.md.
-- Sigue: F3-5. Espera: revisión de 0015–0022 (Codex); Codex conecta el cliente (F3-6/F3-7).
+- Sigue: F3-8 (concurrencia) y F3-11 (RLS por rol y sede). Espera: revisión de 0015–0022 (Codex); Codex conecta el cliente (F3-6/F3-7).
 - Detalle y orden completo en [CHECKLIST.md](CHECKLIST.md); fase en el plan.
 
 ## Dependencias y reparto siguiente

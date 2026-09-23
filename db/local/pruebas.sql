@@ -61,14 +61,20 @@ insert into ingredientes (id, nombre, unidad_base) values
   ('bbbbbbbb-0000-0000-0000-000000000002', 'QA-TEST-AGUA', 'GR');
 
 -- Dos lotes del mismo ingrediente a precios MUY distintos, uno de ellos vencido.
-insert into lotes (id, codigo, ingrediente_id, sede_id, peso_compra, unidad, costo_compra, vencimiento) values
+-- Desde 0023 cada lote nace con autor y con el saldo que dice su libro (abajo):
+-- la base comprueba al confirmar que `existencia` es la suma de `movimientos`.
+insert into lotes (id, codigo, ingrediente_id, sede_id, peso_compra, unidad, costo_compra, vencimiento,
+                   existencia, creado_por) values
   ('cccccccc-0000-0000-0000-000000000001', 'QA-L001', 'bbbbbbbb-0000-0000-0000-000000000001',
-   '11111111-1111-1111-1111-111111111111', 1000, 'GR', 10000, current_date + 90),
+   '11111111-1111-1111-1111-111111111111', 1000, 'GR', 10000, current_date + 90,
+   750, 'aaaaaaaa-0000-0000-0000-000000000002'),
   ('cccccccc-0000-0000-0000-000000000002', 'QA-L002', 'bbbbbbbb-0000-0000-0000-000000000001',
-   '11111111-1111-1111-1111-111111111111', 1000, 'GR', 20000, current_date - 5),
+   '11111111-1111-1111-1111-111111111111', 1000, 'GR', 20000, current_date - 5,
+   1000, 'aaaaaaaa-0000-0000-0000-000000000002'),
   -- Un lote de la OTRA sede, para comprobar el aislamiento.
   ('cccccccc-0000-0000-0000-000000000003', 'QA-L003', 'bbbbbbbb-0000-0000-0000-000000000002',
-   '22222222-2222-2222-2222-222222222222', 500, 'GR', 5000, null);
+   '22222222-2222-2222-2222-222222222222', 500, 'GR', 5000, null,
+   500, 'aaaaaaaa-0000-0000-0000-000000000004');
 
 insert into movimientos (lote_id, tipo, cantidad) values
   ('cccccccc-0000-0000-0000-000000000001', 'entrada', 1000),
@@ -346,12 +352,17 @@ do $$
 declare
   n integer;
 begin
-  -- El operario registra consumo: es quien esta delante de la bascula.
-  insert into movimientos (lote_id, tipo, cantidad)
-  values ('cccccccc-0000-0000-0000-000000000001', 'salida', -10);
-  raise notice '  OK    el operario puede anotar una salida por produccion';
+  -- Desde 0023 nadie escribe en el libro directamente: el consumo lo anota
+  -- la confirmacion (0021), junto con el saldo, o no se anota.
+  begin
+    insert into movimientos (lote_id, tipo, cantidad)
+    values ('cccccccc-0000-0000-0000-000000000001', 'salida', -10);
+    raise exception 'FALLA: el operario anoto una salida directamente en el libro';
+  exception when insufficient_privilege then
+    raise notice '  OK    el operario no anota salidas directas: el consumo lo anota la confirmacion';
+  end;
 
-  -- Pero no da de alta compras.
+  -- Ni da de alta compras.
   begin
     insert into lotes (codigo, ingrediente_id, sede_id, peso_compra, unidad, costo_compra)
     values ('QA-L100', 'bbbbbbbb-0000-0000-0000-000000000001',
@@ -397,22 +408,31 @@ set request.jwt.claim.session_id = 'dddddddd-0000-0000-0000-000000000002';
 set request.jwt.claim.aal = 'aal1';
 
 do $$
+declare
+  r jsonb;
 begin
-  insert into lotes (codigo, ingrediente_id, sede_id, peso_compra, unidad, costo_compra)
-  values ('QA-L101', 'bbbbbbbb-0000-0000-0000-000000000001',
-          '11111111-1111-1111-1111-111111111111', 100, 'GR', 1000);
-  raise notice '  OK    el jefe de obrador si da de alta compras';
-
-  -- Pero no en la sede ajena.
+  -- Ni siquiera el jefe de obrador escribe la tabla: ni alta ni correccion.
   begin
     insert into lotes (codigo, ingrediente_id, sede_id, peso_compra, unidad, costo_compra)
-    values ('QA-L102', 'bbbbbbbb-0000-0000-0000-000000000001',
-            '22222222-2222-2222-2222-222222222222', 100, 'GR', 1000);
-    raise exception 'FALLA: se dio de alta un lote en otra sede';
-  exception when others then
-    if sqlerrm like 'FALLA:%' then raise; end if;
-    raise notice '  OK    pero no en la bodega de la otra sede';
+    values ('QA-L101', 'bbbbbbbb-0000-0000-0000-000000000001',
+            '11111111-1111-1111-1111-111111111111', 100, 'GR', 1000);
+    raise exception 'FALLA: el jefe de obrador dio de alta un lote saltandose la API';
+  exception when insufficient_privilege then
+    raise notice '  OK    el jefe de obrador no da de alta lotes en la tabla';
   end;
+  begin
+    update lotes set existencia = 0 where codigo = 'QA-L001';
+    raise exception 'FALLA: el jefe de obrador cambio una existencia saltandose la API';
+  exception when insufficient_privilege then
+    raise notice '  OK    ni cambia una existencia sin su movimiento';
+  end;
+
+  -- La compra entra por la API, en SU sede: la sede la pone la sesion.
+  r := public.operacion_ejecutar(jsonb_build_object('id', 'eeeeeeee-6666-4000-8000-000000000001',
+    'accion', 'registrar_lote', 'revision', 0, 'datos', jsonb_build_object(
+      'ingrediente_id', 'bbbbbbbb-0000-0000-0000-000000000001', 'unidad', 'GR', 'peso_compra', 100, 'costo_compra', 1000)));
+  perform set_config('qa.lote_api', r #>> '{resultado,lote,codigo}', false);
+  raise notice '  OK    el jefe de obrador da de alta compras por la API, siempre en su sede';
 
   -- Y no pone precios: eso es de gerencia.
   begin
@@ -447,11 +467,22 @@ begin
     raise exception 'FALLA: no se registro ningun cambio sobre `lotes`';
   end if;
 
+  -- El alta la escribe una funcion de la API, pero el autor sigue siendo
+  -- quien la pidio, no la funcion.
   select actor into quien from auditoria
-  where tabla = 'lotes' and accion = 'INSERT' and despues ->> 'codigo' = 'QA-L101';
+  where tabla = 'lotes' and accion = 'INSERT' and despues ->> 'codigo' = current_setting('qa.lote_api');
   if quien is distinct from 'aaaaaaaa-0000-0000-0000-000000000002'::uuid then
     raise exception 'FALLA: el autor registrado es % y deberia ser el jefe de obrador', quien;
   end if;
+
+  -- Y el saldo nunca se separa de su libro: la base lo comprueba al confirmar.
+  begin
+    update lotes set existencia = existencia - 1 where codigo = 'QA-L001';
+    set constraints all immediate;
+    raise exception 'FALLA: un saldo quedo distinto de la suma de su libro';
+  exception when check_violation then
+    raise notice '  OK    un saldo distinto de la suma de su libro no se puede confirmar';
+  end;
 
   raise notice '  OK    % cambios registrados, con el autor que los hizo', n;
 end $$;
