@@ -216,6 +216,7 @@ try {
   // transaccion que se deshace.
   console.log(limpiar(correrSql('db/local/pruebas-operacion.sql')));
   console.log(limpiar(correrSql('db/local/pruebas-api.sql')));
+  console.log(limpiar(correrSql('db/local/pruebas-api-plan.sql')));
 
   // -------------------------------------------------------------------------
   //  EL SERVIDOR COSTEA IGUAL QUE LA APLICACION

@@ -29,16 +29,23 @@ Cuerpo `{ code, message }`, con un `message` listo para mostrar.
 
 Un fallo de red o un 5xx en un comando deja el resultado **incierto**. Se consulta con `{tipo:'solicitud', id}` antes de ofrecer repetirlo.
 
-## Acciones (v1: bodega; las demás llegan en las capas siguientes)
+## Acciones (v1: bodega, plan y preparaciones; confirmación, notas y resultados en las siguientes capas)
 | accion | rol mínimo | revision | datos |
 |---|---|---|---|
 | `registrar_lote` | obrador | 0 | `ingrediente_id`, `unidad` (GR KG MG LT ML UND TANDA CM), `peso_compra` > 0, `costo_compra` ≥ 0, `origen` (`compra`\|`conteo_inicial`), y opcionales: `existencia` (solo en conteo inicial, ≤ peso), `presentacion`, `marca`, `proveedor`, `lote_proveedor`, `vencimiento`, `fecha_compra` (≤ hoy), `equivalencias` `{ML,UND,TANDA,CM: gramos>0}`, `motivo` |
 | `ajustar_lote` | obrador | revisión del lote | `lote_id`, `existencia` (el conteo nuevo, 0 ≤ x ≤ peso), `tipo` (`ajuste`\|`merma`), `motivo` |
 | `fijar_equivalencia` | obrador | revisión del lote | `lote_id`, `medida` (ML UND TANDA CM), `gramos` > 0, `motivo` |
 
+| `fijar_receta` | obrador | revisión del plan (0 si el día no tiene) | `fecha`, `receta_id`, `tandas` (0 la quita; 0,05–100 con 3 decimales; nunca menos de lo producido), `partidas?` [tandas que sumen lo pendiente], `motivo?` |
+| `iniciar_preparacion` | operario (solo lo asignado; obrador y superiores, cualquiera) | 0 | `fecha` (≤ hoy), `receta_id` |
+| `cancelar_preparacion` | operario (misma regla) | 0 | `fecha`, `receta_id` |
+| `asignar_preparacion` | obrador | 0 | `fecha`, `receta_id`, `persona_id` (null = sin asignar; activo, de la sede y del área de la receta) |
+
+- El plan guarda cada receta **congelada** en sus partidas. Una partida con `ejecucion_id` ya está producida. Un día sin recetas y sin producción no conserva plan.
 - Una unidad de compra sin conversión a gramos se rechaza, igual que en `validarLote`: LT y ML necesitan `ML`; UND, TANDA y CM necesitan la suya.
 - Dar de baja un lote es `ajustar_lote` con `existencia: 0` y su motivo. Un lote nunca se borra.
 
 ## Consultas (v1)
 - `{tipo:'solicitud', id}` → `{version, tipo, solicitud: {id, accion, completada, resultado}|null}`. Solo devuelve solicitudes propias. `null` significa que nunca llegó a confirmarse y se puede reintentar con el mismo `id`.
 - `{tipo:'bodega', con_existencia?: bool (por defecto true), despues?: codigo, limite?: 1–200 (por defecto 100)}` → `{version, tipo, lotes:[...], siguiente: codigo|null}`. Cada lote trae `id, codigo, revision, ingrediente_id, ingrediente, unidad, peso_compra, existencia, vencimiento, fecha_compra, presentacion, marca, proveedor, lote_proveedor, equivalencias{}`. Solo gerencia recibe además `costo_compra` y `valor_unitario`.
+- `{tipo:'dia', fecha}` → `{version, tipo, fecha, plan: null | {id, fecha, revision, responsable, motivo, actualizado, recetas:[{receta_id, codigo, nombre, categoria, tandas, producido, pendiente, partidas[], estado: pendiente|en_preparacion|lista, preparacion: {iniciada, iniciada_por, asignado:{id,nombre,area}}|null}]}}`.
