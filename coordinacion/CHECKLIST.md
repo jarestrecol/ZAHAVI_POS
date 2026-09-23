@@ -47,7 +47,7 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 - [ ] F3-7 · Casos de uso remotos y lecturas paginadas · Codex ← F3-6, F3-3
 - [x] F3-8 · Concurrencia real (scripts/lib/concurrencia-sql.mjs): doble toque, dos pantallas, bodega cambiando · Claude ← F3-4
 - [ ] F3-9 · Recuperar confirmación por identidad tras recarga; aislar usuario y sede ← F3-4, F3-6
-- [ ] F3-10 · Catálogo, recetas, precios, equivalencias y metas desde PostgreSQL; edición versionada ← F0-9, F3-6
+- [ ] F3-10 · Catálogo desde PostgreSQL con edición versionada; servidor listo (0024), falta el cliente ← F0-9, F3-6
 - [x] F3-11 · Barrido db/local/pruebas-rls.sql: 17 tablas y 5 consultas por sede y rol, sin dinero salvo gerencia aal2 · Claude ← F3-5
 
 ## Fase 4 y 5 · Dos aparatos, corte y vuelta atrás

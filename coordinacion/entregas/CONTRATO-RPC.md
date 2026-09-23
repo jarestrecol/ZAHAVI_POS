@@ -43,6 +43,8 @@ Un fallo de red o un 5xx en un comando deja el resultado **incierto**. Se consul
 | `guardar_nota` | operario (crear/cambiar: obrador; quien la tiene asignada solo cambia `hecha`) | revisión de la nota (0 si es nueva) | `id?`, `fecha`, `tipo` (tarea pendiente recomendacion felicitacion), `texto` (1–280), `area?` o `persona_id?` (nunca los dos), `hecha?` |
 | `eliminar_nota` | obrador | revisión de la nota | `id` |
 | `guardar_resultado` | operario (su primera medición; corregir o la de otro: obrador) | revisión del resultado (0 si es nuevo) | `ejecucion_id`, `receta_id`, `vendible`, `rechazado`, `unidad?` y `esperado?` (se ignoran si el nombre dice «X n UND»), `merma_preparacion_gr?`, `merma_coccion_gr?`, `motivo` (obligatorio si hay pérdida, diferencia o corrección) |
+| `guardar_receta` | obrador | revisión de la receta (0 si es nueva) | `receta_id?`, `nombre`, `categoria`, `metodo?` (texto con saltos de línea), `componentes` [{`nombre?`, `items` [{`ingrediente` (nombre), `cantidad` > 0 (3 decimales), `unidad`}]}], `motivo?`. Reemplaza la receta entera y deja una versión. Un ingrediente nuevo entra al catálogo |
+| `activar_receta` | obrador | revisión de la receta | `receta_id`, `activa` (bool), `motivo` |
 | `fijar_meta` | gerencia | 0 | `clave` (presupuestoMensual cumplimientoPlan rendimientoMinimo rechazoMaximo coberturaMinima avisoVencimiento alzaPrecio), `valor` (en su rango; solo el presupuesto admite null) |
 
 - `confirmar_receta` va en **una sola transacción**: bloquea el plan y los lotes, recalcula, crea la ejecución con el costeo congelado, un consumo y una salida por lote, descuenta saldos y marca las partidas. Si la huella no coincide, 409, y hay que volver a cotizar. Si faltan ingredientes o equivalencias, 422, y no se toca nada. El resultado trae `ejecucion_id`.
@@ -58,3 +60,5 @@ Un fallo de red o un 5xx en un comando deja el resultado **incierto**. Se consul
 - `{tipo:'notas', fecha}` → `{version, tipo, fecha, notas:[{id, fecha, tipo, texto, area, persona, hecha, revision, creada, actualizada, autor, cambiada_por}]}`, en el orden del panel.
 - `{tipo:'producido', fecha}` → `{version, tipo, fecha, ejecuciones:[{id, instante, receta_id, nombre, area, tandas, responsable, autor_id, rendimiento_previsto:{cantidad,unidad}, resultado|null, costo_total (solo gerencia)}]}`.
 - `{tipo:'metas'}` → `{version, tipo, metas:{clave:{valor, fijada, desde, responsable}}}`. Lo que nunca se fijó trae el valor base. `presupuestoMensual` y `alzaPrecio` solo llegan a gerencia.
+- `{tipo:'recetario', incluir_inactivas?}` → `{version, tipo, recetas:[{id (código R###), nombre, categoria, metodo, componentes, receta_id, revision, activa, actualizado}], ingredientes:[{id, nombre, unidad}]}`. Tiene la misma forma que `recipes.json` y **sustituye a `data/recipes.json` y a «Publicar»**.
+- `{tipo:'versiones_receta', receta_id}` (obrador) → `{version, tipo, receta_id, versiones:[{version, creada, responsable, motivo, contenido}]}`.
