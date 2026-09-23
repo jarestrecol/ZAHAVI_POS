@@ -26,19 +26,14 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 - [x] F0-H · Herramienta de diagnóstico local probada; no certifica copias reales · Codex
 - [ ] F0-6 · Verificar fuente actual: usuario declara toda la operación en Supabase · Claude ← F0-H
 - [~] F0-7 · Respaldo del destino: flujo listo; faltan secretos y ensayo · Usuario
-- [ ] F0-8 · Conciliar F0-6 con F0-1: qué origen tiene qué · Claude ← F0-6, F0-1
 - [x] F0-9 · 0015 corrige REVISION-0014; aplicada y verificada en remoto (entregas/F0-9.md) · Claude ← F0-5
 - [x] F0-10 · 0013 registrada en el historial remoto (verificado) · Claude ← F0-2
 - [x] F0-11 · Flujo de respaldo cifrado y ensayo de restauración (db/RESPALDO.md) · Claude
 
-## Fase 1 y 2 · Separar lo real y ensayar la importación
+## Fase 1 y 2 · Separar lo real (resuelta sin importación)
 
 - [x] F1-P · Preparar clasificación y manifiesto con casos sintéticos · Codex ← F0-H
-- [ ] F1-1 · Distinguir demo de datos reales, sin borrar historia · Codex ← F0-8, F1-P
-- [ ] F2-1 · Importador con modo diagnóstico y modo ensayo · Codex ← F1-1, F0-9
-- [ ] F2-E · Ejecutar ensayo aislado con respaldo y restauración verificados · Claude ← F2-1, F0-7
-- [ ] F2-2 · Conciliación: conteos, saldos, costos y diferencias explicadas ← F2-E
-- [ ] F2-3 · Repetir la importación y comprobar cero duplicados ← F2-E
+- [x] F1-D · Decisión del usuario 23-sep: la operación de los navegadores es demo y no se importa; recetario real = Supabase, idéntico a la versión publicada (entregas/F1-D.md) · Usuario
 
 ## Fase 3 · Confirmar y descontar como una sola operación
 
@@ -58,7 +53,8 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 
 - [ ] F4-1 · Sin conexión: leer con fecha, no registrar; nunca volver a local ← F3-7
 - [ ] F4-2 · QA en dos dispositivos con roles distintos ← F4-1, F3-8, F3-9, F3-11
-- [ ] F5-1 · Corte: fuente única, copia final local y conciliación sin diferencias ← F4-2, F0-7, F0-10, F2-2, F2-3, F3-10, F5-2
+- [ ] F5-0 · Conteo físico inicial: lotes reales cargados en Supabase por la función de alta · Usuario ← F3-5
+- [ ] F5-1 · Corte: fuente única en Supabase; los navegadores dejan de guardar operación ← F4-2, F0-7, F0-10, F1-D, F5-0, F3-10, F5-2
 - [ ] F5-2 · Preparar y probar panel desde servidor (`hechosDeSupabase`) · Claude ← F3-7, F3-10
 - [ ] F5-3 · Historial recuperable y restauración probada ← F5-1
 

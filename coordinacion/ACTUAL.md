@@ -43,7 +43,7 @@ COORD-OPT en lo documental; no restaurar MANUAL/docs borrados ajenos. README nue
 
 | Fases | Implementación propuesta | Revisión | Puerta |
 |---|---|---|---|
-| 1 demo; 2 importación | Codex | Claude | Usuario reasigna F1/F2; ensayo real espera copias, conciliación y SQL corregido |
+| 1–2 demo e importación | — | — | Resueltas sin importar: operación local es demo (entregas/F1-D.md) |
 | 3 transacciones y permisos SQL | Claude | Codex | Contrato acordado de importación/precisión/idempotencia |
 | 3 cliente remoto y 4 QA | Codex | Claude | API estable y pruebas SQL reales; luego dos dispositivos |
 | 5 historia/recuperación | Claude servidor, Codex interfaz | Cruzada | Corte conciliado y restauración probada |
