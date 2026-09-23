@@ -38,6 +38,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname, join } from 'node:path';
+import { probarConcurrencia } from './lib/concurrencia-sql.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -219,6 +220,12 @@ try {
   console.log(limpiar(correrSql('db/local/pruebas-api-plan.sql')));
   console.log(limpiar(correrSql('db/local/pruebas-api-confirmar.sql')));
   console.log(limpiar(correrSql('db/local/pruebas-api-notas.sql')));
+
+  // Dos sesiones de verdad a la vez: doble toque, dos pantallas y bodega
+  // cambiando mientras se confirma (F3-8).
+  console.log('');
+  console.log('32. Concurrencia: sesiones de PostgreSQL a la vez');
+  await probarConcurrencia({ contenedor: CONTENEDOR, base: BASE, ok: (texto) => console.log(`  OK    ${texto}`) });
 
   // -------------------------------------------------------------------------
   //  EL SERVIDOR COSTEA IGUAL QUE LA APLICACION

@@ -45,7 +45,7 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 - [x] F3-5 · 0023: sin escritura directa en operación; saldo = libro garantizado por la base · Claude ← F3-4
 - [~] F3-6 · Cliente remoto: transporte, controlador y contrato RPC · Codex
 - [ ] F3-7 · Casos de uso remotos y lecturas paginadas · Codex ← F3-6, F3-3
-- [ ] F3-8 · Pruebas de concurrencia contra PostgreSQL real ← F3-4
+- [x] F3-8 · Concurrencia real (scripts/lib/concurrencia-sql.mjs): doble toque, dos pantallas, bodega cambiando · Claude ← F3-4
 - [ ] F3-9 · Recuperar confirmación por identidad tras recarga; aislar usuario y sede ← F3-4, F3-6
 - [ ] F3-10 · Catálogo, recetas, precios, equivalencias y metas desde PostgreSQL; edición versionada ← F0-9, F3-6
 - [ ] F3-11 · RLS y ausencia de costos con roles y sedes diferentes ← F3-5
