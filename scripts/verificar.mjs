@@ -597,6 +597,8 @@ paso('Coordinación y documentación vigente', () => run('check-coordinacion.mjs
 paso('Regresiones de coordinación', () => run('test-coordinacion.mjs').trim().split('\n').at(-1));
 paso('Regresiones del checklist', () => run('test-checklist.mjs').trim());
 paso('Diagnóstico local de migración', () => run('test-auditoria-local.mjs').trim());
+paso('Clasificacion demo e identidades', () => run('test-preparar-importacion.mjs').trim());
+paso('Conciliacion exacta de operacion', () => run('test-conciliar-operacion.mjs').trim());
 paso('Transporte de operación remota', () => run('test-operacion-remota.mjs').trim());
 paso('Control y acciones remotas', () => run('test-control-operacion-remota.mjs').trim().split('\n').at(-1));
 

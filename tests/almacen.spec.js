@@ -18,7 +18,85 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { entrar, abrirModulo, salirDelModulo } from './apoyo.js';
+
+test('respaldo completo: botón directo en Bodega descarga JSON íntegro aunque haya filtros', async ({ page }) => {
+  await entrar(page);
+  const antes = await page.evaluate(async () => {
+    const { guardarLote } = await import('/src/app/almacen.js');
+    const { hoyLocal } = await import('/src/core/bitacora.js');
+    const r = await guardarLote({ ingrediente: 'HARINA', unidad: 'KG', pesoCompra: 5, existencia: 5,
+      costoCompra: 25000, fechaCompra: hoyLocal() }, { responsable: 'QA Respaldo' });
+    if (!r.ok) throw new Error(r.message);
+    return JSON.parse(localStorage.getItem('zahavi_almacen_v1'));
+  });
+  await abrirAlmacen(page);
+  await page.getByLabel('Buscar ingrediente, marca o lote', { exact: true }).fill('NO EXISTE');
+  const zona = page.getByRole('region', { name: 'Respaldo de la operación' });
+  const boton = zona.getByRole('button', { name: 'Descargar respaldo completo' });
+  await expect(boton).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Descargar respaldo completo' })).toHaveCount(1);
+  const descargando = page.waitForEvent('download');
+  await boton.click();
+  const descarga = await descargando;
+  expect(descarga.suggestedFilename()).toMatch(/^zahavi-operacion-\d{4}-\d{2}-\d{2}\.json$/);
+  const copia = JSON.parse(await readFile(await descarga.path(), 'utf8'));
+  // La lectura normaliza la colección incorporada después del formato inicial.
+  expect(copia).toEqual({ ...antes, resultados: antes.resultados || [] });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('zahavi_almacen_v1')))).toEqual(antes);
+});
+
+test('permisos: obrador consulta existencias sin costos, respaldo ni columnas monetarias CSV', async ({ page }) => {
+  await entrar(page);
+  await page.evaluate(async () => {
+    const { guardarLote } = await import('/src/app/almacen.js');
+    const { hoyLocal } = await import('/src/core/bitacora.js');
+    const r = await guardarLote({ ingrediente: 'HARINA', unidad: 'KG', pesoCompra: 10, existencia: 10,
+      costoCompra: 43210, fechaCompra: hoyLocal() }, { responsable: 'QA Costos' });
+    if (!r.ok) throw new Error(r.message);
+    window.csvs = [];
+    const crear = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = blob => { blob.text().then(texto => window.csvs.push(texto)); return crear(blob); };
+  });
+  await abrirAlmacen(page);
+  await expect(page.locator('.almacen__resumen')).toContainText('Valor en bodega');
+  await expect(page.getByRole('button', { name: 'Nuevo lote', exact: true })).toBeVisible();
+  await page.evaluate(async () => {
+    const { getState, setState } = await import('/src/core/store.js');
+    setState({ usuario: { ...getState().usuario, rol: 'obrador' } });
+  });
+  await expect(page.locator('.almacen')).toContainText('Consulta de inventario');
+  await expect(page.locator('.almacen')).not.toContainText('$');
+  await expect(page.locator('.almacen')).not.toContainText('43.210');
+  await expect(page.getByRole('button', { name: 'Nuevo lote', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Descargar respaldo completo' })).toHaveCount(0);
+  await expect(page.locator('.almacen__fila')).toContainText('1000');
+  for (const boton of ['Exportar inventario', 'Exportar historial CSV']) {
+    await page.getByRole('button', { name: boton, exact: true }).click();
+  }
+  await expect.poll(() => page.evaluate(() => window.csvs.length)).toBe(2);
+  const csvs = await page.evaluate(() => window.csvs);
+  for (const csv of csvs) {
+    expect(csv).not.toMatch(/Costo compra|Costo unitario|Valor restante|Precio anterior|Precio nuevo|43210/);
+    expect(csv).toContain('HARINA');
+  }
+});
+
+test('permisos: historial omite importes cuando no recibe autorización explícita', async ({ page }) => {
+  await entrar(page);
+  const texto = await page.evaluate(async () => {
+    const { renderHistorial } = await import('/src/views/historial.js');
+    const { hoyLocal } = await import('/src/core/bitacora.js');
+    const lote = { id: 'L1', ingrediente: 'HARINA', unidad: 'KG', pesoCompra: 1, existencia: 1, costoCompra: 98765, fechaCompra: hoyLocal() };
+    const h = renderHistorial({ tipo: 'bodega', leerDatos: () => ({ ok: true, value: { lotes: [lote], eventos: [{ id: 'e1', tipo: 'compra', despues: lote, instante: new Date().toISOString(), responsable: 'QA', motivo: 'Compra' }] } }) });
+    h.actualizar();
+    return h.node.textContent;
+  });
+  expect(texto).toContain('HARINA');
+  expect(texto).not.toContain('$');
+  expect(texto).not.toContain('Descargar respaldo completo');
+});
 
 for (const ancho of [1440, 390]) {
   test(`demo Colombia: cobertura completa, carga única y retiro conserva compras · ${ancho}px`, async ({ page }, testInfo) => {

@@ -18,7 +18,7 @@ export function comprobarCoordinacion(root = raiz) {
   for (const [archivo, limite] of Object.entries(limites)) {
     const ruta = resolve(root, archivo);
     if (!existsSync(ruta)) { fallos.push(`Falta ${archivo}`); continue; }
-    const texto = readFileSync(ruta, 'utf8');
+    const texto = readFileSync(ruta, 'utf8').replace(/\r\n/g, '\n');
     textos.set(archivo, texto);
     if (Buffer.byteLength(texto) > limite) fallos.push(`${archivo} supera ${limite} bytes: mover detalle a una ficha`);
     if (texto.includes('\uFFFD')) fallos.push(`${archivo}: codificación inválida`);
@@ -50,7 +50,7 @@ export function comprobarCoordinacion(root = raiz) {
   const archivo = resolve(root, 'coordinacion/archivo/2026-09-22-coordinacion.md');
   const huella = `${archivo.slice(0, -3)}.sha256`;
   if (!existsSync(archivo) || !existsSync(huella)) fallos.push('Falta el archivo histórico o su huella');
-  else if (createHash('sha256').update(readFileSync(archivo)).digest('hex') !== readFileSync(huella, 'utf8').trim()) {
+  else if (createHash('sha256').update(readFileSync(archivo, 'utf8').replace(/\r\n/g, '\n')).digest('hex') !== readFileSync(huella, 'utf8').trim()) {
     fallos.push('El archivo histórico cambió: debe conservarse íntegro');
   }
   if (fallos.length) throw new Error(fallos.join('\n'));

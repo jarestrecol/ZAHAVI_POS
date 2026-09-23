@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 const canonico = v => Array.isArray(v) ? v.map(canonico) : v !== null && typeof v === 'object'
   ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonico(v[k])])) : v;
 const huella = v => createHash('sha256').update(JSON.stringify(canonico(v))).digest('hex');
-// Exigir texto decimal desde PostgreSQL: un Number puede haber perdido precisi?n antes de llegar aqu?.
+// Exigir texto decimal desde PostgreSQL: Number puede perder precision antes de llegar aqui.
 function decimal(v) {
   if (typeof v !== 'string' || !/^[+-]?\d+(?:\.\d+)?$/.test(v)) throw new Error('decimal_debe_ser_texto_exacto');
   let [entero, fraccion = ''] = v.split('.');
@@ -16,6 +16,12 @@ const esquema = {
   lotes: { decimales: ['existencia', 'peso_compra', 'costo_compra'], datos: ['unidad', 'equivalencias'] },
   ejecuciones: { decimales: ['costo_total'], datos: ['costeo', 'formula'] },
   resultados: { decimales: ['vendible', 'rechazado'], datos: ['detalle'] },
+  movimientos: { decimales: ['cantidad'], datos: ['detalle'] },
+  planes: { decimales: [], datos: ['detalle', 'partidas'] },
+  preparaciones: { decimales: [], datos: ['detalle'] },
+  notas: { decimales: [], datos: ['detalle'] },
+  eventos: { decimales: [], datos: ['detalle'] },
+  metas: { decimales: [], datos: ['detalle'] },
 };
 function validar(copia) {
   if (!copia || copia.version !== 1 || !copia.proyecto || !copia.capturada || copia.completa !== true) throw new Error('captura_incompleta');
@@ -33,7 +39,7 @@ function validar(copia) {
   }
   return indices;
 }
-/** Comparaci?n privada, sin escritura ni acceso a red. No valida una fuente contra s? misma. */
+/** Comparacion privada sin escritura. Igualdad no acredita autenticidad de las fuentes. */
 export function conciliarOperacion(antes, despues) {
   const a = validar(antes), b = validar(despues), diferencias = [];
   if (antes.proyecto !== despues.proyecto) throw new Error('proyectos_distintos_requieren_mapeo_aprobado');

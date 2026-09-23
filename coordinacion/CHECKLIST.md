@@ -24,7 +24,7 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 - [x] F0-4 · Contrato de costeo FEFO en casos ejecutables · Claude
 - [x] F0-5 · Revisar 0014; hallazgos en entregas/REVISION-0014.md · Codex ← F0-3
 - [x] F0-H · Herramienta de diagnóstico local probada; no certifica copias reales · Codex
-- [ ] F0-6 · Verificar fuente actual: usuario declara toda la operación en Supabase · Claude ← F0-H
+- [x] F0-6 · Lectura 23-sep 14:25 UTC: operación remota vacía; origen local confirmado · Claude ← F0-H
 - [~] F0-7 · Respaldo del destino: flujo listo; faltan secretos y ensayo · Usuario
 - [x] F0-9 · 0015 corrige REVISION-0014; aplicada y verificada en remoto (entregas/F0-9.md) · Claude ← F0-5
 - [x] F0-10 · 0013 registrada en el historial remoto (verificado) · Claude ← F0-2
@@ -33,6 +33,7 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 ## Fase 1 y 2 · Separar lo real (resuelta sin importación)
 
 - [x] F1-P · Preparar clasificación y manifiesto con casos sintéticos · Codex ← F0-H
+- [x] F2-P · Preparar captura y conciliador exacto de nueve grupos; pruebas sintéticas · Codex ← F1-P
 - [x] F1-D · Decisión del usuario 23-sep: la operación de los navegadores es demo y no se importa; recetario real = Supabase, idéntico a la versión publicada (entregas/F1-D.md) · Usuario
 
 ## Fase 3 · Confirmar y descontar como una sola operación
@@ -61,8 +62,8 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 
 ## Pendientes sueltos (no bloquean el plan)
 
-- [ ] X-1 · Bodega muestra importes al jefe de obrador (`views/almacen.js`)
-- [ ] X-2 · `renderHistorial` trae `verCostos = true` por defecto
+- [x] X-1 · Bodega e historial sin importes para obrador; CSV y respaldo controlados en UI · Codex
+- [x] X-2 · Historial exige autorización explícita para mostrar costos · Codex
 - [ ] X-3 · Regla de importaciones del verificador cuenta parámetros como usos
 
 ## Después del corte (fases 6–10)

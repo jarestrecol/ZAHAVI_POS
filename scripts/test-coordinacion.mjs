@@ -32,6 +32,12 @@ try {
   test('rechaza importación automática', () => mutar('CLAUDE.md', (s) => '@COORDINACION.md\n' + s, /importación automática/));
   test('detecta enlace roto', () => mutar('COORDINACION.md', (s) => s.replace('](coordinacion/MAPA.md)', '](no-existe.md)'), /enlace local inválido/));
   test('detecta modificación del archivo histórico', () => mutar('coordinacion/archivo/2026-09-22-coordinacion.md', (s) => s + '\n', /histórico cambió/));
+  test('acepta CRLF sin alterar contenido historico', () => {
+    const archivo = join(temp, 'coordinacion/archivo/2026-09-22-coordinacion.md');
+    const original = readFileSync(archivo);
+    try { writeFileSync(archivo, original.toString('utf8').replace(/\r?\n/g, '\r\n')); assert.match(comprobarCoordinacion(temp), /enlaces e historial correctos/); }
+    finally { writeFileSync(archivo, original); }
+  });
   const ejecutar = (...args) => execFileSync(process.execPath, [join(root, 'scripts/contexto.mjs'), ...args], { encoding: 'utf8' });
   test('inicio breve sin historial', () => { const s = ejecutar(); assert.ok(s.length < 2200); assert.ok(!s.includes('MSG-001')); });
   test('extrae las once fases sin arrastrar las otras', () => {
@@ -44,7 +50,7 @@ try {
   // La tarea se toma del tablero vigente: al entregar, su seccion desaparece y
   // fijar un id aqui hacia fallar la prueba sin que nada estuviera roto.
   test('extrae solo la tarea propia', () => {
-    const tablero = readFileSync(join(root, 'coordinacion/ACTUAL.md'), 'utf8');
+    const tablero = readFileSync(join(root, 'coordinacion/ACTUAL.md'), 'utf8').replace(/\r\n/g, '\n');
     const titulos = [...tablero.matchAll(/^## ([^:\n]+): ([A-Z0-9-]+)[ \t]*$/gm)];
     assert.ok(titulos.length >= 2, 'el tablero debe tener una seccion por agente');
     const [, agente, id] = titulos[0];

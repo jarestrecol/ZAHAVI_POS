@@ -45,6 +45,7 @@ import {
 import { crearPantalla } from './pantalla.js';
 import { metric } from './navigation.js';
 import { renderHistorial } from './historial.js';
+import { descargarRespaldo } from '../lib/respaldo.js';
 import { hoyLocal } from '../core/bitacora.js';
 import { fichaMedidasIngrediente } from './medidas-ingrediente.js';
 import { esLoteDemo, PRECIOS_DEMO } from '../core/precios-demo.js';
@@ -77,6 +78,7 @@ const CLASE_ESTADO = {
  * @returns {{node: HTMLElement, pintarAvisos: (nodos: Array<Node>) => void, close: () => void}}
  */
 export function openAlmacen(options) {
+  const verCostos = options.verCostos === true;
   /*
    * TODO ESTO VIVE EN LA VENTANA Y NO EN EL ESTADO.
    *
@@ -92,7 +94,7 @@ export function openAlmacen(options) {
   let combosDelForm = [];
   const responsable = el('input', { type: 'text', class: 'field', placeholder: 'Nombre de quien registra', attrs: { 'aria-label': 'Responsable de bodega' } });
   const avisoOperacion = el('p', { class: 'historial__alerta', attrs: { role: 'status' } });
-  const historial = renderHistorial({ leerDatos: options.leerDatos, tipo: 'bodega' });
+  const historial = renderHistorial({ leerDatos: options.leerDatos, tipo: 'bodega', verCostos });
 
   const buscador = el('input', {
     type: 'search',
@@ -130,7 +132,7 @@ export function openAlmacen(options) {
     { clave: 'nombre', texto: 'A–Z' },
     { clave: 'vence', texto: 'Vence antes' },
     { clave: 'valor', texto: 'Más valor' },
-  ].map((op) =>
+  ].filter(op => verCostos || op.clave !== 'valor').map((op) =>
     el('button', {
       type: 'button',
       class: 'almacen__orden-btn',
@@ -157,13 +159,27 @@ export function openAlmacen(options) {
 
   const cuerpo = el('div', { class: 'almacen' }, [
     resumenHost,
+    el('section', { class: 'historial', attrs: { 'aria-label': 'Respaldo de la operación' } }, [
+      el('h2', { text: 'Respaldo de la operación' }),
+      el('p', { text: 'Guarda bodega, producción e historial de este navegador en un archivo JSON completo. Los archivos CSV son informes y no incluyen toda la operación.' }),
+      verCostos ? el('button', { type: 'button', class: 'btn btn--accent', text: 'Descargar respaldo completo',
+        on: { click: () => {
+          try {
+            const r = options.leerDatos();
+            if (!r.ok) { avisoOperacion.textContent = r.message; return; }
+            descargarRespaldo(r.value, `zahavi-operacion-${hoyLocal()}.json`);
+            avisoOperacion.textContent = 'Se solicitó la descarga del respaldo JSON. Revisa las descargas del navegador; los datos originales se conservan.';
+          } catch { avisoOperacion.textContent = 'No se pudo generar el respaldo. Los datos del navegador no se borraron.'; }
+        } },
+      }) : el('p', { text: 'Gerencia o administración puede descargar el respaldo completo, que contiene costos.' }),
+    ]),
     demoHost,
     el('div', { class: 'historial__filtros' }, [el('label', {}, ['Responsable de los movimientos', responsable]),
       el('button', { type: 'button', class: 'btn btn--quiet', text: 'Actualizar bodega', on: { click: dibujar } })]),
     avisoOperacion,
     el('div', { class: 'section-heading' }, [
       el('div', {}, [el('h2', { text: 'Inventario de lotes' }), el('p', { text: 'Compras, existencias y trazabilidad de tus materias primas.' })]),
-      botonNuevo,
+      verCostos ? botonNuevo : el('p', { text: 'Consulta de inventario. Las compras y sus costos los gestiona gerencia.' }),
     ]),
     filtros,
     el('div', { class: 'almacen__barra' }, [
@@ -254,7 +270,7 @@ export function openAlmacen(options) {
 
   function pintarDemo(todos) {
     clear(demoHost);
-    if (!options.onDemoColombia) return;
+    if (!verCostos || !options.onDemoColombia) return;
     const activos = todos.filter(esLoteDemo), reales = todos.length - activos.length;
     demoHost.append(el('h3', { text: activos.length ? `DEMO activa · ${activos.length} ingredientes` : 'Probar producción con bodega completa' }),
       el('p', { text: `${PRECIOS_DEMO.length} ingredientes del recetario: precios en COP, presentaciones de compra y pesos de prueba. Referencias consultadas el 22/09/2026; los valores sin cotización se marcan como estimados.` }),
@@ -281,11 +297,11 @@ export function openAlmacen(options) {
     clear(resumenHost);
 
     for (const nodo of [
-      metric(pesos(r.valorTotal), 'Valor en bodega', 'Valor de las existencias · COP', 'metric--featured'),
+      verCostos ? metric(pesos(r.valorTotal), 'Valor en bodega', 'Valor de las existencias · COP', 'metric--featured') : null,
       metric(r.lotes, 'Lotes registrados', `${r.ingredientes} ingredientes / unidades`),
       metric(r.proximos, 'Vencen pronto', 'En los próximos 30 días'),
       metric(r.vencidos, 'Lotes vencidos', `${r.sinExistencia} lotes agotados`, r.vencidos ? 'metric--attention' : ''),
-    ]) resumenHost.appendChild(nodo);
+    ].filter(Boolean)) resumenHost.appendChild(nodo);
   }
 
   function coincideFiltro(lote, clave) {
@@ -305,11 +321,13 @@ export function openAlmacen(options) {
       factorGramos(lote.unidad, lote.equivalencias) ?? '',
       factorGramos(lote.unidad, lote.equivalencias) === null ? '' : lote.existencia * factorGramos(lote.unidad, lote.equivalencias),
     ]);
-    descargarCSV(nombreConFecha('zahavi-inventario'), aCSV(filas, [
+    const cabeceras = [
       'ID', 'Ingrediente', 'Marca', 'Lote', 'Presentación', 'Compra', 'Unidad', 'Costo compra',
       'Costo unitario', 'Existencia', 'Valor restante', 'Vencimiento', 'Estado',
       'Gramos por unidad de compra', 'Existencia en gramos',
-    ]));
+    ];
+    const filtrar = fila => fila.filter((_, i) => verCostos || ![7, 8, 10].includes(i));
+    descargarCSV(nombreConFecha('zahavi-inventario'), aCSV(filas.map(filtrar), filtrar(cabeceras)));
     announce(`${filas.length} lotes exportados.`);
   }
 
@@ -321,6 +339,7 @@ export function openAlmacen(options) {
    * cruza con el plan del dia.
    */
   function pintarVacio() {
+    if (!verCostos) return el('p', { text: 'No hay lotes registrados. Solicita a gerencia el registro de las compras.' });
     return el('div', { class: 'almacen__vacio' }, [
       el('h3', { text: 'Registra tu primera compra' }),
       el('p', { text: 'El almacén de este equipo está vacío.' }),
@@ -374,7 +393,7 @@ export function openAlmacen(options) {
       el('span', { class: 'almacen__head-num', text: 'compra' }),
       // «valor / und» no lo entendia nadie, y con razon: no decia de que unidad
       // hablaba. Lo dice ahora cada celda, con la unidad de su propio lote.
-      el('span', { class: 'almacen__head-num', text: 'costo por unidad' }),
+      el('span', { class: 'almacen__head-num', text: verCostos ? 'costo por unidad' : 'peso equivalente' }),
       el('span', { class: 'almacen__head-num', text: 'existencia' }),
       el('span', { text: 'vence' }),
       el('span'),
@@ -410,7 +429,7 @@ export function openAlmacen(options) {
           // permite identificar el saco fisico en la estanteria.
           text: [lote.marca, lote.lote ? 'lote ' + lote.lote : ''].filter(Boolean).join(' · ') || lote.id,
         }),
-        esLoteDemo(lote) ? el('details', {}, [
+        esLoteDemo(lote) && verCostos ? el('details', {}, [
           el('summary', { text: 'Referencia y pesos DEMO' }),
           el('p', { text: `${lote.demo.tipo} · ${pesos(lote.demo.precio)} por ${formatQty(lote.demo.cantidad)} ${lote.demo.unidad}. ${lote.demo.nota}` }),
           el('p', { text: lote.demo.notaPesos }),
@@ -424,10 +443,12 @@ export function openAlmacen(options) {
       el('span', { class: 'almacen__num' }, [
         rotulo('compra'),
         el('span', {
-          text: `${formatQty(lote.pesoCompra)} ${lote.unidad} · ${pesos(lote.costoCompra)}`,
+          text: `${formatQty(lote.pesoCompra)} ${lote.unidad}${verCostos ? ` · ${pesos(lote.costoCompra)}` : ''}`,
         }),
       ]),
-      el('div', { class: 'almacen__num almacen__unitario' }, [
+      !verCostos ? el('div', { class: 'almacen__num almacen__unitario' }, [
+        rotulo('peso equivalente'), el('span', { text: factor === null ? 'Falta equivalencia' : `1 ${lote.unidad} = ${formatQty(factor)} g` }),
+      ]) : el('div', { class: 'almacen__num almacen__unitario' }, [
         rotulo('costo por unidad'),
         el('span', {
           // Tres decimales: un gramo de harina vale menos de un peso, y con cero
@@ -460,7 +481,7 @@ export function openAlmacen(options) {
           text: ROTULO_ESTADO[estado],
         }),
       ]),
-      el('div', { class: 'almacen__acciones' }, [
+      verCostos ? el('div', { class: 'almacen__acciones' }, [
         el('button', {
           type: 'button',
           class: 'btn-link',
@@ -474,7 +495,7 @@ export function openAlmacen(options) {
           attrs: { 'aria-label': `Eliminar el lote ${lote.id} de ${lote.ingrediente}` },
           on: { click: () => pedirBaja(lote) },
         }, [icon(ICON_ELIMINAR, { class: 'icon--control' })]),
-      ]),
+      ]) : el('div', { class: 'almacen__acciones' }),
     ]);
   }
 
@@ -491,6 +512,7 @@ export function openAlmacen(options) {
    * persona esta mirando.
    */
   function pedirBaja(lote) {
+    if (!verCostos) return;
     cerrarFormulario();
     const motivoBaja = el('input', { type: 'text', class: 'field', placeholder: 'Merma, devolución, corrección…', attrs: { 'aria-label': 'Motivo de la baja' } });
     const aviso = el('div', { class: 'almacen__confirmar' }, [
@@ -549,6 +571,7 @@ export function openAlmacen(options) {
    * @param {object|null} lote null para dar de alta
    */
   function abrirFormulario(lote) {
+    if (!verCostos) return;
     cerrarFormulario();
     editando = lote ? { ...lote } : loteVacio('');
     editando.equivalencias = { ...editando.equivalencias };

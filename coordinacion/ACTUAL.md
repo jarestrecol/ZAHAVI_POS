@@ -16,7 +16,7 @@ Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
 | F0-LOCAL | Codex / Claude pendiente | herramienta lista; conciliación pendiente | Ninguno; ver entregas/F0-LOCAL.md |
 | F0-REMOTO | Claude / Codex pendiente | lista para revisión | Ninguno; ver entregas/F0-REMOTO.md |
 | MIGRACION | Claude / Codex | F3-3/F3-4: núcleo, bodega, plan y confirmación atómica aplicados (0018–0021); siguen notas y resultados | db/migraciones/0014_operacion.sql, db/migraciones/0015…0023_*.sql, db/local/pruebas-{operacion,api}.sql, entregas/CONTRATO-RPC.md, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
-| CLIENTE-REMOTO | Codex / Claude | pausada por prioridad F1/F2 del usuario | Ninguno |
+| CLIENTE-REMOTO | Codex / Claude | X-1/X-2 corregidos y probados | Ninguno; ver entregas/PERMISOS-COSTOS.md |
 | F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F2-CONCILIACION.md |
 
 No hay otras reservas activas del protocolo anterior: AUTH, PROD, CONV, REND, BI y
@@ -57,8 +57,8 @@ plan largo es la especificación, este tablero solo mantiene el trabajo inmediat
 - Claude entregó F0-REMOTO; Codex solo dispone de configuración pública, sin conexión admin.
 - Docker sin motor activo; navegador no conectado a Codex. Auditoría remota de Claude;
   pruebas SQL de comportamiento y conciliación de copias locales todavía pendientes.
-- Usuario declara toda la data en Supabase. Claude debe refrescar conteos/procedencia
-  con db/auditoria/fases_1_2.sql; no exigir copia local antes de verificar esta fuente.
+- Lectura de Claude 23-sep 14:25 UTC, transmitida por usuario: operación remota vacía;
+  catálogo existente. F1/F2 parten de copias locales; ver entregas/F0-REMOTO-20260923.md.
 - El corte real espera ensayo, respaldo, conciliación y pruebas de servidor. No
   activar dos fuentes editables ni volver a escritura local cuando falle la red.
 

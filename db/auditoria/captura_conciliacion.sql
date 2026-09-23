@@ -28,6 +28,24 @@ select jsonb_build_object(
     'id', jsonb_build_array(r.ejecucion_id, r.receta_id)::text,
     'vendible', r.vendible::text, 'rechazado', r.rechazado::text,
     'detalle', to_jsonb(r)::text
-  ) order by r.ejecucion_id, r.receta_id) from public.resultados r), '[]'::jsonb)
+  ) order by r.ejecucion_id, r.receta_id) from public.resultados r), '[]'::jsonb),
+  'movimientos', coalesce((select jsonb_agg(jsonb_build_object(
+    'id', m.id::text, 'cantidad', m.cantidad::text, 'detalle', to_jsonb(m)::text
+  ) order by m.id) from public.movimientos m), '[]'::jsonb),
+  'planes', coalesce((select jsonb_agg(jsonb_build_object(
+    'id', p.id, 'detalle', to_jsonb(p)::text,
+    'partidas', coalesce((select jsonb_agg(to_jsonb(pp)::text order by pp.receta_id, pp.partida)
+      from public.plan_partidas pp where pp.plan_id = p.id), '[]'::jsonb)
+  ) order by p.id) from public.planes p), '[]'::jsonb),
+  'preparaciones', coalesce((select jsonb_agg(jsonb_build_object(
+    'id', jsonb_build_array(p.sede_id, p.fecha, p.receta_id)::text, 'detalle', to_jsonb(p)::text
+  ) order by p.sede_id, p.fecha, p.receta_id) from public.preparaciones p), '[]'::jsonb),
+  'notas', coalesce((select jsonb_agg(jsonb_build_object(
+    'id', n.id, 'detalle', to_jsonb(n)::text) order by n.id) from public.notas n), '[]'::jsonb),
+  'eventos', coalesce((select jsonb_agg(jsonb_build_object(
+    'id', e.id::text, 'detalle', to_jsonb(e)::text) order by e.id) from public.eventos_operacion e), '[]'::jsonb),
+  'metas', coalesce((select jsonb_agg(jsonb_build_object(
+    'id', jsonb_build_array(m.sede_id, m.clave, m.vigente_desde)::text, 'detalle', to_jsonb(m)::text
+  ) order by m.sede_id, m.clave, m.vigente_desde) from public.metas m), '[]'::jsonb)
 ) as captura_privada;
 rollback;

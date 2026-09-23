@@ -4,7 +4,6 @@ import { aCSV, descargarCSV } from '../lib/csv.js';
 import { hoyLocal, periodoDe } from '../core/bitacora.js';
 import { enPeriodo, seguimientoProductos, fechaEvento } from '../core/seguimiento.js';
 import { valorUnitario } from '../core/almacen.js';
-import { descargarRespaldo } from '../lib/respaldo.js';
 import { fechaLarga } from '../core/calendario.js';
 import { resultadoDe, indicadoresResultado } from '../core/resultados-produccion.js';
 import { resumenResultado } from './produccion/resultados.js';
@@ -17,7 +16,7 @@ const fechaLegible = (fecha) => {
 
 const cuenta = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
-export function renderHistorial({ leerDatos, tipo, verCostos = true }) {
+export function renderHistorial({ leerDatos, tipo, verCostos = false }) {
   const bodega = tipo === 'bodega';
   const fecha = el('input', { type: 'date', class: 'field', value: hoyLocal(), attrs: { 'aria-label': 'Fecha de consulta del historial' } });
   const periodo = el('select', { class: 'field', attrs: { 'aria-label': 'Periodo del historial' } },
@@ -39,14 +38,6 @@ export function renderHistorial({ leerDatos, tipo, verCostos = true }) {
     el('div', { class: 'historial__filtros' }, [fecha, periodo, buscar,
       bodega ? el('button', { type: 'button', class: 'btn btn--quiet', text: 'Actualizar historial', on: { click: actualizar } }) : null,
       el('button', { type: 'button', class: 'btn btn--quiet', text: 'Exportar historial CSV', on: { click: () => descargarCSV(`historial-${tipo}-${fecha.value}.csv`, aCSV(filasCSV)) } }),
-      // La copia de todo se baja desde bodega, no desde producción (decisión del
-      // usuario, 2026-09-18). Es el mismo archivo: el documento de operación
-      // entero, con planes, producción y notas. Queda por acomodar su sitio.
-      bodega ? el('button', { type: 'button', class: 'btn btn--quiet', text: 'Descargar respaldo completo', on: { click: () => {
-        const r = leerDatos();
-        if (r.ok) descargarRespaldo(r.value, `zahavi-operacion-${hoyLocal()}.json`);
-        else aviso.textContent = r.message;
-      } } }) : null,
     ]), aviso, resultado,
   ]);
   for (const input of [fecha, periodo]) input.addEventListener('change', actualizar);
@@ -149,7 +140,7 @@ export function renderHistorial({ leerDatos, tipo, verCostos = true }) {
     for (const p of productos) {
       resultado.appendChild(el('details', { class: 'historial__registro' }, [
         el('summary', { text: `${p.ingrediente} · ${p.unidad} · ${p.compras.length} compras · ${formatQty(p.consumido)} consumidos · ${p.movimientos.length} movimientos` }),
-        el('p', { class: 'historial__resumen', text: `Compras: ${pesos(p.gasto)} · Saldo al corte registrado: ${p.saldoCierre === null ? 'sin registro' : `${formatQty(p.saldoCierre)} ${p.unidad}`} · Disponible hoy: ${formatQty(p.disponible)} ${p.unidad}` }),
+        el('p', { class: 'historial__resumen', text: `${verCostos ? `Compras: ${pesos(p.gasto)} · ` : ''}Saldo al corte registrado: ${p.saldoCierre === null ? 'sin registro' : `${formatQty(p.saldoCierre)} ${p.unidad}`} · Disponible hoy: ${formatQty(p.disponible)} ${p.unidad}` }),
         el('p', { text: `Uso en ${p.diasConsumo} días · Intervalo entre compras: ${p.intervalo === null ? 'se necesitan al menos dos fechas de compra' : `${formatQty(p.intervalo)} días`} · Cobertura estimada: ${p.cobertura === null ? 'sin consumo suficiente para calcular' : `${formatQty(p.cobertura)} días, con ${p.diasObservados} días observados`}.` }),
         ...[...p.movimientos].reverse().map((e) => {
           const a = e.antes, d = e.despues, lote = d || a;
@@ -157,14 +148,15 @@ export function renderHistorial({ leerDatos, tipo, verCostos = true }) {
             a ? valorUnitario(a) : '', d ? valorUnitario(d) : '', a?.proveedor || '', d?.proveedor || '', e.responsable, e.motivo]);
           return el('article', { class: 'historial__detalle' }, [
             el('h3', { text: `${fechaEvento(e)} · ${e.tipo} · ${lote.id}` }),
-            el('p', { text: `Existencia: ${formatQty(a?.existencia || 0)} → ${formatQty(d?.existencia || 0)} ${p.unidad} · Precio por ${p.unidad}: ${a ? formatQty(valorUnitario(a)) : '—'} → ${d ? formatQty(valorUnitario(d)) : '—'} COP` }),
+            el('p', { text: `Existencia: ${formatQty(a?.existencia || 0)} → ${formatQty(d?.existencia || 0)} ${p.unidad}${verCostos ? ` · Precio por ${p.unidad}: ${a ? formatQty(valorUnitario(a)) : '—'} → ${d ? formatQty(valorUnitario(d)) : '—'} COP` : ''}` }),
             el('p', { text: `Proveedor: ${a?.proveedor || 'sin registrar'} → ${d?.proveedor || 'sin registrar'} · Compra: ${lote.fechaCompra || 'sin fecha declarada'}` }),
-            ...(e.alertas || []).map((mensaje) => el('p', { class: 'historial__alerta', text: mensaje })),
+            ...(verCostos ? e.alertas || [] : []).map((mensaje) => el('p', { class: 'historial__alerta', text: mensaje })),
             el('p', { text: `${e.responsable} · ${e.motivo} · ${e.instante}${e.produccionId ? ` · Producción ${e.produccionId}` : ''}` }),
           ]);
         }),
       ]));
     }
+    if (!verCostos) filasCSV = filasCSV.map(fila => fila.filter((_, i) => ![7, 8].includes(i)));
   }
 }
 

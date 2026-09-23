@@ -178,9 +178,9 @@ function salir() {
  * pase fuera.
  */
 const PANTALLAS = [
-  { modulo: 'plan', clave: () => 'plan', monta: (state) => montarPlan(state) },
+  { modulo: 'plan', clave: (state) => `plan:${state.usuario?.id || ''}:${state.usuario?.rol || ''}`, monta: (state) => montarPlan(state) },
   { modulo: 'ingredientes', clave: () => 'ingredientes', monta: (state) => montarIngredientes(state) },
-  { modulo: 'almacen', clave: () => 'almacen', monta: () => montarAlmacen() },
+  { modulo: 'almacen', clave: (state) => `almacen:${state.usuario?.id || ''}:${state.usuario?.rol || ''}`, monta: (state) => montarAlmacen(state) },
 ];
 
 /**
@@ -318,8 +318,9 @@ function montarIngredientes(state) {
  * casan por nombre y unidad, y elegir de la lista es lo que garantiza que
  * coincidan.
  */
-function montarAlmacen() {
+function montarAlmacen(state) {
   return openAlmacen({
+    verCostos: ['admin', 'gerencia'].includes(state.usuario?.rol),
     leerLotes: () => leerOperacion().value?.lotes || [],
     leerDatos: leerOperacion,
     ingredientes: recetario().ingredientes,
