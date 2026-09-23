@@ -217,6 +217,50 @@ try {
   console.log(limpiar(correrSql('db/local/pruebas-operacion.sql')));
 
   // -------------------------------------------------------------------------
+  //  EL SERVIDOR COSTEA IGUAL QUE LA APLICACION
+  // -------------------------------------------------------------------------
+  //
+  //  Los mismos 14 casos que `test-casos-costeo.mjs` corre contra el nucleo del
+  //  navegador, ahora contra `privado.costear()`. Se compara la salida ENTERA
+  //  (jsonb compara los numeros por valor): un peso o un gramo de diferencia es
+  //  un fallo, no un redondeo aceptable.
+  const contrato = JSON.parse(readFileSync(join(root, 'db/pruebas/casos-costeo.json'), 'utf8'));
+  const literal = (valor) => `$json$${JSON.stringify(valor)}$json$::jsonb`;
+  const casosSql = [
+    '\\set ON_ERROR_STOP on',
+    "\\echo ''",
+    `\\echo '16. El servidor costea igual que la aplicacion (${contrato.casos.length} casos)'`,
+    // Supabase abre cada sesion con `extra_float_digits = 0` (15 cifras al
+    // escribir un float8). Asi se prueba con el ajuste de produccion, no con el
+    // de la imagen de Docker: con el de Docker estos casos pasaban y en el
+    // remoto no.
+    'set extra_float_digits = 0;',
+    'create temp table casos_costeo (nombre text, lineas jsonb, lotes jsonb, hoy date, salida jsonb);',
+    ...contrato.casos.map((c) =>
+      `insert into casos_costeo values (${literal(c.nombre)} #>> '{}', ${literal(c.lineas)}, ${literal(c.lotes)}, '${c.hoy}', ${literal(c.salida)});`),
+    `do $$
+declare
+  c record;
+  obtenida jsonb;
+begin
+  for c in select * from casos_costeo loop
+    obtenida := privado.costear(c.lineas, c.lotes, c.hoy);
+    if obtenida is distinct from c.salida then
+      raise exception 'FALLA: % no coincide con la aplicacion.%  servidor:   % %  aplicacion: %',
+        c.nombre, chr(10), obtenida, chr(10), c.salida;
+    end if;
+    raise notice '  OK    %', c.nombre;
+  end loop;
+end $$;`,
+  ].join('\n');
+  const costeo = docker(
+    ['exec', '-i', CONTENEDOR, 'sh', '-c', `psql -U postgres -d ${BASE} -v ON_ERROR_STOP=1 -q 2>&1`],
+    Buffer.from(casosSql, 'utf8'),
+  );
+  if (/ERROR|FALLA/.test(costeo.salida)) throw new Error('El costeo del servidor no cumple el contrato:\n' + costeo.salida);
+  console.log(limpiar(costeo.salida));
+
+  // -------------------------------------------------------------------------
   //  5. Y AHORA CON LAS 122 RECETAS DE VERDAD
   // -------------------------------------------------------------------------
   //

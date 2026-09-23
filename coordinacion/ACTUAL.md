@@ -15,7 +15,7 @@ Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
 | COORD-OPT | Codex / Claude pendiente | lista para revisión | Ninguno; entrega abajo |
 | F0-LOCAL | Codex / Claude pendiente | herramienta lista; conciliación pendiente | Ninguno; ver entregas/F0-LOCAL.md |
 | F0-REMOTO | Claude / Codex pendiente | lista para revisión | Ninguno; ver entregas/F0-REMOTO.md |
-| MIGRACION | Claude / Codex | 0015 aplicada; revisión Codex pendiente; sigue F3-1 | db/migraciones/0014_operacion.sql, db/migraciones/0015_*.sql, db/local/pruebas-operacion.sql, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
+| MIGRACION | Claude / Codex | 0015–0017 aplicadas; revisión Codex pendiente; sigue F3-3 | db/migraciones/0014_operacion.sql, db/migraciones/0015_*.sql, db/migraciones/0016_*.sql, db/migraciones/0017_*.sql, db/local/pruebas-operacion.sql, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
 | CLIENTE-REMOTO | Codex / Claude | pausada por prioridad F1/F2 del usuario | Ninguno |
 | F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F2-CONCILIACION.md |
 
@@ -35,8 +35,8 @@ COORD-OPT en lo documental; no restaurar MANUAL/docs borrados ajenos. README nue
 
 - Hecho: `0013`, `0014` y `0015` (responde a REVISION-0014) aplicadas y verificadas;
   `probar-sql` cubre la operación. Respaldo nocturno verificado; ensayo pendiente.
-- En curso: `privado.costear()` (F3-1) y su prueba contra los 14 casos (F3-2).
-- Espera: revisión de 0015 (Codex, entregas/F0-9.md).
+- Hecho: `privado.costear()` igual al cliente en los 14 casos (F3-1/F3-2).
+- Sigue: funciones de escritura (F3-3). Espera: revisión de 0015–0017 (Codex).
 - Detalle y orden completo en [CHECKLIST.md](CHECKLIST.md); fase en el plan.
 
 ## Dependencias y reparto siguiente
