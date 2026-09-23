@@ -1,0 +1,151 @@
+name: Respaldo de la base
+
+# POR QUE EXISTE ESTE FLUJO
+# -------------------------
+# El proyecto de Supabase esta en plan gratuito: NO tiene respaldos automaticos
+# ni vuelta atras en el tiempo. Mientras la operacion viva en la base, perderla
+# seria perder compras, confirmaciones y costos historicos que no estan en
+# ningun archivo del repositorio.
+#
+# Cada noche se vuelca el esquema y los datos, se cifran con una clave que solo
+# conoce quien la puso en los secretos, y el archivo queda como artefacto del
+# flujo. Una vez al mes conviene lanzar el ensayo de restauracion a mano: un
+# respaldo que nadie ha restaurado nunca no es un respaldo, es un archivo.
+#
+# SECRETOS NECESARIOS (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_DB_URL        postgresql://postgres:CLAVE@db.<ref>.supabase.co:5432/postgres
+#   RESPALDO_CLAVE         la contraseña con la que se cifra el archivo
+#   SUPABASE_DB_URL_ENSAYO (solo para el ensayo) la misma forma, de OTRO proyecto
+#
+# El volcado NUNCA se imprime en el registro: solo se informan conteos por tabla.
+
+on:
+  schedule:
+    # 07:00 UTC = 02:00 en Colombia, cuando la panadería no está registrando nada.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      ensayo:
+        description: 'Restaurar en la base de ensayo y comparar conteos'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  respaldo:
+    name: Volcar y cifrar
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      RESPALDO_CLAVE: ${{ secrets.RESPALDO_CLAVE }}
+    steps:
+      - name: Comprobar que hay secretos
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$RESPALDO_CLAVE" ]; then
+            echo "Faltan los secretos SUPABASE_DB_URL o RESPALDO_CLAVE."
+            echo "Sin ellos no hay respaldo: se detiene en vez de fingir que lo hizo."
+            exit 1
+          fi
+
+      - name: Volcar esquema y datos
+        run: |
+          mkdir -p respaldo
+          npx --yes supabase@latest db dump --db-url "$SUPABASE_DB_URL" -f respaldo/esquema.sql
+          npx --yes supabase@latest db dump --db-url "$SUPABASE_DB_URL" --data-only -f respaldo/datos.sql
+
+      - name: Comprobar que el volcado no está vacío
+        run: |
+          # Un archivo diminuto casi siempre significa que el volcado fallo en
+          # silencio. Mejor que falle el flujo a guardar una copia inservible.
+          esquema=$(wc -c < respaldo/esquema.sql)
+          echo "esquema: $esquema bytes; datos: $(wc -c < respaldo/datos.sql) bytes"
+          if [ "$esquema" -lt 2000 ]; then
+            echo "El volcado del esquema es demasiado pequeño."
+            exit 1
+          fi
+          grep -q 'create table' respaldo/esquema.sql || {
+            echo "El volcado no contiene ninguna tabla."; exit 1; }
+
+      - name: Contar filas por tabla (sin exponer datos)
+        run: |
+          psql "$SUPABASE_DB_URL" --no-psqlrc -At -F ' ' -c "
+            select relname, n_live_tup
+            from pg_stat_user_tables
+            where schemaname = 'public'
+            order by relname;" | tee respaldo/conteos.txt
+
+      - name: Cifrar
+        run: |
+          tar -czf respaldo.tar.gz -C respaldo .
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --passphrase "$RESPALDO_CLAVE" -o respaldo.tar.gz.gpg respaldo.tar.gz
+          rm -rf respaldo respaldo.tar.gz
+          ls -l respaldo.tar.gz.gpg
+
+      - name: Guardar el archivo cifrado
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_id }}
+          path: respaldo.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: error
+
+  ensayo:
+    name: Ensayo de restauración
+    needs: respaldo
+    if: ${{ inputs.ensayo }}
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_DB_URL_ENSAYO: ${{ secrets.SUPABASE_DB_URL_ENSAYO }}
+      RESPALDO_CLAVE: ${{ secrets.RESPALDO_CLAVE }}
+    steps:
+      - name: Comprobar que la base de ensayo NO es la de producción
+        run: |
+          if [ -z "$SUPABASE_DB_URL_ENSAYO" ]; then
+            echo "Falta el secreto SUPABASE_DB_URL_ENSAYO (otro proyecto, vacío)."
+            exit 1
+          fi
+          # Restaurar encima de produccion borraria la operacion: se compara el
+          # servidor de las dos cadenas antes de tocar nada.
+          destino=$(printf '%s' "$SUPABASE_DB_URL_ENSAYO" | sed -E 's#.*@([^:/]+).*#\1#')
+          origen=$(printf '%s' "$SUPABASE_DB_URL" | sed -E 's#.*@([^:/]+).*#\1#')
+          echo "origen: $origen / destino: $destino"
+          if [ "$destino" = "$origen" ]; then
+            echo "La base de ensayo apunta al mismo servidor que la real. Se detiene."
+            exit 1
+          fi
+
+      - name: Recuperar el archivo cifrado
+        uses: actions/download-artifact@v4
+        with:
+          name: respaldo-${{ github.run_id }}
+
+      - name: Descifrar
+        run: |
+          gpg --batch --yes --passphrase "$RESPALDO_CLAVE" -d respaldo.tar.gz.gpg > respaldo.tar.gz
+          mkdir -p respaldo && tar -xzf respaldo.tar.gz -C respaldo
+          ls -l respaldo
+
+      - name: Restaurar en la base de ensayo
+        run: |
+          # `db dump` no trae el `drop`: la base de ensayo se deja limpia primero.
+          psql "$SUPABASE_DB_URL_ENSAYO" --no-psqlrc -v ON_ERROR_STOP=1 \
+            -c "drop schema if exists public cascade; create schema public;"
+          psql "$SUPABASE_DB_URL_ENSAYO" --no-psqlrc -v ON_ERROR_STOP=1 -q -f respaldo/esquema.sql
+          psql "$SUPABASE_DB_URL_ENSAYO" --no-psqlrc -v ON_ERROR_STOP=1 -q -f respaldo/datos.sql
+
+      - name: Comparar conteos con la base real
+        run: |
+          consulta="select relname || ' ' || n_live_tup from pg_stat_user_tables where schemaname='public' order by relname;"
+          psql "$SUPABASE_DB_URL" --no-psqlrc -At -c "$consulta" > real.txt
+          psql "$SUPABASE_DB_URL_ENSAYO" --no-psqlrc -At -c "analyze; $consulta" > ensayo.txt
+          echo "--- real"; cat real.txt
+          echo "--- ensayo"; cat ensayo.txt
+          if ! diff -u real.txt ensayo.txt; then
+            echo "El ensayo NO reproduce la base real: el respaldo no sirve tal cual."
+            exit 1
+          fi
+          echo "El respaldo restaura una copia idéntica en conteos."
