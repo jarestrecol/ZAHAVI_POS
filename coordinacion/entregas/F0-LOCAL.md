@@ -1,0 +1,12 @@
+# F0-LOCAL · Codex · 2026-09-22 · herramienta lista para revisión
+- Diagnóstico de solo lectura: `scripts/auditar-operacion-local.mjs`, núcleo `scripts/lib/auditoria-operacion.mjs`, pruebas `scripts/test-auditoria-local.mjs`.
+- Uso: `node scripts/auditar-operacion-local.mjs "RUTA_PRIVADA/respaldo.json" --origen "equipo-sede" --salida "RUTA_PRIVADA/informe.json"`. Omitir salida imprime solo conteos, huella y número de hallazgos.
+- Respaldo e informe fuera del repositorio/webroot; salida exclusiva, nunca sobrescribe. No exportar todo localStorage ni sesiones. Límite 64 MiB.
+- Códigos: 0 diagnóstico sin bloqueos, 2 hallazgos bloqueantes, 1 entrada/salida inválida. Ninguno significa autorización para importar; `listoParaImportar` siempre falso.
+- Clasificación por trazas: demo, compra real declarada, mixto o indeterminado. «Real declarada» no prueba autenticidad; una apertura sin procedencia queda indeterminada.
+- Resuelve lotes retirados desde eventos; informa huérfanos/duplicados/conversiones faltantes y suma costos congelados sin recalcularlos con precios actuales.
+- Prueba ejecutada: `node scripts/test-auditoria-local.mjs`, correcta; cubre estructura, procedencia, historia, privacidad, archivo intacto y rechazo de sobrescritura.
+- F0-REMOTO leída: catálogo existente y operación vacía según evidencia de Claude; Codex no verificó directamente el servidor. Priorizar revocación TRUNCATE en auditoría.
+- Pendiente: ruta de copia operativa por navegador, declaración real/demo y conciliación contra remoto; respaldo y restauración del destino también pendientes. No se importaron datos.
+- Contrato siguiente: claves de importación por origen+tipo+id, huella y reintento idempotente; conservar fórmulas/costos históricos, autor local declarado separado del importador autenticado. Equivalencias por lote y consumos en gramos; inventario por movimientos, sin doble saldo editable.
+- Incluir recetas, componentes, precios, equivalencias y metas en tablas relacionadas; instantáneas JSON limitadas a evidencia histórica. Claude revisa diagnóstico; acordar precisión y contrato antes de 0013–0015 y del adaptador remoto.

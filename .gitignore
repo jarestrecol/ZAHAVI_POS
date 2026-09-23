@@ -35,3 +35,6 @@ desktop.ini
 # Resultado del build. Se regenera con `npm run build`; lo que se versiona es la
 # fuente. Vercel lo construye de nuevo en cada despliegue.
 dist/
+
+# Permisos locales de la sesión de Claude Code (no se comparten)
+.claude/settings.local.json

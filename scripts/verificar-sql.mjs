@@ -631,6 +631,61 @@ comprobar(
   concesiones.join(' | '),
 );
 
+/* ===========================================================================
+ *  13. UNA TABLA NUEVA NO NACE CON PERMISOS DE MAS
+ * ======================================================================== */
+//
+//  EL HUECO QUE ESTE BLOQUE CIERRA
+//  -------------------------------
+//  Los privilegios POR DEFECTO del esquema `public` los define `supabase_admin`
+//  y conceden TODO sobre cada tabla nueva a `anon` y `authenticated`: insert,
+//  update, delete y tambien TRUNCATE. Nosotros no podemos cambiar esos valores
+//  por defecto (no somos ese rol), asi que la unica defensa es que cada
+//  migracion revoque lo que su tabla no necesita.
+//
+//  Por que importa TRUNCATE: la seguridad por filas NO lo filtra. Asi fue como
+//  `auditoria` quedo vaciable por cualquier sesion valida hasta la migracion
+//  0013, aunque su unica politica era de lectura para gerencia.
+//
+//  La regla mira SOLO las migraciones nuevas (0013 en adelante). Las anteriores
+//  se revisaron a mano al detectar el caso: hoy ninguna tabla de `public`
+//  concede TRUNCATE a la API (comprobado con `db/auditoria/operacion.sql`).
+
+console.log('\n13. Permisos de las tablas nuevas');
+
+const DESDE = 13;
+const nuevas = fuente
+  .filter((f) => parseInt(f.nombre.slice(0, 4), 10) >= DESDE)
+  .flatMap((f) => [...f.sql.matchAll(/create table if not exists\s+(?:public\.)?([a-z_]+)/gi)]
+    .map((m) => ({ tabla: m[1], sql: f.sql, archivo: f.nombre })));
+
+comprobar(
+  `la regla se aplica desde la migracion ${String(DESDE).padStart(4, '0')}`,
+  true,
+  nuevas.length ? `${nuevas.length} tabla(s) nueva(s): ${nuevas.map((n) => n.tabla).join(', ')}` : 'ninguna tabla nueva todavia',
+);
+
+// Un `revoke` puede nombrar varias tablas de una vez: se mira la lista entera.
+// Vale `revoke all` o cualquier revoke que incluya `truncate`, siempre que
+// alcance a `authenticated`.
+const REVOCACIONES = /revoke\s+([\s\S]*?)\s+on\s+(?:table\s+)?([\s\S]*?)\s+from\s+([^;]+);/gi;
+const revoca = ({ tabla, sql }) => [...sql.matchAll(REVOCACIONES)].some((m) => {
+  const permisos = m[1].toLowerCase();
+  const tablas = m[2].toLowerCase().split(',').map((t) => t.trim().replace(/^public\./, ''));
+  const roles = m[3].toLowerCase();
+  const revocado = permisos.split(/[\s,]+/);
+  return (revocado.includes('all') || revocado.includes('truncate')) && tablas.includes(tabla) && roles.includes('authenticated');
+});
+
+const sinRevoke = nuevas.filter((n) => !revoca(n));
+comprobar(
+  'cada tabla nueva revoca `truncate` (o `all`) a `authenticated`',
+  sinRevoke.length === 0,
+  sinRevoke.length
+    ? 'les falta: ' + sinRevoke.map((n) => `${n.tabla} (${n.archivo})`).join(', ')
+    : `${nuevas.length} de ${nuevas.length}`,
+);
+
 console.log('\n===========================================================');
 if (fallos === 0) {
   console.log(' RESULTADO: el esquema respeta sus fronteras.');

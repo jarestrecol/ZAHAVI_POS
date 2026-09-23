@@ -41,7 +41,18 @@ try {
       assert.equal((s.match(/^## /gm) || []).length, 1);
     }
   });
-  test('extrae solo la tarea propia', () => assert.ok(!ejecutar('--tarea', 'F0-LOCAL').includes('## Claude:')));
+  // La tarea se toma del tablero vigente: al entregar, su seccion desaparece y
+  // fijar un id aqui hacia fallar la prueba sin que nada estuviera roto.
+  test('extrae solo la tarea propia', () => {
+    const tablero = readFileSync(join(root, 'coordinacion/ACTUAL.md'), 'utf8');
+    const titulos = [...tablero.matchAll(/^## ([^:\n]+): ([A-Z0-9-]+)[ \t]*$/gm)];
+    assert.ok(titulos.length >= 2, 'el tablero debe tener una seccion por agente');
+    const [, agente, id] = titulos[0];
+    const otro = titulos.find((t) => t[1] !== agente);
+    const salida = ejecutar('--tarea', id);
+    assert.ok(salida.includes(`## ${agente}: ${id}`));
+    assert.ok(!salida.includes(`## ${otro[1]}:`), 'no debe arrastrar la seccion del otro agente');
+  });
   test('rechaza fase inexistente', () => assert.equal(spawnSync(process.execPath, [join(root, 'scripts/contexto.mjs'), '--fase', '11']).status, 1));
   console.log(`${total} comprobaciones correctas`);
 } finally {

@@ -2,7 +2,10 @@
 
 Objetivo: ejecutar [el plan](../PLAN-PRODUCCION-SUPABASE.md) en orden 0–10.
 GitHub: **jarestrecol/ZAHAVI_POS**, rama `main`, ya publicado con historial.
-Siguiente: **fase 0 de Supabase**. Ningún dato operativo migrado.
+Activa: **fase 0 de Supabase**, rama `codex/centralizacion-fase0`. Ningún dato operativo migrado.
+
+Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
+(`node scripts/checklist.mjs` dice qué está libre ahora).
 
 ## Tareas y reservas
 
@@ -10,43 +13,38 @@ Siguiente: **fase 0 de Supabase**. Ningún dato operativo migrado.
 |---|---|---|---|
 | GIT-001 | Codex / Claude pendiente | lista para revisión | Ninguno; subida verificada y reservas liberadas |
 | COORD-OPT | Codex / Claude pendiente | lista para revisión | Ninguno; entrega abajo |
-| F0-LOCAL | Codex / Claude pendiente | pendiente | Ninguno hasta toma; futuros scripts/auditar-operacion-local.mjs, scripts/test-auditoria-local.mjs |
-| F0-REMOTO | Claude, propuesta / Codex | pendiente de toma | Ninguno hasta toma; futuros db/auditoria/operacion.sql, coordinacion/entregas/F0-REMOTO.md |
+| F0-LOCAL | Codex / Claude pendiente | herramienta lista; conciliación pendiente | Ninguno; ver entregas/F0-LOCAL.md |
+| F0-REMOTO | Claude / Codex pendiente | lista para revisión | Ninguno; ver entregas/F0-REMOTO.md |
+| MIGRACION | Claude / Codex | 0014 en revisión; casos de costeo en curso | db/migraciones/0014_operacion.sql, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
+| CLIENTE-REMOTO | Codex / Claude | pausada por prioridad F1/F2 del usuario | Ninguno |
+| F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F1-F2.md y db/auditoria/fases_1_2.sql |
 
 No hay otras reservas activas del protocolo anterior: AUTH, PROD, CONV, REND, BI y
 PLAN entregaron; revisiones pendientes en archivo. COORD-001 queda absorbida por
 COORD-OPT en lo documental; no restaurar MANUAL/docs borrados ajenos. README nuevo autorizado en GIT-001.
 
-## Codex: F0-LOCAL
+## Codex: CLIENTE-REMOTO
 
-- Construir diagnóstico de respaldo local, solo lectura: estructura, conteos,
-  huella, ids repetidos, referencias huérfanas, demo/real/mixto/indeterminado.
-- Leer `bitacora.js` (validación), `precios-demo.js` (metadatos), `produccion.js`
-  (ejecuciones) y fase 0–2 solo si cambia el contrato; no escanear el recetario.
-- No exportar sesiones/secretos ni imprimir datos comerciales. Entrada: copia
-  elegida del documento de operación; salida: informe privado y resumen agregado.
-- Probar copia íntegra, corrupta, duplicada, lotes retirados e historial mixto.
-  Clasificación dudosa no equivale a real; diagnóstico no modifica el origen.
-- Entrega: script, pruebas y `entregas/F0-LOCAL.md` con siguiente paso concreto.
+- Siguiente: acordar [contrato RPC](entregas/CLIENTE-REMOTO.md) con Claude y conectar pantallas.
+- [Revisión 0014](entregas/REVISION-0014.md): precisión, reimportación, demo y autoría pendientes. Claude conserva migración/importador; Codex revisión e interfaz.
 
-## Claude: F0-REMOTO
+- Diagnóstico local probado; Claude puede usarlo en su migración. Detalle en F0-LOCAL.
+- No activar el cliente hasta verificar contrato, permisos y transacciones reales.
 
-- Tomar esta fila al empezar. Auditar con su acceso autorizado a Supabase, solo
-  lectura: migraciones aplicadas, esquema, conteos, funciones, RLS y privilegios.
-- Leer 0003 y consultar definiciones vigentes remotas; abrir otras migraciones solo
-  por diferencia. No reaplicar 0001–0012, sembrar ni alterar la base por esta auditoría.
-- Preparar consultas reproducibles y comparar el modelo remoto con partidas,
-  conversiones, resultados y autoría local. Separar evidencia remota de inferencias.
-- Entrega breve `entregas/F0-REMOTO.md`: fecha/proyecto verificado, diferencias,
-  respaldo disponible y migraciones necesarias. Sin filas privadas, claves ni tokens.
-- Si no hay conexión, registrar ese límite una vez y preparar SQL de lectura.
-  No afirmar que está vacío ni repetir descubrimiento de herramientas cada turno.
+## Claude: MIGRACION
+
+- Hecho: auditoría remota, `0013` (TRUNCATE de auditoría cerrado), `0014` operación
+  aplicada y verificada, y el contrato de costeo FEFO en casos ejecutables.
+- En curso: `privado.costear()` (F3-1) y su prueba contra los 14 casos (F3-2).
+- Espera: revisión de 0014 (Codex) para las funciones de escritura; respaldo del
+  destino (usuario) antes de cualquier dato real.
+- Detalle y orden completo en [CHECKLIST.md](CHECKLIST.md); fase en el plan.
 
 ## Dependencias y reparto siguiente
 
 | Fases | Implementación propuesta | Revisión | Puerta |
 |---|---|---|---|
-| 1 demo; 2 importación de ensayo | Codex | Claude | F0 conciliada; clasificar mezclas sin borrar historia |
+| 1 demo; 2 importación | Codex | Claude | Usuario reasigna F1/F2; ensayo real espera copias, conciliación y SQL corregido |
 | 3 transacciones y permisos SQL | Claude | Codex | Contrato acordado de importación/precisión/idempotencia |
 | 3 cliente remoto y 4 QA | Codex | Claude | API estable y pruebas SQL reales; luego dos dispositivos |
 | 5 historia/recuperación | Claude servidor, Codex interfaz | Cruzada | Corte conciliado y restauración probada |
@@ -57,14 +55,17 @@ plan largo es la especificación, este tablero solo mantiene el trabajo inmediat
 
 ## Dependencias externas actuales
 
-- Codex no tiene herramienta administrativa Supabase en esta sesión. La auditoría
-  remota no está realizada; Claude debe verificar su propio acceso al tomar la tarea.
-- Falta inspeccionar las copias operativas reales por navegador. Las pruebas QA
-  no prueban sus saldos. Se puede preparar diagnóstico y SQL sin esos accesos.
+- Claude entregó F0-REMOTO; Codex solo dispone de configuración pública, sin conexión admin.
+- Docker sin motor activo; navegador no conectado a Codex. Auditoría remota de Claude;
+  pruebas SQL de comportamiento y conciliación de copias locales todavía pendientes.
+- Usuario declara toda la data en Supabase. Claude debe refrescar conteos/procedencia
+  con db/auditoria/fases_1_2.sql; no exigir copia local antes de verificar esta fuente.
 - El corte real espera ensayo, respaldo, conciliación y pruebas de servidor. No
   activar dos fuentes editables ni volver a escritura local cuando falle la red.
 
 ## Última entrega
 
-[GIT-001](entregas/GIT-001.md): main e historial subidos; remoto anterior conservado;
-verificación/build correctos. Continuar F0-LOCAL y F0-REMOTO con toma explícita.
+[F0-REMOTO](entregas/F0-REMOTO.md): remoto auditado, operación vacía, cruce por código/nombre
+verificado; TRUNCATE corregido por 0013 y respaldo del destino pendiente.
+
+[F0-LOCAL](entregas/F0-LOCAL.md): diagnóstico y pruebas listos; falta copia operativa real.

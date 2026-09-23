@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { prepararImportacion, ensayarCorrespondencias } from './lib/preparar-importacion.mjs';
+const lote = (id, extra = {}) => ({ id, ingrediente: 'HARINA', unidad: 'GR', pesoCompra: 100, existencia: 80, costoCompra: 100, ...extra });
+const d = { version: 1, operacionVersion: 1, secuencia: 2, lotes: [lote('real'), lote('demo', { demo: { catalogo: 'prueba' } })],
+  planes: [], ejecuciones: [], eventos: [], notas: [], preparaciones: [], resultados: [] };
+d.eventos = d.lotes.map((l, i) => ({ id: `e${i}`, tipo: i ? 'ejemplo' : 'compra', despues: structuredClone(l) }));
+const ejecutar = (dato = d, origen = 'sede-equipo') => prepararImportacion(JSON.stringify(dato), origen);
+let m = ejecutar();
+assert.equal(m.filas.find(f => f.entidad === 'lotes' && f.idOrigen === 'real').destino, 'real_por_confirmar');
+assert.equal(m.filas.find(f => f.entidad === 'lotes' && f.idOrigen === 'demo').destino, 'demo');
+assert.equal(m.listoParaImportar, false);
+const produccion = (id, ids) => ({ id, entradas: [{ recipe: { id: 'R1', componentes: [] }, factor: 1 }],
+  costeo: { costoTotal: ids.length * 10, lineas: [{ costo: ids.length * 10, origen: ids.map(loteId => ({ loteId, cantidad: 10, costo: 10 })) }] } });
+d.ejecuciones.push(produccion('mixta', ['real', 'demo']), produccion('compartida', ['real']));
+d.resultados.push({ produccionId: 'compartida', recetaId: 'R1', vendible: 2, rechazado: 0 });
+const original = JSON.stringify(d);
+m = ejecutar();
+assert.equal(JSON.stringify(d), original);
+assert.ok(m.filas.filter(f => ['lotes', 'ejecuciones', 'resultados'].includes(f.entidad)).every(f => f.destino === 'revision'));
+assert.equal(m.filas.find(f => f.idOrigen === 'mixta').registro.costeo.costoTotal, 20);
+d.lotes = d.lotes.filter(l => l.id !== 'demo');
+assert.equal(ejecutar().filas.find(f => f.idOrigen === 'mixta').clase, 'mixto', 'Retirar demo no limpia el historial');
+const ensayo = ensayarCorrespondencias([m, m]);
+assert.equal(ensayo.filas.length, m.filas.length);
+assert.equal(ensayo.repetidas, m.filas.length);
+assert.equal(ensayo.conflictos.length, 0);
+assert.equal(ensayo.escrituras, 0);
+const copia = prepararImportacion(original, 'otro-equipo');
+assert.equal(ensayarCorrespondencias([m, copia]).copias, 1);
+const cambiado = JSON.parse(original); cambiado.lotes[0].costoCompra = 999;
+const nuevo = ejecutar(cambiado);
+const divergencia = ensayarCorrespondencias([m, nuevo]);
+assert.ok(divergencia.conflictos.some(c => c.codigo === 'registro_divergente'));
+assert.equal(divergencia.filas.find(f => f.entidad === 'lotes' && f.idOrigen === 'real').registro.costoCompra, 100);
+assert.equal(nuevo.filas.find(f => f.idOrigen === 'mixta').registro.costeo.costoTotal, 20);
+const desconocido = JSON.parse(original); desconocido.eventos = [];
+assert.equal(ejecutar(desconocido).filas.find(f => f.entidad === 'lotes' && f.idOrigen === 'real').destino, 'revision');
+console.log('F1/F2 preparación: demo, mezcla transitiva, historia retirada, repetición, copias y divergencias comprobadas; cero escrituras.');

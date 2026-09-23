@@ -1,0 +1,86 @@
+import assert from 'node:assert/strict';
+import { crearControlOperacion, crearAccionesProduccionRemota } from '../src/app/operacion-remota.js';
+const ok = value => ({ ok: true, value });
+const err = code => ({ ok: false, code });
+const diferido = () => { let resolver; const promesa = new Promise(r => { resolver = r; }); return { promesa, resolver }; };
+const consultas = [], escrituras = [];
+let respuestaEscritura = err('confirmacion_pendiente');
+const remoto = { leer: async q => { consultas.push(q); return ok({ version: 1, fecha: q.fecha }); },
+  ejecutar: async s => { escrituras.push(s); return respuestaEscritura; } };
+let ids = 0;
+const control = crearControlOperacion({ remoto, nuevaId: () => `intencion-${++ids}` });
+assert.equal((await control.guardar({ accion: 'confirmar', revision: 1, datos: {} })).code, 'sin_datos');
+await control.cargar({ fecha: '2026-09-22' });
+const datos = { receta: 'R001' };
+await control.guardar({ accion: 'confirmar', revision: 1, datos });
+datos.receta = 'R999';
+assert.equal(control.estado().fase, 'confirmacion_pendiente');
+assert.equal(control.cerrar().code, 'pendiente');
+assert.equal((await control.cargar({ fecha: 'otro' })).code, 'pendiente');
+assert.equal((await control.guardar({ accion: 'confirmar', revision: 1, datos })).code, 'pendiente');
+respuestaEscritura = ok({ version: 1 });
+await control.reintentar();
+assert.equal(ids, 1);
+assert.deepEqual(escrituras[0], escrituras[1]);
+assert.equal(escrituras[1].datos.receta, 'R001');
+assert.equal(control.estado().fase, 'lista');
+assert.equal(consultas.length, 2, 'Recargar tras confirmar');
+respuestaEscritura = err('conflicto');
+await control.guardar({ accion: 'confirmar', revision: 1, datos: {} });
+assert.equal(control.estado().fase, 'conflicto');
+assert.equal(control.estado().datos, null);
+assert.equal((await control.guardar({ accion: 'confirmar', revision: 1, datos: {} })).code, 'sin_datos');
+assert.equal(control.cerrar().ok, true);
+assert.equal((await control.cargar({})).code, 'cerrado');
+
+const primera = diferido(), segunda = diferido();
+let veces = 0;
+const concurrente = crearControlOperacion({ remoto: { leer: () => ++veces === 1 ? primera.promesa : segunda.promesa } });
+const a = concurrente.cargar({ fecha: 'a' }), b = concurrente.cargar({ fecha: 'b' });
+segunda.resolver(ok({ fecha: 'b' })); await b;
+primera.resolver(ok({ fecha: 'a' }));
+assert.equal((await a).code, 'descartado');
+assert.equal(concurrente.estado().datos.fecha, 'b');
+const copia = concurrente.estado(); copia.datos.fecha = 'mutada';
+assert.equal(concurrente.estado().datos.fecha, 'b');
+const guardado = diferido();
+let envios = 0, lecturas = 0;
+const lento = crearControlOperacion({ nuevaId: () => 'estable', remoto: {
+  leer: async () => ++lecturas === 1 ? ok({ version: 1 }) : err('sin_conexion'),
+  ejecutar: async () => { envios++; return guardado.promesa; },
+} });
+await lento.cargar({ fecha: 'hoy' });
+const confirmando = lento.guardar({ accion: 'confirmar', revision: 0, datos: {} });
+assert.equal((await lento.guardar({ accion: 'confirmar', revision: 0, datos: {} })).code, 'pendiente');
+assert.equal((await lento.reintentar()).code, 'sin_reintento');
+assert.equal(envios, 1);
+guardado.resolver(ok({ version: 1 }));
+const confirmado = await confirmando;
+assert.equal(confirmado.ok, true, 'Un fallo de lectura no deshace una confirmación exitosa');
+assert.equal(confirmado.value.actualizado, false);
+assert.equal(lento.estado().fase, 'error');
+assert.equal(lento.estado().solicitudId, null);
+assert.equal((await lento.reintentar()).code, 'sin_reintento');
+console.log('Control remoto: carreras de lectura, conflicto, confirmación incierta, reintento estable y recarga comprobados.');
+const comandos = [];
+const acciones = crearAccionesProduccionRemota({ guardar: async comando => { comandos.push(comando); return ok(null); } });
+const entrada = { fecha: '2026-09-22', recetaId: 'R001', revision: 2, factor: 1.5, partidas: [0.5, 1] };
+await acciones.fijarReceta(entrada);
+entrada.partidas[0] = 99;
+assert.deepEqual(comandos[0].datos.partidas, [0.5, 1]);
+assert.equal(comandos[0].accion, 'fijar_receta');
+await acciones.fijarReceta({ ...entrada, factor: 0, partidas: [] });
+assert.equal(comandos[1].datos.factor, 0);
+assert.equal((await acciones.confirmarReceta(entrada)).code, 'solicitud');
+assert.equal(comandos.length, 2);
+await acciones.confirmarReceta({ ...entrada, cotizacionId: 'servidor-123', costeo: { costoTotal: 0 }, autor: { rol: 'admin' }, sede_id: 'ajena' });
+assert.deepEqual(comandos[2], { accion: 'confirmar_receta', revision: 2,
+  datos: { fecha: entrada.fecha, recetaId: 'R001', cotizacionId: 'servidor-123' } });
+await acciones.guardarResultado({ produccionId: 'e1', recetaId: 'R001', revision: 0,
+  vendible: 12, rechazado: 1, motivo: 'Registro', costeo: { costoTotal: 0 }, descontar: true, autor: { rol: 'admin' } });
+assert.equal(comandos[3].accion, 'guardar_resultado');
+assert.equal(comandos[3].datos.descontar, undefined);
+assert.equal(comandos[3].datos.autor, undefined);
+assert.equal(comandos[3].datos.costeo, undefined);
+assert.equal((await acciones.fijarReceta({ ...entrada, revision: -1 })).code, 'solicitud');
+console.log('Acciones remotas: tandas independientes, cotización obligatoria y exclusión de costos/autoría del cliente comprobadas.');

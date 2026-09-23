@@ -52,7 +52,7 @@ jobs:
       # El panel de inteligencia de negocio del Resumen (BI-001): indicadores,
       # metas y datos de ejemplo, que nunca se escriben en la bodega.
       - name: Indicadores del Resumen y datos de ejemplo
-        run: npm run test:bi && npm run test:bi-ejemplo
+        run: npm run test:bi && npm run test:bi-ejemplo && npm run test:costeo
 
       # El despliegue actual sirve la fuente, pero el artefacto estatico debe
       # seguir siendo entregable para cualquier alojamiento futuro o recuperacion.
@@ -66,6 +66,9 @@ jobs:
 
       - name: Pruebas de navegador
         run: npm run qa
+
+      - name: Contrato de interfaz remota (servidor simulado)
+        run: npx playwright test --config playwright.remoto.config.js --output test-results-remoto
 
       - name: Guardar el informe si algo falla
         if: failure()
