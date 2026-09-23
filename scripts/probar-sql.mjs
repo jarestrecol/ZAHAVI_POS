@@ -212,6 +212,9 @@ try {
       .join('\n');
 
   console.log(limpiar(correrSql('db/local/pruebas.sql')));
+  // Reutiliza la semilla de `pruebas.sql` y la deja intacta: va en una
+  // transaccion que se deshace.
+  console.log(limpiar(correrSql('db/local/pruebas-operacion.sql')));
 
   // -------------------------------------------------------------------------
   //  5. Y AHORA CON LAS 122 RECETAS DE VERDAD

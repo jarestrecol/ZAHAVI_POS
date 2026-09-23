@@ -27,7 +27,7 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 - [ ] F0-6 · Verificar fuente actual: usuario declara toda la operación en Supabase · Claude ← F0-H
 - [~] F0-7 · Respaldo del destino: flujo listo; faltan secretos y ensayo · Usuario
 - [ ] F0-8 · Conciliar F0-6 con F0-1: qué origen tiene qué · Claude ← F0-6, F0-1
-- [ ] F0-9 · Resolver revisión 0014 y verificar correcciones SQL en remoto · Claude ← F0-5
+- [x] F0-9 · 0015 corrige REVISION-0014; aplicada y verificada en remoto (entregas/F0-9.md) · Claude ← F0-5
 - [x] F0-10 · 0013 registrada en el historial remoto (verificado) · Claude ← F0-2
 - [x] F0-11 · Flujo de respaldo cifrado y ensayo de restauración (db/RESPALDO.md) · Claude
 
