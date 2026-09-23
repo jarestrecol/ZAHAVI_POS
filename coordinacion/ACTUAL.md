@@ -1,14 +1,14 @@
 # Trabajo actual
 
 Objetivo: ejecutar [el plan](../PLAN-PRODUCCION-SUPABASE.md) en orden 0–10.
-Prioridad previa: **GIT-001, versionar en jarestrecol/ZAHAVI_POS**, autorizada por el usuario.
-Después: fase 0 de Supabase. Ningún dato operativo migrado.
+GitHub: **jarestrecol/ZAHAVI_POS**, rama `main`, ya publicado con historial.
+Siguiente: **fase 0 de Supabase**. Ningún dato operativo migrado.
 
 ## Tareas y reservas
 
 | ID | Responsable / revisor | Estado | Archivos reservados |
 |---|---|---|---|
-| GIT-001 | Codex / Claude pendiente | en curso | .gitignore, README.md, tablero y entrega; snapshot de cambios existentes, remoto y rama main |
+| GIT-001 | Codex / Claude pendiente | lista para revisión | Ninguno; subida verificada y reservas liberadas |
 | COORD-OPT | Codex / Claude pendiente | lista para revisión | Ninguno; entrega abajo |
 | F0-LOCAL | Codex / Claude pendiente | pendiente | Ninguno hasta toma; futuros scripts/auditar-operacion-local.mjs, scripts/test-auditoria-local.mjs |
 | F0-REMOTO | Claude, propuesta / Codex | pendiente de toma | Ninguno hasta toma; futuros db/auditoria/operacion.sql, coordinacion/entregas/F0-REMOTO.md |
@@ -66,5 +66,5 @@ plan largo es la especificación, este tablero solo mantiene el trabajo inmediat
 
 ## Última entrega
 
-[COORD-OPT](entregas/COORD-OPT.md): inicio 96,5 % menor por bytes; historial íntegro;
-verificador correcto y 11 comprobaciones del protocolo. Reservas liberadas.
+[GIT-001](entregas/GIT-001.md): main e historial subidos; remoto anterior conservado;
+verificación/build correctos. Continuar F0-LOCAL y F0-REMOTO con toma explícita.

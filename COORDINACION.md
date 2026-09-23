@@ -36,6 +36,8 @@ el otro revisa. Este archivo reemplaza el protocolo largo anterior.
 
 ## Trabajo y relevo
 
+- Git: `jarestrecol/ZAHAVI_POS`, base `main`; tareas en ramas separadas.
+  Integrar cambios revisados; nunca force-push a main.
 - El orden aprobado es fases 0–10 del [plan](PLAN-PRODUCCION-SUPABASE.md).
   Consultar solo la fase activa. El punto 5 consolida garantías iniciadas en 0–4.
 - [ACTUAL.md](coordinacion/ACTUAL.md) contiene responsables, reservas, bloqueo real y siguiente
