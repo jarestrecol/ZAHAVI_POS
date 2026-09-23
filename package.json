@@ -21,6 +21,7 @@
     "test:produccion": "node scripts/test-produccion.mjs",
     "test:informes": "node scripts/test-informes.mjs",
     "test:calendario": "node scripts/test-calendario.mjs",
+    "test:costeo": "node scripts/test-casos-costeo.mjs",
     "test:bi": "node scripts/test-bi.mjs",
     "test:bi-ejemplo": "node scripts/test-bi-ejemplo.mjs",
     "test:servidor": "node scripts/test-servidor.mjs",

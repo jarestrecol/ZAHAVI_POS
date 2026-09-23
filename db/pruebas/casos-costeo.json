@@ -1,0 +1,1098 @@
+{
+  "version": 1,
+  "hoy": "2026-06-15",
+  "casos": [
+    {
+      "nombre": "fefo-simple",
+      "regla": "Se consume primero el lote que vence antes, aunque se haya comprado despues.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L001",
+          "ingrediente": "HARINA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 1000,
+          "unidad": "GR",
+          "costoCompra": 2000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 1000,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        },
+        {
+          "id": "L002",
+          "ingrediente": "HARINA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 1000,
+          "unidad": "GR",
+          "costoCompra": 3000,
+          "lote": "",
+          "vencimiento": "2026-07-01",
+          "existencia": 1000,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "HARINA",
+          "unidad": "GR",
+          "cantidad": 1500
+        }
+      ],
+      "esperado": {
+        "costoTotal": 4000
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "HARINA",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 1500,
+            "factorReceta": 1,
+            "cantidad": 1500,
+            "disponible": 2000,
+            "consumo": 1500,
+            "faltante": 0,
+            "costo": 4000,
+            "precioMedio": 2.6666666666666665,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L002",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 1000,
+                "cantidadGramos": 1000,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 3,
+                "precioUnitario": 3,
+                "costo": 3000,
+                "vencimiento": "2026-07-01",
+                "sinPrecio": false
+              },
+              {
+                "loteId": "L001",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 500,
+                "cantidadGramos": 500,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 2,
+                "precioUnitario": 2,
+                "costo": 1000,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 4000,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "vencido-se-ignora",
+      "regla": "Un lote vencido no se consume aunque tenga existencia; queda contado aparte.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L010",
+          "ingrediente": "AZUCAR",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 500,
+          "unidad": "GR",
+          "costoCompra": 1000,
+          "lote": "",
+          "vencimiento": "2026-06-14",
+          "existencia": 500,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        },
+        {
+          "id": "L011",
+          "ingrediente": "AZUCAR",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 500,
+          "unidad": "GR",
+          "costoCompra": 2000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 500,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "AZUCAR",
+          "unidad": "GR",
+          "cantidad": 300
+        }
+      ],
+      "esperado": {
+        "costoTotal": 1200,
+        "lotesVencidosIgnorados": 1
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "AZUCAR",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 300,
+            "factorReceta": 1,
+            "cantidad": 300,
+            "disponible": 500,
+            "consumo": 300,
+            "faltante": 0,
+            "costo": 1200,
+            "precioMedio": 4,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L011",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 300,
+                "cantidadGramos": 300,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 4,
+                "precioUnitario": 4,
+                "costo": 1200,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 1200,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 1
+      }
+    },
+    {
+      "nombre": "compra-futura-no-existe-todavia",
+      "regla": "Un lote comprado despues del dia que se costea no se puede usar ese dia.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L020",
+          "ingrediente": "SAL",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-20",
+          "presentacion": "BOLSA",
+          "pesoCompra": 1000,
+          "unidad": "GR",
+          "costoCompra": 1000,
+          "lote": "",
+          "vencimiento": "2027-01-01",
+          "existencia": 1000,
+          "registrado": "2026-06-20T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "SAL",
+          "unidad": "GR",
+          "cantidad": 100
+        }
+      ],
+      "esperado": {
+        "costoTotal": 0,
+        "lineasSinPrecio": 1
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "SAL",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 100,
+            "factorReceta": 1,
+            "cantidad": 100,
+            "disponible": 0,
+            "consumo": 0,
+            "faltante": 100,
+            "costo": 0,
+            "precioMedio": null,
+            "estado": "sin_precio",
+            "origen": []
+          }
+        ],
+        "costoTotal": 0,
+        "lineasSinPrecio": 1,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 1,
+        "cubiertoTotal": 0,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "equivalencia-ml",
+      "regla": "La receta pide ml y el lote se compro en litros: se convierte con los gramos de 1 ml.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L030",
+          "ingrediente": "LECHE",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 2,
+          "unidad": "LT",
+          "equivalencias": {
+            "ML": 1.03
+          },
+          "costoCompra": 8000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 2,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "LECHE",
+          "unidad": "ML",
+          "cantidad": 500
+        }
+      ],
+      "esperado": {
+        "costoTotal": 2000
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "LECHE",
+            "unidad": "GR",
+            "unidadReceta": "ML",
+            "cantidadReceta": 500,
+            "factorReceta": 1.03,
+            "cantidad": 515,
+            "disponible": 2060,
+            "consumo": 515,
+            "faltante": 0,
+            "costo": 2000,
+            "precioMedio": 3.883495145631068,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L030",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "LT",
+                "cantidad": 0.5,
+                "cantidadGramos": 515,
+                "gramosPorUnidad": 1030,
+                "precioPorGramo": 3.883495145631068,
+                "precioUnitario": 4000,
+                "costo": 2000,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 2000,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "equivalencia-unidad",
+      "regla": "La receta pide unidades y el lote se compro por unidades con su peso declarado.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L040",
+          "ingrediente": "HUEVO",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 30,
+          "unidad": "UND",
+          "equivalencias": {
+            "UND": 50
+          },
+          "costoCompra": 15000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 30,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "HUEVO",
+          "unidad": "UND",
+          "cantidad": 4
+        }
+      ],
+      "esperado": {
+        "costoTotal": 2000
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "HUEVO",
+            "unidad": "GR",
+            "unidadReceta": "UND",
+            "cantidadReceta": 4,
+            "factorReceta": 50,
+            "cantidad": 200,
+            "disponible": 1500,
+            "consumo": 200,
+            "faltante": 0,
+            "costo": 2000,
+            "precioMedio": 10,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L040",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "UND",
+                "cantidad": 4,
+                "cantidadGramos": 200,
+                "gramosPorUnidad": 50,
+                "precioPorGramo": 10,
+                "precioUnitario": 500,
+                "costo": 2000,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 2000,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "sin-equivalencia",
+      "regla": "Sin el peso de la unidad no se inventa densidad: la linea queda sin conversion y no cuesta.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L050",
+          "ingrediente": "MIEL",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 1,
+          "unidad": "LT",
+          "costoCompra": 20000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 1,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "MIEL",
+          "unidad": "ML",
+          "cantidad": 100
+        }
+      ],
+      "esperado": {
+        "costoTotal": 0,
+        "lineasSinConversion": 1
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "MIEL",
+            "unidad": "GR",
+            "unidadReceta": "ML",
+            "cantidadReceta": 100,
+            "factorReceta": null,
+            "cantidad": null,
+            "disponible": 0,
+            "consumo": 0,
+            "faltante": null,
+            "costo": 0,
+            "precioMedio": null,
+            "estado": "sin_conversion",
+            "origen": [],
+            "motivo": "Falta una equivalencia válida en gramos. Edita el ingrediente en Bodega."
+          }
+        ],
+        "costoTotal": 0,
+        "lineasSinPrecio": 1,
+        "lineasSinConversion": 1,
+        "lineasConFaltante": 1,
+        "cubiertoTotal": 0,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "equivalencias-contradictorias",
+      "regla": "Dos lotes con pesos distintos para la misma medida: no se elige uno al azar, se para.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L060",
+          "ingrediente": "CREMA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 1,
+          "unidad": "LT",
+          "equivalencias": {
+            "ML": 1
+          },
+          "costoCompra": 10000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 1,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        },
+        {
+          "id": "L061",
+          "ingrediente": "CREMA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 1,
+          "unidad": "LT",
+          "equivalencias": {
+            "ML": 1.2
+          },
+          "costoCompra": 12000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 1,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "CREMA",
+          "unidad": "ML",
+          "cantidad": 200
+        }
+      ],
+      "esperado": {
+        "costoTotal": 0,
+        "lineasSinConversion": 1
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "CREMA",
+            "unidad": "GR",
+            "unidadReceta": "ML",
+            "cantidadReceta": 200,
+            "factorReceta": null,
+            "cantidad": null,
+            "disponible": 0,
+            "consumo": 0,
+            "faltante": null,
+            "costo": 0,
+            "precioMedio": null,
+            "estado": "sin_conversion",
+            "origen": [],
+            "motivo": "Hay equivalencias diferentes para ML. Revisa los lotes del ingrediente en Bodega."
+          }
+        ],
+        "costoTotal": 0,
+        "lineasSinPrecio": 1,
+        "lineasSinConversion": 1,
+        "lineasConFaltante": 1,
+        "cubiertoTotal": 0,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "agua-de-proceso",
+      "regla": "El agua no se compra ni descuenta bodega, y cuesta cero.",
+      "hoy": "2026-06-15",
+      "lotes": [],
+      "lineas": [
+        {
+          "ingrediente": "AGUA",
+          "unidad": "ML",
+          "cantidad": 1000
+        }
+      ],
+      "esperado": {
+        "costoTotal": 0,
+        "lineasConFaltante": 0
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "AGUA",
+            "unidad": "GR",
+            "unidadReceta": "ML",
+            "cantidadReceta": 1000,
+            "factorReceta": 1,
+            "cantidad": 1000,
+            "disponible": 1000,
+            "consumo": 1000,
+            "faltante": 0,
+            "costo": 0,
+            "precioMedio": 0,
+            "estado": "ok",
+            "origen": [],
+            "servicio": true,
+            "motivo": "Agua de proceso: 1 ml ≈ 1 g. Sin compra ni descuento de bodega; costo de materia prima $0."
+          }
+        ],
+        "costoTotal": 0,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "faltante-parcial",
+      "regla": "Si no alcanza, se consume lo que hay y el faltante es la diferencia exacta, nunca negativo.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L070",
+          "ingrediente": "MANTEQUILLA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 200,
+          "unidad": "GR",
+          "costoCompra": 4000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 200,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "MANTEQUILLA",
+          "unidad": "GR",
+          "cantidad": 500
+        }
+      ],
+      "esperado": {
+        "costoTotal": 4000,
+        "lineasConFaltante": 1
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "MANTEQUILLA",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 500,
+            "factorReceta": 1,
+            "cantidad": 500,
+            "disponible": 200,
+            "consumo": 200,
+            "faltante": 300,
+            "costo": 4000,
+            "precioMedio": 20,
+            "estado": "parcial",
+            "origen": [
+              {
+                "loteId": "L070",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 200,
+                "cantidadGramos": 200,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 20,
+                "precioUnitario": 20,
+                "costo": 4000,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 4000,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 1,
+        "cubiertoTotal": 0.4,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "dos-lineas-mismo-ingrediente",
+      "regla": "Dos lineas del mismo ingrediente no gastan dos veces la misma existencia.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L080",
+          "ingrediente": "CACAO",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 100,
+          "unidad": "GR",
+          "costoCompra": 5000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 100,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "CACAO",
+          "unidad": "GR",
+          "cantidad": 80
+        },
+        {
+          "ingrediente": "CACAO",
+          "unidad": "GR",
+          "cantidad": 80
+        }
+      ],
+      "esperado": {
+        "costoTotal": 5000,
+        "lineasConFaltante": 1
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "CACAO",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 80,
+            "factorReceta": 1,
+            "cantidad": 80,
+            "disponible": 100,
+            "consumo": 80,
+            "faltante": 0,
+            "costo": 4000,
+            "precioMedio": 50,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L080",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 80,
+                "cantidadGramos": 80,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 50,
+                "precioUnitario": 50,
+                "costo": 4000,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          },
+          {
+            "ingrediente": "CACAO",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 80,
+            "factorReceta": 1,
+            "cantidad": 80,
+            "disponible": 20,
+            "consumo": 20,
+            "faltante": 60,
+            "costo": 1000,
+            "precioMedio": 50,
+            "estado": "parcial",
+            "origen": [
+              {
+                "loteId": "L080",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 20,
+                "cantidadGramos": 20,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 50,
+                "precioUnitario": 50,
+                "costo": 1000,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 5000,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 1,
+        "cubiertoTotal": 0.625,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "fraccion-pequena-de-bulto",
+      "regla": "Una pizca de un bulto grande conserva decimales: no se redondea a cero ni a un gramo.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L090",
+          "ingrediente": "LEVADURA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 25,
+          "unidad": "KG",
+          "costoCompra": 250000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 25,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "LEVADURA",
+          "unidad": "GR",
+          "cantidad": 0.5
+        }
+      ],
+      "esperado": {
+        "costoTotal": 5
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "LEVADURA",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 0.5,
+            "factorReceta": 1,
+            "cantidad": 0.5,
+            "disponible": 25000,
+            "consumo": 0.5,
+            "faltante": 0,
+            "costo": 5,
+            "precioMedio": 10,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L090",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "KG",
+                "cantidad": 0.0005,
+                "cantidadGramos": 0.5,
+                "gramosPorUnidad": 1000,
+                "precioPorGramo": 10,
+                "precioUnitario": 10000,
+                "costo": 5,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 5,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "residuo-de-medio-miligramo",
+      "regla": "Un faltante diminuto NO se perdona: pedir 100,0004 g cuando hay 100 deja faltante, no «cubierto».",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L120",
+          "ingrediente": "CANELA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 100,
+          "unidad": "GR",
+          "costoCompra": 1000,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 100,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "CANELA",
+          "unidad": "GR",
+          "cantidad": 100.0004
+        }
+      ],
+      "esperado": {
+        "costoTotal": 1000,
+        "lineasConFaltante": 1
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "CANELA",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 100.0004,
+            "factorReceta": 1,
+            "cantidad": 100.0004,
+            "disponible": 100,
+            "consumo": 100,
+            "faltante": 0.00039999999999906777,
+            "costo": 1000,
+            "precioMedio": 10,
+            "estado": "parcial",
+            "origen": [
+              {
+                "loteId": "L120",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 100,
+                "cantidadGramos": 100,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 10,
+                "precioUnitario": 10,
+                "costo": 1000,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 1000,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 1,
+        "cubiertoTotal": 0.999996000016,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "lote-sin-precio",
+      "regla": "Un lote sin costo no se convierte en cero silencioso: la linea se marca sin precio.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L100",
+          "ingrediente": "VAINILLA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 100,
+          "unidad": "GR",
+          "costoCompra": 0,
+          "lote": "",
+          "vencimiento": "2026-12-31",
+          "existencia": 100,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "VAINILLA",
+          "unidad": "GR",
+          "cantidad": 10
+        }
+      ],
+      "esperado": {
+        "costoTotal": 0
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "VAINILLA",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 10,
+            "factorReceta": 1,
+            "cantidad": 10,
+            "disponible": 100,
+            "consumo": 10,
+            "faltante": 0,
+            "costo": 0,
+            "precioMedio": 0,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L100",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 10,
+                "cantidadGramos": 10,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 0,
+                "precioUnitario": 0,
+                "costo": 0,
+                "vencimiento": "2026-12-31",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 0,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 0
+      }
+    },
+    {
+      "nombre": "varios-lotes-y-tramos",
+      "regla": "El costo se reparte por tramos, cada uno con su lote y su precio de compra.",
+      "hoy": "2026-06-15",
+      "lotes": [
+        {
+          "id": "L110",
+          "ingrediente": "HARINA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 300,
+          "unidad": "GR",
+          "costoCompra": 600,
+          "lote": "",
+          "vencimiento": "2026-07-10",
+          "existencia": 300,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        },
+        {
+          "id": "L111",
+          "ingrediente": "HARINA",
+          "marca": "QA",
+          "proveedor": "QA Proveedor",
+          "fechaCompra": "2026-06-01",
+          "presentacion": "BOLSA",
+          "pesoCompra": 1,
+          "unidad": "KG",
+          "costoCompra": 4000,
+          "lote": "",
+          "vencimiento": "2026-08-10",
+          "existencia": 1,
+          "registrado": "2026-06-01T07:00:00.000Z"
+        }
+      ],
+      "lineas": [
+        {
+          "ingrediente": "HARINA",
+          "unidad": "GR",
+          "cantidad": 800
+        }
+      ],
+      "esperado": {
+        "costoTotal": 2600
+      },
+      "salida": {
+        "lineas": [
+          {
+            "ingrediente": "HARINA",
+            "unidad": "GR",
+            "unidadReceta": "GR",
+            "cantidadReceta": 800,
+            "factorReceta": 1,
+            "cantidad": 800,
+            "disponible": 1300,
+            "consumo": 800,
+            "faltante": 0,
+            "costo": 2600,
+            "precioMedio": 3.25,
+            "estado": "ok",
+            "origen": [
+              {
+                "loteId": "L110",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "GR",
+                "cantidad": 300,
+                "cantidadGramos": 300,
+                "gramosPorUnidad": 1,
+                "precioPorGramo": 2,
+                "precioUnitario": 2,
+                "costo": 600,
+                "vencimiento": "2026-07-10",
+                "sinPrecio": false
+              },
+              {
+                "loteId": "L111",
+                "lote": "",
+                "marca": "QA",
+                "proveedor": "QA Proveedor",
+                "unidad": "KG",
+                "cantidad": 0.5,
+                "cantidadGramos": 500,
+                "gramosPorUnidad": 1000,
+                "precioPorGramo": 4,
+                "precioUnitario": 4000,
+                "costo": 2000,
+                "vencimiento": "2026-08-10",
+                "sinPrecio": false
+              }
+            ]
+          }
+        ],
+        "costoTotal": 2600,
+        "lineasSinPrecio": 0,
+        "lineasSinConversion": 0,
+        "lineasConFaltante": 0,
+        "cubiertoTotal": 1,
+        "lotesVencidosIgnorados": 0
+      }
+    }
+  ]
+}

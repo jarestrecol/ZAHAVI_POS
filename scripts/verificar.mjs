@@ -52,6 +52,10 @@ function run(script, args = []) {
 }
 
 paso('Producción e historial auditable', () => run('test-produccion.mjs').trim().split('\n').at(-1));
+// El contrato que la funcion SQL de la fase 3 tendra que cumplir: mismas reglas
+// de gramos y FEFO que la aplicacion, demostradas caso a caso.
+paso('Contrato de costeo FEFO', () => run('test-casos-costeo.mjs').trim().split(String.fromCharCode(10)).at(-1));
+paso('Lista de trabajo compartida', () => run('checklist.mjs', ['--revisar']).trim());
 
 /**
  * Quita comentarios antes de buscar. Sin esto, un comentario que EXPLIQUE por
@@ -591,6 +595,10 @@ paso('Integridad de las recetas', () => {
 // El contexto se mantiene breve; versiones/datos ya se comprueban arriba.
 paso('Coordinación y documentación vigente', () => run('check-coordinacion.mjs').trim());
 paso('Regresiones de coordinación', () => run('test-coordinacion.mjs').trim().split('\n').at(-1));
+paso('Regresiones del checklist', () => run('test-checklist.mjs').trim());
+paso('Diagnóstico local de migración', () => run('test-auditoria-local.mjs').trim());
+paso('Transporte de operación remota', () => run('test-operacion-remota.mjs').trim());
+paso('Control y acciones remotas', () => run('test-control-operacion-remota.mjs').trim().split('\n').at(-1));
 
 console.log(
   failed === 0 ? '\nTodas las comprobaciones ejecutadas son correctas.\n' : `\n${failed} comprobacion(es) fallan.\n`,

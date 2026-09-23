@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { leerChecklist, revisar } from './checklist.mjs';
+const comprobar = texto => revisar(leerChecklist(texto));
+assert.deepEqual(comprobar('- [x] A · Auditar · Claude\n- [~] B · Revisar · Codex ← A\n- [ ] C · Aplicar ← B'), []);
+assert.ok(comprobar('- [ ] A · Espera ← B\n- [ ] B · Espera ← A').some(e => e.includes('circular')));
+assert.ok(comprobar('- [ ] A · Espera ← A').some(e => e.includes('circular')));
+assert.ok(comprobar('- [ ] A · Espera ← X').some(e => e.includes('no existe')));
+assert.ok(comprobar('- [x] A · Hecho\n- [ ] A · Duplicado').some(e => e.includes('repetido')));
+assert.ok(comprobar('- [~] A · Sin responsable').some(e => e.includes('dueño')));
+for (const estado of ['x', '~']) assert.ok(comprobar(`- [ ] A · Pendiente\n- [${estado}] B · Adelantada · Codex ← A`).some(e => e.includes('dependencias pendientes')));
+assert.throws(() => leerChecklist('- [X] A · Marca desconocida'), /mal formada/);
+assert.throws(() => leerChecklist('- [ ] A Sin separador'), /mal formada/);
+assert.ok(comprobar('# Solo un titulo').includes('lista vacia'));
+console.log('Checklist: dependencias, ciclos, estados, identidad y formato comprobados.');
