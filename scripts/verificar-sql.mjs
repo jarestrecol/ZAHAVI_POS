@@ -92,9 +92,13 @@ comprobar('no hay dos con el mismo numero', new Set(numeros).size === numeros.le
 
 console.log('\n2. Ninguna tabla se queda sin seguridad por filas');
 
-const tablas = [...todo.matchAll(/create table if not exists\s+([a-z_]+)/gi)].map((m) => m[1]);
+// El nombre puede venir calificado (`privado.acciones`): se conserva el esquema
+// salvo `public`, para no confundir la tabla con el nombre de su esquema.
+const NOMBRE_TABLA = String.raw`((?:[a-z_]+\.)?[a-z_]+)`;
+const sinPublic = (nombre) => nombre.toLowerCase().replace(/^public\./, '');
+const tablas = [...todo.matchAll(new RegExp(String.raw`create table if not exists\s+` + NOMBRE_TABLA, 'gi'))].map((m) => sinPublic(m[1]));
 const conRLS = new Set(
-  [...todo.matchAll(/alter table\s+([a-z_]+)\s+enable row level security/gi)].map((m) => m[1]),
+  [...todo.matchAll(new RegExp(String.raw`alter table\s+` + NOMBRE_TABLA + String.raw`\s+enable row level security`, 'gi'))].map((m) => sinPublic(m[1])),
 );
 
 comprobar('se encontraron tablas', tablas.length > 0, `${tablas.length} tablas`);
@@ -656,8 +660,8 @@ console.log('\n13. Permisos de las tablas nuevas');
 const DESDE = 13;
 const nuevas = fuente
   .filter((f) => parseInt(f.nombre.slice(0, 4), 10) >= DESDE)
-  .flatMap((f) => [...f.sql.matchAll(/create table if not exists\s+(?:public\.)?([a-z_]+)/gi)]
-    .map((m) => ({ tabla: m[1], sql: f.sql, archivo: f.nombre })));
+  .flatMap((f) => [...f.sql.matchAll(new RegExp(String.raw`create table if not exists\s+` + NOMBRE_TABLA, 'gi'))]
+    .map((m) => ({ tabla: sinPublic(m[1]), sql: f.sql, archivo: f.nombre })));
 
 comprobar(
   `la regla se aplica desde la migracion ${String(DESDE).padStart(4, '0')}`,
@@ -671,7 +675,7 @@ comprobar(
 const REVOCACIONES = /revoke\s+([\s\S]*?)\s+on\s+(?:table\s+)?([\s\S]*?)\s+from\s+([^;]+);/gi;
 const revoca = ({ tabla, sql }) => [...sql.matchAll(REVOCACIONES)].some((m) => {
   const permisos = m[1].toLowerCase();
-  const tablas = m[2].toLowerCase().split(',').map((t) => t.trim().replace(/^public\./, ''));
+  const tablas = m[2].split(',').map((t) => sinPublic(t.trim()));
   const roles = m[3].toLowerCase();
   const revocado = permisos.split(/[\s,]+/);
   return (revocado.includes('all') || revocado.includes('truncate')) && tablas.includes(tabla) && roles.includes('authenticated');

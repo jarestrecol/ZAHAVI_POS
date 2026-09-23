@@ -15,7 +15,7 @@ Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
 | COORD-OPT | Codex / Claude pendiente | lista para revisión | Ninguno; entrega abajo |
 | F0-LOCAL | Codex / Claude pendiente | herramienta lista; conciliación pendiente | Ninguno; ver entregas/F0-LOCAL.md |
 | F0-REMOTO | Claude / Codex pendiente | lista para revisión | Ninguno; ver entregas/F0-REMOTO.md |
-| MIGRACION | Claude / Codex | 0015–0017 aplicadas; revisión Codex pendiente; sigue F3-3 | db/migraciones/0014_operacion.sql, db/migraciones/0015_*.sql, db/migraciones/0016_*.sql, db/migraciones/0017_*.sql, db/local/pruebas-operacion.sql, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
+| MIGRACION | Claude / Codex | F3-3: núcleo RPC y bodega aplicados (0018/0019); siguen plan, notas y resultados | db/migraciones/0014_operacion.sql, db/migraciones/0015…0021_*.sql, db/local/pruebas-{operacion,api}.sql, entregas/CONTRATO-RPC.md, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
 | CLIENTE-REMOTO | Codex / Claude | pausada por prioridad F1/F2 del usuario | Ninguno |
 | F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F2-CONCILIACION.md |
 

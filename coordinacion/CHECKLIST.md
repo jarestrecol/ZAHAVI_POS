@@ -39,7 +39,7 @@ F0-5 registra la revisión; F0-9 cierra sus hallazgos antes de activar el contra
 
 - [x] F3-1 · `privado.costear()` (0016/0017): gramos y FEFO en el servidor · Claude ← F0-3
 - [x] F3-2 · 14/14 casos idénticos en probar-sql con el ajuste de Supabase (entregas/F3-1.md) · Claude ← F3-1, F0-9
-- [ ] F3-3 · Funciones de escritura (plan, notas, preparaciones, resultados, bodega) · Claude ← F0-9
+- [~] F3-3 · Funciones de escritura (plan, notas, preparaciones, resultados, bodega) · Claude ← F0-9
 - [ ] F3-4 · `confirmar_receta` atómica: bloqueo, idempotencia, revisión · Claude ← F3-2, F3-3
 - [ ] F3-5 · Cerrar las escrituras directas que se saltarían la función · Claude ← F3-4
 - [~] F3-6 · Cliente remoto: transporte, controlador y contrato RPC · Codex

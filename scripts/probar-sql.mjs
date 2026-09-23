@@ -215,6 +215,7 @@ try {
   // Reutiliza la semilla de `pruebas.sql` y la deja intacta: va en una
   // transaccion que se deshace.
   console.log(limpiar(correrSql('db/local/pruebas-operacion.sql')));
+  console.log(limpiar(correrSql('db/local/pruebas-api.sql')));
 
   // -------------------------------------------------------------------------
   //  EL SERVIDOR COSTEA IGUAL QUE LA APLICACION
