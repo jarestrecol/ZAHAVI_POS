@@ -65,7 +65,8 @@ jobs:
             echo "El volcado del esquema es demasiado pequeño."
             exit 1
           fi
-          grep -q 'create table' respaldo/esquema.sql || {
+          # pg_dump escribe las palabras clave en mayusculas (CREATE TABLE).
+          grep -qi 'create table' respaldo/esquema.sql || {
             echo "El volcado no contiene ninguna tabla."; exit 1; }
 
       - name: Contar filas por tabla (sin exponer datos)
