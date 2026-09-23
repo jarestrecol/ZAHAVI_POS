@@ -226,6 +226,8 @@ try {
   console.log('');
   console.log('32. Concurrencia: sesiones de PostgreSQL a la vez');
   await probarConcurrencia({ contenedor: CONTENEDOR, base: BASE, ok: (texto) => console.log(`  OK    ${texto}`) });
+  // Con la produccion que deja la concurrencia, el barrido de sedes, roles y dinero (F3-11).
+  console.log(limpiar(correrSql('db/local/pruebas-rls.sql')));
 
   // -------------------------------------------------------------------------
   //  EL SERVIDOR COSTEA IGUAL QUE LA APLICACION
