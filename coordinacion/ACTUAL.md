@@ -17,7 +17,7 @@ Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
 | F0-REMOTO | Claude / Codex pendiente | lista para revisión | Ninguno; ver entregas/F0-REMOTO.md |
 | MIGRACION | Claude / Codex | 0014 en revisión; casos de costeo en curso | db/migraciones/0014_operacion.sql, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
 | CLIENTE-REMOTO | Codex / Claude | pausada por prioridad F1/F2 del usuario | Ninguno |
-| F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F1-F2.md y db/auditoria/fases_1_2.sql |
+| F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F2-CONCILIACION.md |
 
 No hay otras reservas activas del protocolo anterior: AUTH, PROD, CONV, REND, BI y
 PLAN entregaron; revisiones pendientes en archivo. COORD-001 queda absorbida por
