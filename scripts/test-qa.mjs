@@ -64,6 +64,60 @@ const repo = await import(pathToFileURL(repoRoot + '/src/core/repository.js').hr
 const { validateRecipe } = await import(pathToFileURL(repoRoot + '/src/core/schema.js').href);
 
 /* ===========================================================================
+ *  SERVIDOR DE MENTIRA CON LAS REGLAS DE LA API DEL RECETARIO (0024)
+ *
+ *  El recetario vive en Supabase: aqui un servidor en memoria hace de API con
+ *  sus mismas reglas -asigna el codigo, lleva la revision (409 si es vieja),
+ *  retira sin borrar y es idempotente por id de solicitud-. Las reglas de
+ *  verdad se prueban contra PostgreSQL en `probar-sql`; esto prueba que el
+ *  repositorio del navegador las usa bien. No sale nada a la red.
+ * ======================================================================== */
+
+const copia = (v) => JSON.parse(JSON.stringify(v));
+const servidor = {
+  recetas: publicado.recipes.map((r) => ({ ...copia(r), receta_id: 'rid-' + r.id, revision: 1, activa: true })),
+  vistas: new Map(),
+  perderRespuesta: false,
+  async leer(q) {
+    if (q.tipo !== 'recetario') return { ok: false, code: 'invalida', message: 'Consulta desconocida.' };
+    return { ok: true, value: { version: 1, recetas: copia(this.recetas.filter((r) => r.activa)), ingredientes: copia(publicado.ingredientes) } };
+  },
+  async ejecutar(s) {
+    let r = this.vistas.get(s.id);
+    if (!r) {
+      r = this.aplicar(s);
+      this.vistas.set(s.id, r);
+    }
+    if (this.perderRespuesta) {
+      this.perderRespuesta = false;
+      return { ok: false, code: 'confirmacion_pendiente', message: 'Respuesta perdida.' };
+    }
+    return copia(r);
+  },
+  aplicar(s) {
+    const d = s.datos;
+    let receta = d.receta_id ? this.recetas.find((x) => x.receta_id === d.receta_id) : null;
+    if (receta && receta.revision !== s.revision) return { ok: false, code: 'conflicto', message: 'Esta receta cambió mientras la editabas.' };
+    if (s.accion === 'activar_receta') {
+      Object.assign(receta, { activa: d.activa, revision: receta.revision + 1 });
+    } else {
+      if (!receta) {
+        const mayor = Math.max(...this.recetas.map((x) => Number(x.id.slice(1)) || 0));
+        receta = { id: 'R' + String(mayor + 1).padStart(3, '0'), receta_id: 'rid-nueva-' + (mayor + 1), revision: 0, activa: true };
+        this.recetas.push(receta);
+      }
+      Object.assign(receta, { nombre: d.nombre, categoria: d.categoria, metodo: d.metodo,
+        componentes: copia(d.componentes), revision: receta.revision + 1 });
+    }
+    return { ok: true, value: { version: 1, resultado: { receta: copia(receta) } } };
+  },
+};
+repo.usarTransporte(servidor);
+
+/** El recetario sin los campos que añade el servidor, para compararlo con recipes.json. */
+const soloRecetas = (lista) => lista.map(({ receta_id, revision, activa, actualizado, ...r }) => r);
+
+/* ===========================================================================
  *  UTILIDADES DE LA PRUEBA
  * ======================================================================== */
 
@@ -115,35 +169,28 @@ console.log(` Resumen sha256: ${shaAntes.slice(0, 8)}`);
  *  BLOQUE 1: VEINTE RECETAS
  * ======================================================================== */
 
-console.log('\n1. Arranque: se carga el recetario publicado');
+console.log('\n1. Arranque: el recetario se lee del servidor');
 let estado = await repo.hydrate();
 comprobar(`${RECETAS_ORIGINALES} recetas al arrancar`, estado.recipes.length === RECETAS_ORIGINALES, String(estado.recipes.length));
-comprobar('sin cambios pendientes', repo.localChanges().dirty === false);
+comprobar('origen: el servidor', estado.source === 'servidor', estado.source);
 
 console.log('\n2. Crear 20 recetas de prueba');
 const creadas = [];
 for (let n = 1; n <= 20; n += 1) {
-  const receta = recetaDePrueba(n);
-  const guardado = repo.save(receta);
+  const guardado = await repo.save(recetaDePrueba(n));
   if (!guardado.ok) {
     comprobar(`guardar QA-TEST-${n}`, false, guardado.message);
     break;
   }
-  creadas.push(receta.id);
+  creadas.push(guardado.value.id);
 }
 comprobar('se crearon las 20', creadas.length === 20, String(creadas.length));
-comprobar('todas con codigo distinto', new Set(creadas).size === 20, `${new Set(creadas).size} codigos unicos`);
+comprobar('todas con codigo distinto, asignado por el servidor', new Set(creadas).size === 20, `${new Set(creadas).size} codigos unicos`);
 comprobar(
   `el recetario pasa a ${RECETAS_ORIGINALES + 20}`,
   repo.findAll().length === RECETAS_ORIGINALES + 20,
   String(repo.findAll().length),
 );
-
-let cambios = repo.localChanges();
-comprobar('marcadas como cambios sin publicar', cambios.dirty === true);
-comprobar('cuenta 20 nuevas', cambios.added === 20, JSON.stringify(cambios));
-comprobar('ninguna receta real modificada', cambios.modified === 0, `modificadas: ${cambios.modified}`);
-comprobar('ninguna receta real eliminada', cambios.removed === 0, `eliminadas: ${cambios.removed}`);
 
 console.log('\n3. El contenido guardado es exactamente el que se envio');
 const muestra = repo.findById(creadas[7]);
@@ -154,9 +201,9 @@ comprobar('conserva la cantidad exacta', muestra && String(muestra.componentes[0
 comprobar('conserva la unidad de volumen', muestra && muestra.componentes[0].items[2].unidad === 'ML');
 comprobar('conserva el metodo con sus saltos', muestra && muestra.metodo.split('\n').length === 2);
 
-console.log('\n4. Recargar la pagina: las 20 siguen ahi');
+console.log('\n4. Recargar la pagina: las 20 siguen ahi, porque viven en el servidor');
 estado = await repo.hydrate();
-comprobar('origen: cambios de este equipo', estado.source === 'local', estado.source);
+comprobar('origen: el servidor', estado.source === 'servidor', estado.source);
 comprobar(
   `siguen las ${RECETAS_ORIGINALES + 20}`,
   repo.findAll().length === RECETAS_ORIGINALES + 20,
@@ -165,29 +212,37 @@ comprobar(
 const trasRecarga = repo.findById(creadas[7]);
 comprobar('la muestra sobrevive intacta', trasRecarga && trasRecarga.nombre.startsWith('QA-TEST-08'));
 comprobar('y con su metodo', trasRecarga && trasRecarga.metodo.includes('Paso 2 de la prueba 08'));
+comprobar('y no queda copia del recetario en el equipo', !almacen.has('zahavi_recetario_v1'));
 
-console.log('\n5. Borrar las 20, una por una');
+console.log('\n4b. Revision, respuesta perdida y conflicto');
+const editada = { ...repo.findById(creadas[0]), metodo: 'Metodo cambiado.' };
+servidor.perderRespuesta = true;
+let r1 = await repo.save(editada);
+comprobar('si se pierde la respuesta, se dice que el resultado es incierto', !r1.ok && r1.code === 'confirmacion_pendiente', r1.code);
+const antes = servidor.vistas.size;
+r1 = await repo.save(editada);
+comprobar('volver a guardar reenvia la MISMA solicitud: no hay segunda version', r1.ok && servidor.vistas.size === antes, String(servidor.vistas.size - antes));
+servidor.recetas.find((x) => x.id === creadas[1]).revision += 1;
+r1 = await repo.save({ ...repo.findById(creadas[1]), metodo: 'Otro cambio.' });
+comprobar('con la revision vieja el servidor responde conflicto', !r1.ok && r1.code === 'conflicto', r1.code);
+await repo.hydrate();
+
+console.log('\n5. Retirar las 20, una por una');
 let borradas = 0;
 for (const id of creadas) {
-  const resultado = repo.remove(id);
+  const resultado = await repo.remove(id);
   if (resultado.ok && repo.findById(id) === null) borradas += 1;
 }
-comprobar('se borraron las 20', borradas === 20, String(borradas));
+comprobar('se retiraron las 20', borradas === 20, String(borradas));
 comprobar(
   `el recetario vuelve a ${RECETAS_ORIGINALES}`,
   repo.findAll().length === RECETAS_ORIGINALES,
   String(repo.findAll().length),
 );
 comprobar('no queda ninguna QA-TEST', repo.findAll().filter((r) => r.nombre.includes('QA-TEST')).length === 0);
-
-cambios = repo.localChanges();
-comprobar('ya no hay nuevas pendientes', cambios.added === 0, JSON.stringify(cambios));
-comprobar('sigue sin tocar ninguna receta real', cambios.modified === 0 && cambios.removed === 0);
-// Crear 20 y borrarlas deja el recetario igual que al principio. Si aqui
-// siguiera marcado como "con cambios", la cabecera anunciaria "0 cambios sin
-// publicar" y el boton de publicar quedaria activo sin nada que publicar.
-comprobar('no quedan cambios que anunciar', cambios.dirty === false, JSON.stringify(cambios));
-comprobar('el recuento es cero', cambios.total === 0, String(cambios.total));
+comprobar('retiradas, no borradas: el servidor las conserva', servidor.recetas.filter((r) => !r.activa).length === 20);
+servidor.recetas = servidor.recetas.filter((r) => r.activa);
+await repo.hydrate();
 
 /* ---------------------------------------------------------------------------
  *  El enlace de una receta conserva el filtro y la busqueda
@@ -537,7 +592,7 @@ comprobar('un recetario vacio no rompe', ings.catalogoIngredientes([]).length ==
 
 comprobar(
   'consultar el catalogo no altera el recetario',
-  JSON.stringify(repo.findAll()) === JSON.stringify(publicado.recipes),
+  JSON.stringify(soloRecetas(repo.findAll())) === JSON.stringify(publicado.recipes),
 );
 
 /* ---------------------------------------------------------------------------
@@ -877,7 +932,7 @@ comprobar('ordenado alfabeticamente', estaOrdenado(planReal.lineas.map((l) => l.
 comprobar('un plan vacio no rompe', planificador.consolidar([]).totalLineas === 0);
 comprobar(
   'planificar no altera el recetario',
-  JSON.stringify(repo.findAll()) === JSON.stringify(publicado.recipes),
+  JSON.stringify(soloRecetas(repo.findAll())) === JSON.stringify(publicado.recipes),
 );
 
 function countItemsDe(r) {
@@ -893,7 +948,7 @@ const idsAhora = repo.findAll().map((r) => r.id).sort();
 comprobar('mismos codigos', JSON.stringify(idsReales) === JSON.stringify(idsAhora));
 comprobar(
   'mismo contenido byte a byte',
-  JSON.stringify(publicado.recipes) === JSON.stringify(repo.findAll()),
+  JSON.stringify(publicado.recipes) === JSON.stringify(soloRecetas(repo.findAll())),
 );
 
 /* ===========================================================================
@@ -909,7 +964,6 @@ comprobar(
 const sesion = await import(pathToFileURL(repoRoot + '/src/core/sesion.js').href);
 const { SUPABASE_URL } = await import(pathToFileURL(repoRoot + '/src/core/supabase.js').href);
 const { getState } = await import(pathToFileURL(repoRoot + '/src/core/store.js').href);
-const remote = await import(pathToFileURL(repoRoot + '/src/core/remote.js').href);
 const comandos = await import(pathToFileURL(repoRoot + '/src/app/commands.js').href);
 
 const PIN = '246810';
@@ -1515,22 +1569,17 @@ comprobar(
 );
 comprobar('y una sesion de la clave del equipo no abre la aplicacion', sesion.leerSesion() === null);
 
-console.log('\n11. Cerrar sesion revoca tambien la clave de edicion');
-// Se prueba `cerrarSesion` y NO `terminarSesion`, y la diferencia importa:
-// `terminarSesion` solo cierra la sesion guardada. Las dos mitades -cerrar y
-// revocar la clave de edicion- viven juntas en el caso de uso. Lo que fija esta
-// prueba es la GARANTIA: quien entre despues no hereda la capacidad de publicar
-// de quien estuvo antes.
+console.log('\n11. Cerrar sesion vacia el recetario de la memoria');
+// Sin sesion la API no deja leer el recetario, y no queda copia en el equipo:
+// quien entre despues lo vuelve a cargar con SU sesion.
 
 reiniciarSupabase();
 r = await comandos.ingresar('QA-TEST', PIN);
 comprobar('la sesion se abre desde el caso de uso', r.ok && getState().authed === true && getState().usuario.codigo === 'QA-TEST');
-remote.setEditKey('clave-de-edicion-de-prueba');
-comprobar('la clave queda en la sesion', remote.getEditKey() === 'clave-de-edicion-de-prueba');
 supabaseFalso.llamadas = [];
 comandos.cerrarSesion();
 comprobar('la sesion se cierra', getState().authed === false && getState().usuario === null && sesion.leerSesion() === null);
-comprobar('y la clave de edicion se borra', remote.getEditKey() === '', remote.getEditKey());
+comprobar('y el recetario ya no esta en memoria', repo.findAll().length === 0 && getState().recetario.recipes.length === 0);
 comprobar('y se desconecta en el servidor', llamadasA('/auth/v1/logout').length === 1);
 
 r = await comandos.ingresar('QA-TEST', '000000');
@@ -1558,33 +1607,6 @@ comprobar('sin red la sesion del caso de uso sigue abierta', getState().authed =
 supabaseFalso.renovar = null;
 comandos.cerrarSesion();
 
-console.log('\n11b. La clave de edicion caduca por inactividad');
-
-// La clave se queda en la sesion para que la publicacion automatica salga sola
-// despues de guardar. En una tableta instalada como aplicacion esa sesion no
-// termina al acabar el turno, sino cuando alguien cierra la ventana, asi que
-// sin caducidad quedaba una llave olvidada sobre el mostrador: cualquiera que
-// se encontrara el aparato encendido podia publicar para las dos sedes.
-remote.setEditKey('clave-de-edicion-de-prueba');
-comprobar('recien puesta, la clave vale', remote.getEditKey() === 'clave-de-edicion-de-prueba');
-
-// Media hora y un minuto sin usarla.
-almacenSesion.set('zahavi_edit_key_desde', String(Date.now() - (31 * 60 * 1000)));
-comprobar('pasada la media hora deja de valer', remote.getEditKey() === '', remote.getEditKey());
-comprobar('y se borra de la sesion, no solo se oculta', almacenSesion.has('zahavi_edit_key') === false);
-
-// Una marca ilegible se trata como vencida: es la unica proteccion real del
-// sistema, asi que ante la duda se vuelve a pedir.
-remote.setEditKey('clave-con-marca-rota');
-almacenSesion.set('zahavi_edit_key_desde', 'no-es-un-numero');
-comprobar('una marca ilegible tambien caduca', remote.getEditKey() === '', remote.getEditKey());
-
-// Y dentro de la ventana sigue valiendo: la caducidad no puede estorbar el turno.
-remote.setEditKey('clave-vigente');
-almacenSesion.set('zahavi_edit_key_desde', String(Date.now() - 5 * 60 * 1000));
-comprobar('cinco minutos despues sigue valiendo', remote.getEditKey() === 'clave-vigente');
-
-remote.setEditKey('');
 
 /* ===========================================================================
  *  CIERRE: EL ARCHIVO REAL NO SE TOCO

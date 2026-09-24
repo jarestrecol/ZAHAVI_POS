@@ -42,9 +42,9 @@
    * Margen antes de dar el arranque por perdido.
    *
    * Tiene que ser MAYOR que el tiempo maximo que puede tardar la carga normal.
-   * La lectura del recetario compartido corta a los 12 segundos por su cuenta
-   * (`TIMEOUT_MS` en `core/remote.js`), asi que por debajo de eso este aviso
-   * saltaria encima de una carga que iba a terminar bien.
+   * La lectura del recetario en Supabase corta a los 15 segundos por su cuenta
+   * (`ESPERA_MAXIMA_MS` en `core/sesion.js`), asi que por debajo de eso este
+   * aviso saltaria encima de una carga que iba a terminar bien.
    */
   var ESPERA_MS = 18000;
 
@@ -145,7 +145,7 @@
    *
    * Es la salida al caso mas frecuente: una version del programa guardada a
    * medias o corrupta que se sirve una y otra vez desde la copia local. NO toca
-   * `localStorage`, que es donde viven las recetas y los cambios sin publicar.
+   * `localStorage`, que es donde vive la sesion de quien entro.
    */
   function limpiarYRecargar() {
     var tareas = [];

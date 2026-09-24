@@ -1,320 +1,103 @@
 /**
- * Repositorio de recetas: unica puerta entre la aplicacion y el almacenamiento.
+ * Repositorio de recetas: unica puerta entre la aplicacion y el recetario.
  *
- * Modelo de datos de la fase 1, sin base de datos y sin servidor:
+ * EL RECETARIO VIVE EN LA BASE (Supabase, migracion 0024)
+ * -------------------------------------------------------
+ * Se lee con `operacion_leer({tipo: 'recetario'})` y se escribe con
+ * `operacion_ejecutar` (`guardar_receta`, `activar_receta`). Cada cambio deja
+ * una version en el servidor, con quien y por que. Ya no hay «Publicar», ni
+ * cambios locales pendientes, ni commits desde el navegador: lo que se guarda
+ * lo ven todas las sedes en cuanto el servidor contesta (decision F1-D).
  *
- *   `data/recipes.json` del propio sitio es la version PUBLICADA. Es lo que ven
- *   todos los dispositivos, en la panaderia y en la casa de produccion, y solo
- *   cambia cuando se publica una version nueva del sitio.
+ * SIN CONEXION NO HAY RECETARIO (F4-1)
+ * ------------------------------------
+ * No se guarda copia en el equipo. Sin sesion o sin red, `hydrate` devuelve un
+ * recetario vacio con el motivo redactado, y la pantalla lo dice. Las copias
+ * que dejo la version anterior en `localStorage` se borran al cargar: eran la
+ * segunda fuente editable que el plan prohibe.
  *
- *   Lo que alguien edita en su navegador queda como CAMBIO LOCAL: vive en ese
- *   dispositivo y no lo ve nadie mas. Para que llegue a las demas sedes hay que
- *   pulsar Publicar en Ajustes, que envia el cambio al servidor.
- *
- * Esta distincion es deliberada y visible en la interfaz. Sin ella, cada sede
- * acabaria con un recetario distinto sin que nadie se diera cuenta.
+ * QUIEN PUEDE EDITAR lo decide el servidor (jefe de obrador en adelante); la
+ * pantalla solo esconde lo que no se puede usar.
  */
+import { crearOperacionRemota } from './operacion-remota.js';
+import { ok, err } from './storage.js';
 
-import { readJsonState, writeJson, writeText, ok, err } from './storage.js';
-import { validateBackup, nextRecipeId, SCHEMA_VERSION } from './schema.js';
-import {
-  fetchShared,
-  publishShared,
-  canPublish as canPublishRemote,
-  needsReload,
-  serverStatus,
-  verificarClave as verificarClaveRemota,
-  setEditKey as setEditKeyRemota,
-} from './remote.js';
+/** Claves que usaba el recetario local y la publicacion a GitHub. Se borran. */
+const CLAVES_ANTERIORES = Object.freeze([
+  'zahavi_recetario_v1',
+  'zahavi_recetario_rescate',
+  'zahavi_recetario_rescate_crudo',
+  'zahavi_edit_key',
+  'zahavi_edit_key_desde',
+]);
 
-/** Clave de los cambios locales sin publicar. */
-const LOCAL_KEY = 'zahavi_recetario_v1';
+const VACIO = Object.freeze({ recipes: [], ingredientes: [] });
 
-/** Archivo publicado que viaja con el sitio. */
-const PUBLISHED_URL = './data/recipes.json';
+let remoto = crearOperacionRemota({ lectura: 'operacion_leer', comando: 'operacion_ejecutar' });
 
-/** Donde se aparta una copia local que se lee pero no valida. */
-const RESCUE_KEY = 'zahavi_recetario_rescate';
+/** Lo que se muestra: exactamente lo ultimo que devolvio el servidor. */
+let current = VACIO;
 
 /**
- * Donde se aparta una copia local que ni siquiera se puede interpretar.
+ * Solicitud cuyo resultado quedo incierto (se cayo la red tras enviarla). Si la
+ * misma receta se vuelve a guardar igual, se reenvia con el MISMO id: el
+ * servidor devuelve lo que ya hizo en vez de crear la receta dos veces.
  *
- * Clave distinta de la anterior a proposito: el contenido es texto crudo y no
- * un objeto, y compartir clave haria que un rescate pisara al otro justo
- * cuando lo que se guarda es lo unico que queda del trabajo de alguien.
+ * @type {{clave: string, huella: string, id: string}|null}
  */
-const RESCUE_RAW_KEY = 'zahavi_recetario_rescate_crudo';
+let incierta = null;
+
+/** Solo para pruebas: sustituye el transporte. */
+export function usarTransporte(transporte) {
+  remoto = transporte;
+}
+
+/** Borra las copias locales de la version anterior. Nunca falla. */
+function olvidarCopiasLocales() {
+  try {
+    for (const clave of CLAVES_ANTERIORES) globalThis.localStorage?.removeItem(clave);
+  } catch {
+    // Sin almacenamiento disponible no hay nada que borrar.
+  }
+}
 
 /**
- * Version publicada, o null si en este arranque no se pudo leer.
+ * Carga el recetario del servidor.
  *
- * La distincion importa: antes esto empezaba como un objeto con listas vacias, y
- * si la app arrancaba sin red se quedaba asi. Entonces el recuento de cambios
- * comparaba contra una lista vacia y anunciaba "121 nuevas" tras editar una sola
- * receta, se guardaba una revision base vacia, y se habilitaba publicar sin tener
- * con que comparar.
+ * No falla: devuelve siempre un recetario (vacio si no se pudo leer) y, si algo
+ * salio mal, el motivo ya redactado en `warning`.
  *
- * @type {{recipes: Array, ingredientes: Array, revision: string}|null}
- */
-let published = null;
-
-/**
- * Estado que se muestra: el publicado, o el local si hay cambios sin publicar.
- * @type {{recipes: Array, ingredientes: Array}}
- */
-let current = { recipes: [], ingredientes: [] };
-
-/** Hay ediciones en este dispositivo que no estan en la version publicada. */
-let dirty = false;
-
-/**
- * Revision publicada sobre la que se hicieron los cambios locales. Se conserva
- * aunque no haya red, para no perder la referencia de contra que se edito.
- */
-let baseRevision = '';
-
-/**
- * La version publicada cambio mientras habia cambios locales pendientes.
- * Se avisa porque hay que decidir cual conservar.
- */
-let conflict = false;
-
-/**
- * Hay un envio en vuelo hacia el servidor.
- *
- * Vive aqui y no en `app/sync.js` porque a publicar se llega por dos caminos
- * -el automatico y el boton de Ajustes- y el cerrojo tiene que ser el mismo
- * para los dos. Ver `publishToAll`.
- */
-let publicando = false;
-
-/**
- * Carga el recetario. Siempre intenta primero la version publicada, para que
- * un dispositivo nuevo vea exactamente lo mismo que los demas.
- *
- * EXCEPCION DECLARADA AL CONTRATO `{ok, code, message}`: esta funcion no puede
- * fallar. Siempre devuelve un recetario -aunque sea vacio- porque el obrador
- * tiene que poder abrir la aplicacion pase lo que pase. Lo que informa no es un
- * error sino de DONDE salieron los datos (`source`) y que salio raro por el
- * camino (`warning`, ya redactado). Es la unica excepcion del nucleo, y esta
- * aqui escrita para que no se tome como precedente.
- *
- * @returns {Promise<{recipes: Array, ingredientes: Array, source: string, warning?: string}>}
+ * @returns {Promise<{recipes: Array, ingredientes: Array, source: 'servidor'|'sin_datos', warning?: string}>}
  */
 export async function hydrate() {
-  const fetched = await loadPublished();
-  const guardado = readJsonState(LOCAL_KEY);
-  const local = guardado.value;
-
-  if (fetched.ok) {
-    published = fetched.value;
+  olvidarCopiasLocales();
+  const r = await remoto.leer({ tipo: 'recetario' });
+  if (!r.ok) {
+    current = VACIO;
+    return { ...current, source: 'sin_datos', warning: r.message };
   }
-
-  // La copia local existe pero ni siquiera se puede interpretar: texto
-  // truncado por una escritura a medias, por la cuota agotada o por cerrar el
-  // navegador en mal momento. No se sabe si contenia trabajo sin publicar, y
-  // justo por eso se trata como si lo contuviera: se aparta el texto crudo y
-  // se avisa, en vez de escribir encima la version publicada y dar por
-  // perdido lo que hubiera.
-  if (guardado.state === 'corrupt') {
-    writeText(RESCUE_RAW_KEY, guardado.raw);
-    baseRevision = '';
-    conflict = false;
-    dirty = false;
-
-    if (fetched.ok) {
-      current = { recipes: published.recipes, ingredientes: published.ingredientes };
-      cachePublished();
-    } else {
-      current = { recipes: [], ingredientes: [] };
-    }
-
-    return {
-      ...current,
-      source: 'rescued',
-      warning:
-        'La copia guardada en este equipo estaba dañada y no se pudo leer. Se guardó aparte por si contenía cambios sin publicar, y se muestra la versión publicada.',
-    };
-  }
-
-  const validation = local ? validateBackup(local) : { ok: false };
-  const localValid = validation.ok ? validation.value : null;
-  const localIsDirty = Boolean(local && local.dirty);
-
-  // Habia cambios sin publicar pero la copia local no se puede leer. No se
-  // sobrescribe: se aparta a una clave de rescate y se avisa. Antes se perdian
-  // en silencio al guardar encima la version publicada.
-  if (local && localIsDirty && !localValid) {
-    writeJson(RESCUE_KEY, local);
-    baseRevision = '';
-    conflict = false;
-    if (fetched.ok) {
-      published = fetched.value;
-      current = { recipes: published.recipes, ingredientes: published.ingredientes };
-      dirty = false;
-      cachePublished();
-    } else {
-      current = { recipes: [], ingredientes: [] };
-      dirty = false;
-    }
-    return {
-      ...current,
-      source: 'rescued',
-      warning:
-        'Los cambios sin publicar de este equipo estaban dañados y no se pudieron leer. Se guardaron aparte y se muestra la versión publicada.',
-    };
-  }
-
-  // Sin cambios locales: manda siempre lo publicado.
-  if (!localValid || !localIsDirty) {
-    conflict = false;
-    if (fetched.ok) {
-      current = { recipes: published.recipes, ingredientes: published.ingredientes };
-      baseRevision = published.revision;
-      dirty = false;
-      // Se guarda copia de lo publicado aunque no haya ediciones: es lo que
-      // permite abrir el recetario cuando manana no haya señal en la cocina.
-      const written = cachePublished();
-      return {
-        ...current,
-        source: 'published',
-        warning: written.ok ? undefined : written.message,
-      };
-    }
-    // Sin red y sin cambios locales, sirve la ultima copia que haya.
-    if (localValid) {
-      current = { recipes: localValid.recipes, ingredientes: localValid.ingredientes };
-      baseRevision = typeof local.baseRevision === 'string' ? local.baseRevision : '';
-      dirty = false;
-      return { ...current, source: 'cache', warning: fetched.message };
-    }
-    current = { recipes: [], ingredientes: [] };
-    return { ...current, source: 'empty', warning: fetched.message };
-  }
-
-  // Hay cambios locales sin publicar.
-  current = { recipes: localValid.recipes, ingredientes: localValid.ingredientes };
-  baseRevision = typeof local.baseRevision === 'string' ? local.baseRevision : '';
-  dirty = true;
-  conflict = Boolean(published) && baseRevision !== '' && baseRevision !== published.revision;
-
-  return {
-    ...current,
-    source: 'local',
-    warning: conflict
-      ? 'Se publicó una versión nueva del recetario, pero este equipo tiene cambios sin publicar. Revisa cuál conservar en Ajustes.'
-      : undefined,
-  };
+  current = { recipes: r.value.recetas || [], ingredientes: r.value.ingredientes || [] };
+  return { ...current, source: 'servidor' };
 }
 
-/**
- * Lee la version publicada: primero el servidor, luego el archivo del sitio.
- *
- * Devuelve `code` ademas de `message`, como el resto del nucleo. Sin el, quien
- * llama no podia distinguir "no hay red" de "el archivo publicado no valida",
- * que son dos situaciones muy distintas: la primera es lo normal en una cocina
- * y la segunda es un recetario roto que alguien tiene que mirar.
- *
- * @returns {Promise<{ok: true, value: object} | {ok: false, code: string, message: string}>}
- */
-async function loadPublished() {
-  // Primero el recetario compartido del servidor: es el que ven todas las sedes
-  // y el que recoge lo que alguien acaba de publicar desde otro equipo.
-  const shared = await fetchShared();
-  if (shared.ok) {
-    const validated = validateBackup(shared.value);
-    if (validated.ok) {
-      return {
-        ok: true,
-        value: {
-          recipes: validated.value.recipes,
-          ingredientes: validated.value.ingredientes,
-          revision: shared.value.revision,
-        },
-      };
-    }
-  }
-
-  // Sin funciones de servidor (archivo local, o alojamiento estatico): se lee el
-  // archivo que viaja con el sitio.
-  try {
-    const response = await fetch(PUBLISHED_URL, { cache: 'no-cache' });
-    if (!response.ok) {
-      return err('publicado_ilegible', 'No se pudo leer el recetario publicado.');
-    }
-    const data = await response.json();
-    const result = validateBackup(data);
-    if (!result.ok) return err('publicado_invalido', result.message);
-    return {
-      ok: true,
-      value: {
-        recipes: result.value.recipes,
-        ingredientes: result.value.ingredientes,
-        revision: typeof data.revision === 'string' ? data.revision : '',
-      },
-    };
-  } catch {
-    // Sin conexion. Es lo normal en una cocina con mala señal: se sigue
-    // trabajando con lo que ya esta guardado en el dispositivo.
-    return err('sin_conexion', 'Sin conexión: se muestra la última copia guardada en este equipo.');
-  }
+/** Al cerrar sesion: nada del recetario queda en memoria. */
+export function vaciar() {
+  current = VACIO;
+  incierta = null;
 }
 
-/**
- * Guarda el estado actual como cambios locales pendientes de publicar.
- *
- * Si en este arranque no se pudo leer la version publicada, se conserva la
- * revision base que ya hubiera guardada: machacarla con una cadena vacia hacia
- * perder la referencia de contra que se estaba editando.
- */
-function persist() {
-  return writeJson(LOCAL_KEY, {
-    version: SCHEMA_VERSION,
-    dirty: true,
-    baseRevision: published ? published.revision : baseRevision,
-    savedAt: new Date().toISOString(),
-    recipes: current.recipes,
-    ingredientes: current.ingredientes,
-  });
-}
-
-/**
- * Guarda una copia de la version publicada, sin marcarla como cambio. Es la que
- * se usa cuando no hay conexion, asi que si esta escritura falla hay que
- * decirlo: manana en la cocina no habria recetario.
- *
- * @returns {{ok: true, value: undefined} | {ok: false, code: string, message: string}}
- */
-function cachePublished() {
-  if (!published) return err('sin_publicado', 'No hay versión publicada que guardar.');
-  return writeJson(LOCAL_KEY, {
-    version: SCHEMA_VERSION,
-    dirty: false,
-    baseRevision: published.revision,
-    savedAt: new Date().toISOString(),
-    recipes: published.recipes,
-    ingredientes: published.ingredientes,
-  });
-}
-
-/**
- * Todas las recetas.
- * @returns {Array}
- */
+/** @returns {Array} */
 export function findAll() {
   return current.recipes;
 }
 
-/**
- * Catalogo de ingredientes, usado para autocompletar en el editor.
- * @returns {Array<{id: string, nombre: string, unidad: string}>}
- */
+/** Catalogo de ingredientes, para autocompletar en el editor. */
 export function allIngredients() {
   return current.ingredientes;
 }
 
 /**
- * @param {string} id
+ * @param {string} id codigo de la receta, por ejemplo "R057"
  * @returns {object|null}
  */
 export function findById(id) {
@@ -322,329 +105,96 @@ export function findById(id) {
 }
 
 /**
- * Inserta o actualiza una receta ya validada.
- *
- * @param {object} recipe
- * @returns {{ok: true, value: object} | {ok: false, code: string, message: string}}
+ * Codigo provisional para una receta nueva mientras se edita. El definitivo lo
+ * asigna el servidor al guardar.
  */
-export function save(recipe) {
-  const index = current.recipes.findIndex((item) => item.id === recipe.id);
-  const recipes =
-    index >= 0
-      ? current.recipes.map((item, i) => (i === index ? recipe : item))
-      : [...current.recipes, recipe];
-
-  const previous = current;
-  current = { ...current, recipes };
-  const written = persist();
-  if (!written.ok) {
-    current = previous;
-    return written;
-  }
-  dirty = true;
-  return ok(recipe);
+export function nextId() {
+  const numeros = current.recipes
+    .map((r) => /^R(\d+)$/.exec(r.id))
+    .filter(Boolean)
+    .map((m) => Number(m[1]));
+  const siguiente = (numeros.length ? Math.max(...numeros) : 0) + 1;
+  return 'R' + String(siguiente).padStart(3, '0');
 }
 
-/**
- * Elimina una receta.
- *
- * @param {string} id
- * @returns {{ok: true, value: undefined} | {ok: false, code: string, message: string}}
- */
-export function remove(id) {
-  const previous = current;
-  const recipes = previous.recipes.filter((recipe) => recipe.id !== id);
-  if (recipes.length === previous.recipes.length) {
-    return err('not_found', 'La receta ya no existe.');
-  }
-  current = { ...current, recipes };
-  const written = persist();
-  if (!written.ok) {
-    current = previous;
-    return written;
-  }
-  dirty = true;
-  return ok(undefined);
+/** Cantidad tal como la escribio la persona, convertida a numero para la API. */
+function cantidad(valor) {
+  if (typeof valor === 'number') return valor;
+  const n = Number(String(valor ?? '').trim().replace(',', '.'));
+  return Number.isFinite(n) ? n : valor;
 }
 
-/**
- * Descarta los cambios de este dispositivo y vuelve a la version publicada.
- *
- * @returns {{ok: true, value: number}}
- */
-export function discardLocalChanges() {
-  if (!published) {
-    return err(
-      'sin_publicado',
-      'No se pudo leer la versión publicada, así que no hay a qué volver. Inténtalo con conexión.',
-    );
-  }
-  const previous = current;
-  current = { recipes: published.recipes, ingredientes: published.ingredientes };
-  const written = cachePublished();
-  if (!written.ok) {
-    // Si no se pudo escribir, los cambios locales siguen en el almacenamiento y
-    // reaparecerian al recargar: no se puede anunciar que se descartaron.
-    current = previous;
-    return written;
-  }
-  dirty = false;
-  conflict = false;
-  baseRevision = published.revision;
-  return ok(current.recipes.length);
-}
-
-/**
- * Resumen de lo que cambia respecto de la version publicada. Sirve para que la
- * interfaz pueda decir exactamente que hay pendiente.
- *
- * @returns {{dirty: boolean, conflict: boolean, added: number, modified: number, removed: number, total: number}}
- */
-export function localChanges() {
-  if (!dirty) return { dirty: false, conflict: false, unknown: false, added: 0, modified: 0, removed: 0, total: 0 };
-
-  // Sin version publicada no hay contra que comparar. Antes se comparaba contra
-  // una lista vacia y se anunciaba "121 nuevas" tras editar una sola receta.
-  if (!published) {
-    return { dirty: true, conflict: false, unknown: true, added: 0, modified: 0, removed: 0, total: 0 };
-  }
-
-  const byId = new Map(published.recipes.map((recipe) => [recipe.id, recipe]));
-  let added = 0;
-  let modified = 0;
-
-  for (const recipe of current.recipes) {
-    const original = byId.get(recipe.id);
-    if (!original) added += 1;
-    else if (JSON.stringify(original) !== JSON.stringify(recipe)) modified += 1;
-  }
-
-  const currentIds = new Set(current.recipes.map((recipe) => recipe.id));
-  const removed = published.recipes.filter((recipe) => !currentIds.has(recipe.id)).length;
-
-  // El catalogo tambien cuenta: una copia local con las mismas recetas y
-  // distintos ingredientes dejaba "0 cambios" con el boton de publicar activo.
-  const catalogChanged =
-    JSON.stringify(published.ingredientes) !== JSON.stringify(current.ingredientes) ? 1 : 0;
-
-  const total = added + modified + removed + catalogChanged;
-
-  // Se escribio algo en este equipo, pero el resultado coincide con lo
-  // publicado: por ejemplo, crear una receta y volver a borrarla, o deshacer a
-  // mano una edicion. Para la persona no hay ningun cambio pendiente, asi que
-  // tampoco debe verlo.
-  //
-  // La marca interna `dirty` no dice "difiere de lo publicado", dice "hay una
-  // copia local que manda sobre lo publicado", y eso sigue siendo cierto: por
-  // eso se corrige aqui, al informar, y no tocando la marca. Sin esto, la
-  // cabecera anunciaba "0 cambios sin publicar" con el boton de publicar
-  // activo, y Ajustes listaba los cambios con la enumeracion vacia.
-  if (total === 0) {
-    return { dirty: false, conflict, unknown: false, added: 0, modified: 0, removed: 0, catalogChanged: 0, total: 0 };
-  }
-
+/** La receta del editor, en la forma que pide `guardar_receta`. */
+function datosDe(recipe, existente, motivo) {
   return {
-    dirty: true,
-    conflict,
-    unknown: false,
-    added,
-    modified,
-    removed,
-    catalogChanged,
-    total,
+    ...(existente ? { receta_id: existente.receta_id } : {}),
+    nombre: recipe.nombre,
+    categoria: recipe.categoria,
+    metodo: recipe.metodo || '',
+    componentes: (recipe.componentes || []).map((c) => ({
+      nombre: c.nombre,
+      items: (c.items || []).map((i) => ({ ingrediente: i.ingrediente, cantidad: cantidad(i.cantidad), unidad: i.unidad })),
+    })),
+    ...(motivo ? { motivo } : {}),
   };
 }
 
-/**
- * Identificador de la version publicada que se esta usando.
- * @returns {string}
- */
-export function publishedRevision() {
-  return published ? published.revision : '';
+/** Pone en memoria la receta que devolvio el servidor, o la quita si se retiro. */
+function aplicar(receta) {
+  const sinEsta = current.recipes.filter((r) => r.receta_id !== receta.receta_id);
+  const recipes = receta.activa === false ? sinEsta : [...sinEsta, receta].sort((a, b) => (a.id < b.id ? -1 : 1));
+  const nuevos = (receta.componentes || []).flatMap((c) => c.items || [])
+    .filter((i) => !current.ingredientes.some((x) => x.nombre === i.ingrediente))
+    .map((i) => ({ id: '', nombre: i.ingrediente, unidad: i.unidad }));
+  current = { recipes, ingredientes: nuevos.length ? [...current.ingredientes, ...nuevos] : current.ingredientes };
 }
 
 /**
- * Siguiente identificador libre.
- * @returns {string}
+ * Envia una solicitud, reutilizando el id si la anterior igual quedo incierta.
  */
-export function nextId() {
-  return nextRecipeId(current.recipes);
-}
-
-/**
- * Indica si este sitio puede publicar para todas las sedes o solo guardar en
- * este equipo.
- *
- * @returns {boolean}
- */
-export function canPublishToAll() {
-  // Hace falta el servidor, haber leido la version publicada (de ahi sale la
-  // referencia que evita pisar a otra sede) y que no quede un conflicto abierto.
-  return canPublishRemote() && published !== null;
-}
-
-/**
- * Comprueba una clave de edicion contra el servidor, sin publicar nada.
- *
- * @param {string} password
- * @returns {Promise<{ok: true, value: undefined} | {ok: false, code: string, message: string}>}
- */
-export function verificarClaveEdicion(password) {
-  return verificarClaveRemota(password);
-}
-
-/**
- * Guarda la clave de edicion ya comprobada, para que la publicacion automatica
- * salga sola despues de guardar.
- *
- * Existe para que el arranque no tenga que importar `remote.js` por su cuenta.
- * Antes lo hacia, y dejaba en falso el parrafo de arriba de este archivo: el
- * repositorio decia ser la unica puerta y no lo era. Una regla que el codigo
- * contradice deja de ser una regla y pasa a ser una nota de buenas intenciones.
- *
- * @param {string|null} password clave comprobada, o null para revocarla
- */
-export function guardarClaveEdicion(password) {
-  setEditKeyRemota(password);
-}
-
-/**
- * Indica si hay una publicacion viajando ahora mismo.
- * @returns {boolean}
- */
-export function publicacionEnCurso() {
-  return publicando;
-}
-
-export function needsReloadBeforePublish() {
-  // DOS CAMINOS LLEVAN AQUI, y los dos tienen que cerrar la publicacion.
-  //
-  //   `needsReload()` es el 409 del servidor: alguien publico entre la
-  //   lectura y la escritura, y el envio se rechazo.
-  //
-  //   `conflict` es el que se detecta al arrancar: la version publicada
-  //   cambio mientras este equipo tenia cambios sin publicar.
-  //
-  // El segundo no estaba contemplado, y era el peligroso. `sync.js` frena la
-  // publicacion AUTOMATICA en ese caso, pero el boton de Ajustes seguia
-  // activo, y publicar a mano enviaba el recetario entero de este equipo con
-  // el sha recien leido al arrancar: el servidor no tenia motivo para
-  // rechazarlo, asi que lo aceptaba y el trabajo de la otra sede desaparecia
-  // sin que nadie lo hubiera rechazado ni avisado. Solo un parrafo en rojo
-  // separaba a quien estaba delante de borrar la jornada de la otra sede.
-  return needsReload() || conflict;
-}
-
-/**
- * Diagnostico del enlace con el recetario compartido.
- *
- * El repositorio es la unica puerta al almacenamiento, asi que tambien es quien
- * debe contestar en que estado esta: las vistas no hablan con `remote.js`.
- *
- * @returns {{state: string, readAt: Date|null, hasReference: boolean, conflict: boolean, revision: string}}
- */
-export function serverDiagnosis() {
-  return { ...serverStatus(), revision: published ? published.revision : '' };
-}
-
-/**
- * Publica el estado actual para todas las sedes.
- *
- * @param {{password: string, author?: string}} options
- * @returns {Promise<{ok: true, value: {revision: string, count: number}} | {ok: false, code: string, error: string}>}
- */
-export async function publishToAll(options) {
-  // UN SOLO CANDADO, Y VIVE AQUI.
-  //
-  // Hay dos caminos hasta esta funcion: la publicacion automatica de
-  // `app/sync.js` y la manual de Ajustes o del dialogo de guardar. `sync.js`
-  // tenia su propio cerrojo, pero solo se protegia de si mismo: el boton de
-  // Ajustes no lo consultaba.
-  //
-  // Con una publicacion automatica todavia en vuelo -red lenta- bastaba con
-  // abrir Ajustes y pulsar Publicar para lanzar un segundo PUT. Los dos leian
-  // el mismo sha, uno ganaba y al otro le contestaban 409, que este equipo
-  // interpreta como "otra sede publico antes" y deja la publicacion automatica
-  // bloqueada pidiendo recargar. No se perdian datos, pero el aviso era falso
-  // y el bloqueo real.
-  //
-  // Poniendo el cerrojo en la unica puerta al almacenamiento, los dos caminos
-  // pasan por el mismo sitio y el caso deja de existir.
-  if (publicando) {
-    return err('en_curso', 'Ya hay una publicación en marcha. Espera a que termine.');
+async function enviar(clave, accion, revision, datos) {
+  const huella = JSON.stringify({ accion, revision, datos });
+  const id = incierta && incierta.clave === clave && incierta.huella === huella ? incierta.id : crypto.randomUUID();
+  const r = await remoto.ejecutar({ id, accion, revision, datos });
+  if (!r.ok && r.code === 'confirmacion_pendiente') {
+    incierta = { clave, huella, id };
+    return err('confirmacion_pendiente',
+      'No sabemos si el servidor alcanzó a guardar. Vuelve a guardar cuando haya conexión: no se duplicará.');
   }
-
-  publicando = true;
-  try {
-    return await enviarPublicacion(options);
-  } finally {
-    // Pase lo que pase. Si una excepcion dejara el cerrojo echado, este equipo
-    // no volveria a publicar hasta recargar la pagina.
-    publicando = false;
-  }
+  if (incierta && incierta.clave === clave) incierta = null;
+  return r;
 }
 
 /**
- * El envio en si, ya con el cerrojo echado.
+ * Guarda una receta nueva o modificada en el servidor.
  *
- * @param {{password: string, author?: string}} options
+ * @param {object} recipe receta ya validada por el editor
+ * @param {string} [motivo]
+ * @returns {Promise<{ok: true, value: object} | {ok: false, code: string, message: string}>}
  */
-async function enviarPublicacion(options) {
-  // INSTANTANEA DE LO QUE VIAJA, tomada antes de soltar el hilo.
-  //
-  // Conservarla es la diferencia entre publicar bien y perder una receta sin
-  // que nadie se entere. Entre el envio y la respuesta caben varios segundos,
-  // y en ese hueco alguien puede guardar: `save()` no modifica `current`, lo
-  // SUSTITUYE por un objeto nuevo, asi que al volver del `await` ya no es lo
-  // que el servidor recibio.
-  //
-  // Antes se volvia a leer `current` aqui abajo y se declaraba publicado. El
-  // resultado era el peor posible: el servidor tenia una version, este equipo
-  // afirmaba tener publicada otra, `dirty` pasaba a false, el aviso de cambios
-  // pendientes desaparecia de la cabecera, y en la siguiente carga `hydrate()`
-  // tomaba la rama "sin cambios locales" y escribia encima la del servidor. La
-  // receta guardada durante la publicacion se borraba sola, sin error, sin
-  // aviso y sin que nadie la hubiera rechazado.
-  const enviado = { recipes: current.recipes, ingredientes: current.ingredientes };
-
-  const result = await publishShared({
-    recipes: enviado.recipes,
-    ingredientes: enviado.ingredientes,
-    password: options.password,
-    author: options.author,
-  });
-
-  if (result.ok) {
-    // Lo publicado es lo que VIAJO, no lo que hay ahora en pantalla.
-    published = {
-      recipes: enviado.recipes,
-      ingredientes: enviado.ingredientes,
-      revision: result.value.revision,
-    };
-    conflict = false;
-    baseRevision = result.value.revision;
-
-    // Comparacion por identidad, no por contenido: `save()` y `remove()`
-    // siempre construyen listas nuevas, asi que si la referencia sigue siendo
-    // la misma es que nadie escribio mientras se publicaba.
-    const nadieEscribioMientrasTanto =
-      current.recipes === enviado.recipes && current.ingredientes === enviado.ingredientes;
-
-    if (nadieEscribioMientrasTanto) {
-      dirty = false;
-      const guardado = cachePublished();
-      if (!guardado.ok) return guardado;
-    } else {
-      // Se guardo algo mientras el envio viajaba, y eso NO esta publicado. Se
-      // mantiene la marca de pendiente y se reescribe la copia local contra la
-      // revision nueva, para que el siguiente intento lo recoja.
-      dirty = true;
-      const guardado = persist();
-      if (!guardado.ok) return guardado;
-    }
-  }
-
-  return result;
+export async function save(recipe, motivo) {
+  const existente = findById(recipe.id);
+  const r = await enviar(existente ? existente.receta_id : 'nueva:' + recipe.id, 'guardar_receta',
+    existente ? existente.revision : 0, datosDe(recipe, existente, motivo));
+  if (!r.ok) return r;
+  const guardada = r.value.resultado.receta;
+  aplicar(guardada);
+  return ok(guardada);
 }
 
-
+/**
+ * Retira una receta del recetario. No se borra: los planes y la produccion que
+ * la citan la conservan, y el servidor guarda la version.
+ *
+ * @param {string} id codigo de la receta
+ * @param {string} [motivo]
+ */
+export async function remove(id, motivo = 'Retirada del recetario') {
+  const receta = findById(id);
+  if (!receta) return err('not_found', 'La receta ya no existe.');
+  const r = await enviar(receta.receta_id, 'activar_receta', receta.revision,
+    { receta_id: receta.receta_id, activa: false, motivo });
+  if (!r.ok) return r;
+  aplicar(r.value.resultado.receta);
+  return ok(undefined);
+}

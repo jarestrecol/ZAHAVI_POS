@@ -39,22 +39,19 @@ import { renderDialogs } from './dialogs.js';
 import { renderPantallas, cerrarPantallas, sigueLaMismaPantalla } from './pantallas.js';
 import { handleShortcuts } from './shortcuts.js';
 import * as repo from './core/repository.js';
-import { getState, setState, subscribe, notify, clearNotice, recetario } from './core/store.js';
+import { getState, setState, subscribe, clearNotice, recetario } from './core/store.js';
 import { buildHash, getRoute, navigate, onRouteChange, startRouter } from './core/router.js';
 import { escalarReceta } from './core/scale.js';
 import { leerSesion, retirarAccesoAnterior } from './core/sesion.js';
 import {
-  saveRecipe,
-  deleteRecipe,
-  publish,
-  discardChanges,
   ingresar,
   verificarCodigo,
   cancelarVerificacion,
   vigilarTurno,
   revalidarSesionActual,
+  cargarRecetario,
 } from './app/commands.js';
-import { iniciarSincronizacion, estadoSincronizacion } from './app/sync.js';
+import { alMenos } from './core/bitacora.js';
 import { cargarAlmacen } from './app/almacen.js';
 import { renderLogin } from './views/login.js';
 import { renderBarra, renderBadges } from './views/header.js';
@@ -119,17 +116,10 @@ async function boot() {
   // encendida al dia siguiente no puede abrir a nombre de quien entro ayer.
   vigilarTurno();
 
-  // Carga las recetas: primero las del servidor, y si no hay red, la copia
-  // guardada en este equipo.
-  const loaded = await repo.hydrate();
-  setState({
-    ready: true,
-    recetario: { recipes: loaded.recipes, ingredientes: loaded.ingredientes },
-  });
-
-  // `hydrate` avisa cuando algo no salio como esperaba: sin conexion, sin
-  // recetas, o cambios locales danados que hubo que apartar.
-  if (loaded.warning) notify(loaded.warning, 'info');
+  // El recetario vive en el servidor y solo se lee con sesion: sin ella se
+  // carga al entrar (`abrirSesion`). No hay copia en el equipo (F4-1).
+  if (sesion) await cargarRecetario();
+  setState({ ready: true });
 
   // El almacen de este aparato. Va aqui, con el resto de la carga y antes de
   // `subscribe`, para que el primer pintado ya salga con los lotes puestos y no
@@ -191,10 +181,6 @@ async function boot() {
 
   document.addEventListener('keydown', handleShortcuts);
   registerServiceWorker();
-
-  // Publicacion automatica: lo que se guarda sale hacia las demas sedes sin
-  // depender de que alguien se acuerde de pulsar Publicar. Ver `app/sync.js`.
-  iniciarSincronizacion();
 
   // La red de seguridad del arranque (`salvavidas.js`) espera esta marca. Sin
   // ella, a los pocos segundos sustituye la pantalla por un aviso de fallo.
@@ -328,13 +314,7 @@ function render() {
  * @returns {Array<HTMLElement>}
  */
 function avisosDeContexto(state) {
-  return renderBadges({
-    changes: repo.localChanges(),
-    online: state.online,
-    server: repo.serverDiagnosis(),
-    sync: estadoSincronizacion(),
-    onOpenSettings: () => setState({ settingsOpen: true }),
-  });
+  return renderBadges({ online: state.online });
 }
 
 /**
@@ -519,14 +499,15 @@ function paint() {
       // Sin `id: null`: la receta que se esta leyendo viaja al menu y de alli a
       // cualquier modulo, para poder volver a ella. Ver `buildHash`.
       onMenu: () => navigate({ modulo: 'inicio', name: 'index' }),
-      acciones: [
+      // Crear recetas es del jefe de obrador en adelante (lo exige el servidor).
+      acciones: alMenos(state.usuario, 'obrador') ? [
         {
           label: 'Nueva receta',
           icon: ICON_NUEVA,
           variant: 'btn--accent',
           onClick: () => navigate({ modulo: 'recetario', name: 'new', id: null }),
         },
-      ],
+      ] : [],
     }),
 
     renderNavigation('recetario'),
@@ -587,7 +568,7 @@ function renderPanel(state, route, recipe) {
   if (recipe) {
     return renderDetail({
       recipe,
-      canEdit: true,
+      canEdit: alMenos(state.usuario, 'obrador'),
       factor: state.recetario.factor,
       onPesar: () => setState({ recetario: { production: recipe.id } }),
       onEliminar: () => setState({ recetario: { confirmDelete: recipe.id } }),

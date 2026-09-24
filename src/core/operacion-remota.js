@@ -5,6 +5,8 @@ import { ok, err } from './storage.js';
 const nombreValido = n => typeof n === 'string' && /^[a-z][a-z0-9_]{0,62}$/.test(n);
 const objeto = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const uuid = v => typeof v === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(v);
+// El servidor redacta sus errores (`{code, message}`, contrato RPC): se muestran tal cual.
+const mensajeDe = d => (objeto(d) && typeof d.message === 'string' && d.message.trim() ? d.message : null);
 
 /** Las rutas las entrega el contrato SQL; no se permite escritura directa a tablas. */
 export function crearOperacionRemota({ lectura, comando, solicitar = pedir, token = tokenVigente }) {
@@ -24,8 +26,12 @@ export function crearOperacionRemota({ lectura, comando, solicitar = pedir, toke
       const { status, datos } = respuesta.value;
       if (status === 401 && !renovar) continue;
       if (status === 401) return err('revocada', 'Vuelve a iniciar sesión.');
-      if (status === 403) return err('sin_permiso', 'Tu sesión no tiene permiso para esta operación.');
-      if (status === 409) return err('conflicto', 'La producción cambió. Actualiza los datos antes de continuar.');
+      if (status === 403) return err('sin_permiso', mensajeDe(datos) || 'Tu sesión no tiene permiso para esta operación.');
+      if (status === 409) return err(datos?.code === 'solicitud_reutilizada' ? 'solicitud_reutilizada' : 'conflicto',
+        mensajeDe(datos) || 'Los datos cambiaron. Actualiza antes de continuar.');
+      if (status === 404) return err('no_existe', mensajeDe(datos) || 'Lo que se quería cambiar ya no existe.');
+      // Validación: el servidor no hizo nada y dice por qué. No es un resultado incierto.
+      if (status === 400 || status === 422) return err('invalida', mensajeDe(datos) || 'Revisa los datos e inténtalo de nuevo.');
       if (status >= 200 && status < 300 && objeto(datos) && datos.version === 1) return ok(datos);
       if (escritura && (status >= 500 || status >= 200 && status < 300)) {
         return err('confirmacion_pendiente', 'Verifica el estado de esta solicitud antes de confirmar otra vez.');

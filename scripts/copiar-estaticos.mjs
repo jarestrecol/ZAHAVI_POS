@@ -17,7 +17,6 @@ async function copiar(origen, destino) {
 }
 
 await Promise.all([
-  copiar(join(raiz, 'data', 'recipes.json'), join(dist, 'data', 'recipes.json')),
   copiar(join(raiz, 'manifest.webmanifest'), join(dist, 'manifest.webmanifest')),
   copiar(join(raiz, 'sw.js'), join(dist, 'sw.js')),
   copiar(join(raiz, '404.html'), join(dist, '404.html')),

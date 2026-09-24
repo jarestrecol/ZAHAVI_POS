@@ -1,20 +1,17 @@
 /**
  * Service worker del recetario.
  *
- * Objetivo: que el recetario abra al instante y siga funcionando cuando no hay
- * señal. En una cocina la conexión se cae, y quedarse sin las recetas a media
- * producción no es aceptable.
+ * Objetivo: que la aplicación abra al instante. Solo guarda la CARCASA (HTML,
+ * CSS, JS, iconos): los datos -recetario y operación- viven en Supabase y no
+ * pasan por aquí ni se guardan en el equipo (decisiones F1-D y F4-1). Sin red
+ * la aplicación abre y dice que no hay conexión; no enseña datos viejos.
  *
- * Estrategia por tipo de recurso:
- *   - Carcasa (HTML, CSS, JS): primero la caché, porque no cambia salvo que se
- *     publique una versión nueva. Arranque inmediato.
- *   - Recetas (data/recipes.json): primero la red, para recoger enseguida una
- *     publicación nueva; si no hay red, la copia guardada.
+ * Estrategia: documento y código por red primero (una versión nueva se ve en
+ * la siguiente carga); el resto, caché primero.
  *
  * Al cambiar CACHE_VERSION se descarta la caché anterior por completo.
  */
-const CACHE_VERSION = 'zahavi-v66';
-const DATA_URL = 'data/recipes.json';
+const CACHE_VERSION = 'zahavi-v68';
 /** Carcasa de la aplicación: todo lo necesario para arrancar sin red. */
 const SHELL = [
   './src/core/operacion-remota.js',
@@ -116,7 +113,6 @@ const SHELL = [
   './src/shortcuts.js',
   './src/salvavidas.js',
   './src/app/commands.js',
-  './src/app/sync.js',
   './src/app/almacen.js',
   './src/views/portada.js',
   './src/views/inicio.js',
@@ -137,7 +133,6 @@ const SHELL = [
   './src/core/supabase.js',
   './src/core/store.js',
   './src/core/router.js',
-  './src/core/remote.js',
   './src/core/search.js',
   './src/core/scale.js',
   './src/core/plan.js',
@@ -159,12 +154,11 @@ const SHELL = [
   './src/views/detail.js',
   './src/views/editor.js',
   './src/views/settings.js',
-  './src/views/settings/estado.js',
   './src/views/settings/diagnostico.js',
+  './src/views/settings/estado.js',
   './src/views/settings/sesion.js',
   './src/views/settings/texto.js',
-  './src/views/publicar.js',
-  './src/views/desbloquear.js',
+  './src/views/settings/diagnostico.js',
   './src/views/confirm.js',
   './src/views/print.js',
   './src/views/production.js',
@@ -172,7 +166,6 @@ const SHELL = [
   './src/views/ingredients.js',
   './src/views/almacen.js',
   './src/views/costeo.js',
-  './data/recipes.json',
 ];
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -198,27 +191,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // EL RECETARIO COMPARTIDO NO SE TOCA. Va a la red, siempre, sin pasar por
-  // aqui: es lo que ven las dos sedes en vivo.
-  //
-  // Sin esta salida caia en `cacheFirst`, que es el destino por defecto de
-  // todo lo que no es documento, CSS ni JS. Con la publicacion apagada no se
-  // notaba, porque una respuesta de error no se guarda; en cuanto la API
-  // empieza a contestar, el efecto es doble y el segundo es el malo:
-  //
-  //   1. Se veria el recetario de la lectura anterior, no el de ahora.
-  //   2. El `sha` vendria de esa copia vieja, y publicar con un sha viejo lo
-  //      rechaza el servidor con un 409 "otro equipo publico antes" aunque no
-  //      haya publicado nadie.
-  //
-  // No se pierde el modo sin conexion: la copia para trabajar sin señal es la
-  // de `localStorage`, que gestiona `core/repository.js`, no esta cache.
+  // Las funciones del servidor propio (`/api/`) nunca pasan por la cache.
   if (url.pathname.startsWith('/api/')) return;
 
-  if (url.pathname.endsWith(DATA_URL) || url.pathname.endsWith('/recipes.json')) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
   // El documento y el codigo van por red primero: si se publica una version
   // nueva del sitio debe verse en la siguiente carga. Con cache primero, un
   // cambio de CSS o de vista no llegaba nunca al dispositivo.

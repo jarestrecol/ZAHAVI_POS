@@ -142,6 +142,10 @@ export async function simularSupabase(context) {
     // Lo que contesta `equipo_produccion`; `leerEquipo` lo sustituye como las demas.
     equipo: EQUIPO.map((p) => ({ ...p })),
     leerEquipo: null,
+    // El recetario vive en la base (0024): la API lo sirve con su `receta_id` y
+    // su `revision`. `leerRecetario` sustituye la respuesta como las demas.
+    recetario: PUBLICADO.recipes.map((r) => ({ ...structuredClone(r), receta_id: 'rid-' + r.id, revision: 1, activa: true })),
+    leerRecetario: null,
     llamadas: [],
   };
   simulaciones.set(context, sim);
@@ -268,6 +272,43 @@ export async function simularSupabase(context) {
     }
     if (url.pathname === '/rest/v1/perfiles') {
       return responder(sim.leerPerfil, () => json(200, sim.perfil ? [sim.perfil] : []));
+    }
+    // --- La API de operacion (0018/0024): solo el recetario ------------------
+    if (url.pathname === '/rest/v1/rpc/operacion_leer') {
+      const consulta = cuerpo && cuerpo.p_consulta;
+      if (!consulta || consulta.tipo !== 'recetario') return json(422, { code: 'invalida', message: 'Consulta no simulada.' });
+      return responder(sim.leerRecetario, () => json(200, {
+        version: 1,
+        tipo: 'recetario',
+        recetas: sim.recetario.filter((r) => r.activa),
+        ingredientes: PUBLICADO.ingredientes,
+      }));
+    }
+    if (url.pathname === '/rest/v1/rpc/operacion_ejecutar') {
+      const sol = cuerpo && cuerpo.p_solicitud;
+      // Como el servidor: editar el recetario es del jefe de obrador en adelante.
+      if (!['obrador', 'gerencia', 'admin'].includes(sim.perfil && sim.perfil.rol)) {
+        return json(403, { code: 'sin_permiso', message: 'Tu rol no permite esta operación.' });
+      }
+      const d = sol.datos;
+      let receta = d.receta_id ? sim.recetario.find((r) => r.receta_id === d.receta_id) : null;
+      if (receta && receta.revision !== sol.revision) {
+        return json(409, { code: 'conflicto', message: 'Esta receta cambió mientras la editabas. Vuelve a abrirla y repite el cambio.' });
+      }
+      if (sol.accion === 'activar_receta') {
+        Object.assign(receta, { activa: d.activa, revision: receta.revision + 1 });
+      } else if (sol.accion === 'guardar_receta') {
+        if (!receta) {
+          const mayor = Math.max(...sim.recetario.map((r) => Number(r.id.slice(1)) || 0));
+          receta = { id: 'R' + String(mayor + 1).padStart(3, '0'), receta_id: 'rid-nueva-' + (mayor + 1), revision: 0, activa: true };
+          sim.recetario.push(receta);
+        }
+        Object.assign(receta, { nombre: String(d.nombre).toUpperCase(), categoria: d.categoria, metodo: d.metodo || '',
+          componentes: structuredClone(d.componentes), revision: receta.revision + 1 });
+      } else {
+        return json(422, { code: 'invalida', message: 'Acción no simulada.' });
+      }
+      return json(200, { version: 1, accion: sol.accion, solicitud: sol.id, repetida: false, resultado: { receta } });
     }
     return json(404, { message: 'ruta no simulada' });
   });

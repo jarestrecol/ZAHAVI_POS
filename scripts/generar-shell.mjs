@@ -22,7 +22,7 @@ async function archivosEn(carpeta) {
   return anidados.flat();
 }
 
-const fijos = ['./', './index.html', './manifest.webmanifest', './data/recipes.json'];
+const fijos = ['./', './index.html', './manifest.webmanifest'];
 const recursos = (await archivosEn(join(dist, 'assets')))
   .map((archivo) => './' + relative(dist, archivo).split(sep).join('/'))
   .sort();

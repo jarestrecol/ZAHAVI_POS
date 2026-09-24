@@ -16,7 +16,8 @@ Pendientes en orden, con dueño y dependencias: [CHECKLIST.md](CHECKLIST.md)
 | COORD-OPT | Codex / Claude pendiente | lista para revisión | Ninguno; entrega abajo |
 | F0-LOCAL | Codex / Claude pendiente | herramienta lista; conciliación pendiente | Ninguno; ver entregas/F0-LOCAL.md |
 | F0-REMOTO | Claude / Codex pendiente | lista para revisión | Ninguno; ver entregas/F0-REMOTO.md |
-| MIGRACION | Claude / Codex | Servidor F3 completo (0018–0024: operación y recetario); espera cliente F3-6 | db/migraciones/0014_operacion.sql, db/migraciones/0015…0023_*.sql, db/local/pruebas-{operacion,api}.sql, entregas/CONTRATO-RPC.md, scripts/probar-sql.mjs, scripts/verificar-sql.mjs, scripts/{generar,test}-casos-costeo.mjs, db/pruebas/casos-costeo.json |
+| MIGRACION | Claude / Codex | Servidor F3 completo (0018–0024) | Ninguno |
+| RECETARIO-CLIENTE | Claude / Codex | lista para revisión: recetario por la API, sin Publicar | Ninguno; ver entregas/F3-10.md |
 | CLIENTE-REMOTO | Codex / Claude | X-1/X-2 corregidos y probados | Ninguno; ver entregas/PERMISOS-COSTOS.md |
 | F1-F2-PREP | Codex / Claude | clasificador probado; auditoría remota pendiente | Ninguno; ver entregas/F2-CONCILIACION.md |
 
@@ -27,7 +28,7 @@ COORD-OPT en lo documental; no restaurar MANUAL/docs borrados ajenos. README nue
 ## Codex: CLIENTE-REMOTO
 
 - Siguiente: acordar [contrato RPC](entregas/CLIENTE-REMOTO.md) con Claude y conectar pantallas.
-- [Revisión 0014](entregas/REVISION-0014.md): precisión, reimportación, demo y autoría pendientes. Claude conserva migración/importador; Codex revisión e interfaz.
+- **Leer [aviso de Claude](entregas/AVISO-CODEX.md)**: settings.js cedido, Publicar retirado, 0025 con RLS/definer pendientes.
 
 - Diagnóstico local probado; Claude puede usarlo en su migración. Detalle en F0-LOCAL.
 - No activar el cliente hasta verificar contrato, permisos y transacciones reales.
@@ -38,7 +39,7 @@ COORD-OPT en lo documental; no restaurar MANUAL/docs borrados ajenos. README nue
   `probar-sql` cubre la operación. Respaldo nocturno verificado; ensayo pendiente.
 - Hecho: `privado.costear()` igual al cliente en los 14 casos (F3-1/F3-2).
 - Hecho: API de operación completa (0018–0022), contrato en entregas/CONTRATO-RPC.md.
-- Servidor de la fase 3 listo. Lo siguiente mío (F3-9, F3-10) depende de F3-6. Espera: revisión de 0015–0022 (Codex); Codex conecta el cliente (F3-6/F3-7).
+- Hecho: recetario cliente (F3-10). Sigue: F3-9 con el cliente. Espera: revisión de 0015–0024 (Codex).
 - Detalle y orden completo en [CHECKLIST.md](CHECKLIST.md); fase en el plan.
 
 ## Dependencias y reparto siguiente
@@ -57,10 +58,7 @@ plan largo es la especificación, este tablero solo mantiene el trabajo inmediat
 ## Dependencias externas actuales
 
 - Claude entregó F0-REMOTO; Codex solo dispone de configuración pública, sin conexión admin.
-- Docker sin motor activo; navegador no conectado a Codex. Auditoría remota de Claude;
-  pruebas SQL de comportamiento y conciliación de copias locales todavía pendientes.
-- Lectura de Claude 23-sep 14:25 UTC, transmitida por usuario: operación remota vacía;
-  catálogo existente. F1/F2 parten de copias locales; ver entregas/F0-REMOTO-20260923.md.
+- F1-D: la operación local es demo y no se importa. SQL probado en Docker (`probar-sql`).
 - El corte real espera ensayo, respaldo, conciliación y pruebas de servidor. No
   activar dos fuentes editables ni volver a escritura local cuando falle la red.
 

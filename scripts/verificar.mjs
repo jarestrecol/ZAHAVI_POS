@@ -35,6 +35,9 @@ function paso(titulo, fn) {
 }
 
 function walk(dir, filter, out = []) {
+  // Una carpeta que no existe no tiene nada que revisar: `api/` solo existe
+  // mientras haya funciones de servidor propias.
+  if (!existsSync(dir)) return out;
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) walk(full, filter, out);
@@ -205,9 +208,6 @@ function comprobarArquitectura() {
     // escribe: reciben callbacks, que es la regla 12.
     'src/pantallas.js',
     'src/app/commands.js',
-    // `sync.js` refresca el recetario tras publicar en segundo plano: es un caso
-    // de uso, vive en `app/`, y no construye ninguna pantalla.
-    'src/app/sync.js',
     // Los casos de uso del almacen: dar de alta un lote, corregirlo, darlo de
     // baja y descontar del inventario lo que se va a producir. Vive en `app/`,
     // no construye pantallas, y es el unico sitio que escribe el modulo.
@@ -479,16 +479,6 @@ paso('Capa de datos', () => {
   return `${(out.match(/^\s+OK\s/gm) || []).length} comprobaciones`;
 });
 
-paso('Publicacion y conflictos', () => {
-  const out = run('test-publicacion.mjs');
-  const total = (out.match(/^\s+OK\s/gm) || []).length;
-  return `${total} comprobaciones`;
-});
-
-paso('Validacion del servidor', () => {
-  const out = run('test-api.mjs');
-  return `${(out.match(/^\s+OK\s/gm) || []).length} comprobaciones`;
-});
 
 paso('Servidor local y superficie publica', () => {
   const out = run('test-servidor.mjs');

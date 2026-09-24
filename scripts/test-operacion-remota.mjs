@@ -30,6 +30,15 @@ for (const [status, codigo] of [[403, 'sin_permiso'], [409, 'conflicto'], [500, 
 api = configurar(async () => respuesta(200, []));
 assert.equal((await api.ejecutar(solicitud())).code, 'confirmacion_pendiente');
 assert.equal((await api.leer({})).code, 'servidor');
+// Los errores 4xx llegan con el mensaje que redacta el servidor, y la validación no es incierta.
+for (const [status, codigo] of [[422, 'invalida'], [404, 'no_existe']]) {
+  api = configurar(async () => respuesta(status, { code: codigo, message: 'Mensaje del servidor.' }));
+  const r = await api.ejecutar(solicitud());
+  assert.equal(r.code, codigo);
+  assert.equal(r.message, 'Mensaje del servidor.');
+}
+api = configurar(async () => respuesta(409, { code: 'solicitud_reutilizada', message: 'Ya usada.' }));
+assert.equal((await api.ejecutar(solicitud())).code, 'solicitud_reutilizada');
 llamadas.length = 0;
 assert.equal((await api.ejecutar({ ...solicitud(), id: 'otro' })).code, 'solicitud');
 assert.equal(llamadas.length, 0);

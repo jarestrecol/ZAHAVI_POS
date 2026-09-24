@@ -62,9 +62,6 @@ import { ESCALA_POR_DEFECTO } from './preferencias.js';
  *   quien entro, tal como lo devuelve `perfiles`. Ver `core/sesion.js`
  * @property {boolean} online hay conexion en este momento
  * @property {boolean} settingsOpen
- * @property {boolean} pedirClave hay que pedir la clave de edicion para publicar
- * @property {{accion: string, id: string|null}|null} autorizacion permiso de un
- *   solo uso para crear, modificar o eliminar, concedido tras comprobar la clave
  * @property {string} notice mensaje visible para la persona usuaria
  * @property {'info'|'error'|'success'} noticeKind
  * @property {string} loginError
@@ -142,14 +139,6 @@ const INITIAL = Object.freeze({
   usuario: null,
   online: true,
   settingsOpen: false,
-  // Se acaba de guardar algo que puede publicarse pero falta la clave de
-  // edicion. Es estado de PANTALLA: no se guarda, y "Ahora no" lo apaga.
-  pedirClave: false,
-  // PERMISO DE UN SOLO USO para tocar el recetario, concedido tras comprobar la
-  // clave de edicion contra el servidor. Vale para la accion que dice y para
-  // ninguna mas, y se retira en cuanto esa accion termina o se cancela: crear,
-  // modificar y eliminar piden la clave CADA VEZ.
-  autorizacion: null,
   notice: '',
   noticeKind: 'info',
   loginError: '',

@@ -23,23 +23,19 @@
 
 import { setInert } from './lib/a11y.js';
 import * as repo from './core/repository.js';
-import { getState, setState, recetario } from './core/store.js';
+import { getState, setState, recetario, notify } from './core/store.js';
 import { getRoute, navigate } from './core/router.js';
 import { emptyRecipe } from './core/schema.js';
 import { escalarReceta } from './core/scale.js';
 import {
   saveRecipe,
   deleteRecipe,
-  publish,
-  discardChanges,
   cerrarSesion,
   cambiarEscalaTexto,
 } from './app/commands.js';
-import { estadoSincronizacion } from './app/sync.js';
+import { alMenos } from './core/bitacora.js';
 import { openEditor } from './views/editor.js';
 import { openSettings } from './views/settings.js';
-import { openPublicar } from './views/publicar.js';
-import { openDesbloquear } from './views/desbloquear.js';
 import { openConfirmDelete } from './views/confirm.js';
 import { openProduction } from './views/production.js';
 
@@ -143,48 +139,26 @@ const DIALOGOS = [
     monta: (state) => buildProduction(state),
   },
   {
-    // Eliminar sale hacia las demas sedes en cuanto se publica, asi que pide la
-    // clave antes incluso de enseñar la confirmacion.
+    // Retirar una receta es del jefe de obrador en adelante: lo decide el
+    // servidor, y aqui solo no se ofrece a quien no puede.
     nombre: 'borrado',
     activo: (state) => Boolean(state.recetario.confirmDelete),
-    puerta: (state) => ['delete', state.recetario.confirmDelete],
+    puerta: true,
     clave: (state) => 'delete:' + state.recetario.confirmDelete,
     monta: (state) => buildConfirmDelete(state),
   },
   {
-    // Clave fija: el dialogo lleva por dentro el campo de la clave a medio
-    // escribir, y cualquier repintado de la aplicacion lo borraria.
-    nombre: 'publicar',
-    activo: (state) => state.pedirClave,
-    clave: () => 'publicar',
-    monta: () => buildPublicar(),
-  },
-  {
     nombre: 'ajustes',
     activo: (state) => state.settingsOpen,
-    // El estado del servidor forma parte de la clave porque el bloque de
-    // Conexion lo muestra: si cambia mientras Ajustes esta abierto (vuelve la
-    // red, se publica solo), el dialogo tiene que repintarse para no seguir
-    // enseñando un diagnostico viejo.
-    clave: () => {
-      const changes = repo.localChanges();
-      const sync = estadoSincronizacion();
-      return [
-        'settings',
-        changes.total,
-        changes.dirty,
-        repo.publishedRevision(),
-        repo.serverDiagnosis().state,
-        sync.motivo,
-      ].join(':');
-    },
+    // El recuento de recetas forma parte de la clave porque Ajustes lo muestra.
+    clave: (state) => 'settings:' + state.recetario.recipes.length,
     monta: (state) => buildSettings(state),
   },
   {
     nombre: 'editor',
     activo: (state, route) =>
       route.modulo === 'recetario' && (route.name === 'new' || route.name === 'edit'),
-    puerta: (state, route) => [route.name, route.id],
+    puerta: true,
     clave: (state, route) => (route.name === 'new' ? 'new' : 'edit:' + route.id),
     monta: (state, route) => buildEditor(route),
   },
@@ -193,27 +167,31 @@ const DIALOGOS = [
 /**
  * Decide que dialogo toca, con su clave ya resuelta.
  *
- * LA PUERTA SE APLICA AQUI, EN UN SOLO SITIO. Cuando una entrada declara
- * `puerta` y falta la clave de edicion, se sustituye el dialogo por el de
- * desbloqueo Y se prefija la clave: las dos cosas juntas, porque separarlas es
- * exactamente el defecto que esta tabla vino a cerrar. Sin el prefijo, poner la
- * clave no reconstruia el dialogo y la puerta se quedaba puesta.
+ * LA PUERTA SE APLICA AQUI, EN UN SOLO SITIO. Crear, modificar y retirar
+ * recetas es del jefe de obrador en adelante, la misma regla que aplica el
+ * servidor (0024): a quien no puede no se le abre el dialogo, se le dice por
+ * que y se le devuelve a la receta. El servidor lo rechazaria igual (403); esto
+ * solo evita que alguien escriba una receta entera para nada.
  *
  * @param {object} state
  * @param {object} route
- * @returns {{clave: string, monta: () => object｜null}|null}
+ * @returns {{clave: string, monta: () => object|null}|null}
  */
 function resolverDialogo(state, route) {
   const entrada = DIALOGOS.find((d) => d.activo(state, route));
   if (!entrada) return null;
 
-  const puerta = entrada.puerta ? entrada.puerta(state, route) : null;
-  const [accion, id] = puerta || [];
-
-  if (puerta && faltaLaClave(accion, id)) {
+  if (entrada.puerta && !alMenos(state.usuario, 'obrador')) {
     return {
-      clave: 'clave-' + entrada.clave(state, route),
-      monta: () => buildDesbloquear(accion, id),
+      clave: 'sin-permiso-' + entrada.clave(state, route),
+      monta: () => {
+        setState({ recetario: { confirmDelete: null } });
+        notify('Editar el recetario es del jefe de obrador en adelante.', 'info');
+        if (route.name === 'new' || route.name === 'edit') {
+          navigate({ name: route.id ? 'detail' : 'index', id: route.id || null }, { replace: true });
+        }
+        return null;
+      },
     };
   }
 
@@ -253,110 +231,16 @@ function buildConfirmDelete(state) {
   }
   return openConfirmDelete({
     recipe,
-    // Igual que en la puerta: cancelar AQUI tambien retira el permiso. Sin
-    // esto, el permiso sobrevivia a la cancelacion y un segundo intento de
-    // eliminar la MISMA receta se saltaba la puerta sin volver a pedir la
-    // clave. Vale para las tres salidas del dialogo -boton, Escape y la equis-,
-    // porque las tres acaban aqui.
-    onCancel: () => setState({ recetario: { confirmDelete: null }, autorizacion: null }),
+    onCancel: () => setState({ recetario: { confirmDelete: null } }),
     onConfirm: () => deleteRecipe(recipe.id),
   });
 }
 
-/**
- * Indica si hay que pedir la clave de edicion antes de dejar tocar el recetario.
- *
- * Consultar, buscar, escalar la tanda, imprimir y el Modo Pesar no pasan por
- * aqui: son de todo el obrador. Lo que se protege es lo que CAMBIA formulas,
- * porque con la publicacion automatica en marcha eso llega a las dos sedes.
- *
- * Sin recetario compartido no se pide nada. Ahi no hay servidor que pueda
- * comprobar la clave, y tampoco hay a donde publicar: lo que se escriba se
- * queda en el aparato. Exigir una clave que nadie puede verificar seria pedir
- * algo que no existe y dejar el recetario inservible en local.
- *
- * @returns {boolean}
- */
-function faltaLaClave(accion, id) {
-  if (!repo.canPublishToAll()) return false;
-
-  // NO se mira si la clave esta guardada en la sesion. Esa clave existe para
-  // que la publicacion salga sola despues de guardar, y usarla tambien como
-  // permiso de entrada convertia la primera comprobacion del dia en una llave
-  // que abria el resto de la jornada: quien se encontrara la tableta del
-  // mostrador abierta podia crear, cambiar o borrar formulas de las dos sedes
-  // sin que nadie volviera a preguntarle nada.
-  //
-  // Lo que se mira es la autorizacion, que vale para UNA accion concreta y se
-  // retira en cuanto esa accion termina.
-  const permiso = getState().autorizacion;
-  return !(permiso && permiso.accion === accion && permiso.id === (id || null));
-}
-
-/**
- * Pide la clave de edicion antes de crear, modificar o eliminar.
- *
- * Al acertar, la clave queda en la sesion y este mismo repintado sustituye el
- * dialogo por lo que se estaba pidiendo: el editor o la confirmacion de
- * borrado. No hay que volver a pulsar nada.
- *
- * @param {"new"|"edit"|"delete"} accion
- * @param {string|null} id
- */
-function buildDesbloquear(accion, id) {
-  const recipe = id ? repo.findById(id) : null;
-
-  return openDesbloquear({
-    accion,
-    nombre: recipe ? recipe.nombre : '',
-    onVerificar: async (password) => {
-      const result = await repo.verificarClaveEdicion(password);
-      if (result.ok) {
-        // La clave se guarda para que la publicacion salga sola despues de
-        // guardar; la autorizacion es lo que abre esta accion, y solo esta.
-        repo.guardarClaveEdicion(password);
-        setState({ autorizacion: { accion, id: id || null } });
-      }
-      return result;
-    },
-    onClose: () => {
-      // Cancelar deshace lo que se pedia, para no dejar el recetario en un
-      // estado a medias donde el dialogo vuelve a aparecer solo.
-      if (accion === 'delete') setState({ recetario: { confirmDelete: null }, autorizacion: null });
-      else {
-        setState({ autorizacion: null });
-        navigate({ name: id ? 'detail' : 'index', id: id || null }, { replace: true });
-      }
-    },
-  });
-}
-
-/**
- * Pide la clave de edicion justo despues de guardar, que es donde hace falta.
- *
- * Se cierra pase lo que pase con la publicacion: si sale bien no queda nada que
- * decir aqui, y si sale mal el mensaje se enseña dentro del propio dialogo antes
- * de que nadie lo cierre.
- */
-function buildPublicar() {
-  return openPublicar({
-    pendientes: repo.localChanges().total,
-    onPublish: publish,
-    onClose: () => setState({ pedirClave: false }),
-  });
-}
-
-/** Ajustes: estado de publicacion, sesion de quien entro y recuperacion. */
+/** Ajustes: estado del recetario, sesion de quien entro y tamaño del texto. */
 function buildSettings(state) {
   return openSettings({
     recipeCount: state.recetario.recipes.length,
     withMethod: state.recetario.recipes.filter((r) => (r.metodo || '').trim()).length,
-    revision: repo.publishedRevision(),
-    changes: repo.localChanges(),
-    canPublish: repo.canPublishToAll(),
-    needsReload: repo.needsReloadBeforePublish(),
-    server: repo.serverDiagnosis(),
-    sync: estadoSincronizacion(),
     usuario: state.usuario,
     turnoHasta: state.turnoHasta,
     // La escala NO entra en la clave del dialogo, unas lineas mas arriba: se
@@ -365,10 +249,6 @@ function buildSettings(state) {
     // entero con cada pulsacion y el foco saldria del boton recien tocado.
     escalaTexto: state.escalaTexto,
     onEscalaTexto: cambiarEscalaTexto,
-    // No se publica desde Ajustes: se abre el dialogo que ya sabe pedir la clave,
-    // enfocar el campo, aceptar Intro y enseñar el error donde se esta mirando.
-    onPedirClave: () => setState({ pedirClave: true }),
-    onDiscard: discardChanges,
     onSalir: cerrarSesion,
     onClose: () => setState({ settingsOpen: false }),
   });
@@ -389,12 +269,7 @@ function buildEditor(route) {
     draft: source,
     isNew,
     ingredientes: recetario().ingredientes,
-    onCancel: () => {
-      // El permiso muere con la ventana: volver a abrir el editor vuelve a
-      // pedir la clave.
-      setState({ autorizacion: null });
-      navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id });
-    },
+    onCancel: () => navigate(isNew ? { name: 'index', id: null } : { name: 'detail', id: route.id }),
     onSave: saveRecipe,
   });
 }

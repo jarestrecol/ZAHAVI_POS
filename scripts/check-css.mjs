@@ -143,19 +143,18 @@ if (!faltan.length && !fantasma.length) {
   console.log(`  ${carcasa.length} archivos de carcasa, todos cacheados y todos existen`);
 }
 
-// 6. El recetario compartido NO puede pasar por la cache del service worker.
+// 6. Los datos NO pueden pasar por la cache del service worker.
 //
-//    `/api/recipes` no es documento, ni CSS, ni JS, asi que sin una salida
-//    propia cae en `cacheFirst`, que es el destino por defecto. El fallo no se
-//    ve hasta que la publicacion esta configurada y contestando, y entonces
-//    sirve un recetario viejo y, peor, un `sha` viejo: publicar con el se
-//    rechaza con un 409 "otro equipo publico antes" sin que nadie haya
-//    publicado. Es un fallo caro de diagnosticar y barato de comprobar aqui.
-console.log('\nRecetario compartido fuera de la cache:');
-if (/url\.pathname\.startsWith\('\/api\/'\)\s*\)\s*return;/.test(sw)) {
-  console.log('  sw.js deja pasar /api/ sin interceptar');
+//    El recetario y la operacion viven en Supabase y no se guardan en el equipo
+//    (F1-D, F4-1). Supabase es otro origen: el service worker tiene que dejar
+//    pasar todo lo que no es de su propio origen sin interceptarlo, o serviria
+//    datos viejos como si fueran de ahora. Y no puede quedar rastro del
+//    recetario local de antes.
+console.log('\nDatos fuera de la cache:');
+if (/if \(url\.origin !== self\.location\.origin\) return;/.test(sw) && !/recipes\.json/.test(sw)) {
+  console.log('  sw.js no intercepta otros origenes ni cachea recipes.json');
 } else {
-  fail('sw.js no excluye /api/: el recetario compartido acabaria servido desde la cache');
+  fail('sw.js intercepta peticiones de otro origen o sigue cacheando recipes.json: los datos saldrian de la cache');
 }
 
 console.log(problems === 0 ? '\nCSS correcto.\n' : `\n${problems} problema(s) en el CSS.\n`);

@@ -146,101 +146,23 @@ function accionBarra(options) {
 }
 
 /**
- * Avisos de contexto: falta de conexion, recetario compartido caido y cambios
- * sin publicar.
+ * Avisos de contexto. Hoy solo uno: la falta de conexion.
  *
- * EL AVISO DE AISLAMIENTO
- * -----------------------
- * El tercero es el que evita el fallo mas caro de todos: trabajar semanas
- * creyendo que lo que se guarda llega a la otra sede cuando el sitio no tiene
- * publicacion configurada. Antes eso solo se sabia abriendo Ajustes, asi que
- * nadie lo sabia. No se muestra con el archivo abierto desde el disco, donde
- * no haber servidor es lo normal y no un fallo.
+ * El recetario y la operacion viven en el servidor y no hay copia en el equipo
+ * (decision F1-D / F4-1): sin red no se puede consultar ni guardar, y el aviso
+ * lo dice asi, sin prometer que algo se guarda en el aparato.
  *
  * @param {Object} options
- * @param {{dirty: boolean, total: number}} options.changes
  * @param {boolean} options.online
- * @param {{state: string}} options.server diagnostico del recetario compartido
- * @param {{motivo: string, texto: string}} options.sync estado de la publicacion automatica
- * @param {() => void} options.onOpenSettings
  * @returns {Array<HTMLElement>}
  */
 export function renderBadges(options) {
-  const badges = [];
-
-  if (!options.online) {
-    badges.push(
-      el('p', {
-        class: 'context-badge context-badge--offline no-print',
-        attrs: { role: 'status' },
-        text: 'Sin conexión. Puedes seguir consultando y editando: los cambios se guardan en este equipo.',
-      }),
-    );
-  }
-
-  const aislado = mensajeDeAislamiento(options);
-  if (aislado) {
-    badges.push(
-      el('p', { class: 'context-badge context-badge--warn no-print', attrs: { role: 'status' } }, [
-        el('span', { class: 'context-badge__text', text: aislado }),
-        el('button', {
-          type: 'button',
-          class: 'context-badge__action',
-          text: 'Ver estado',
-          on: { click: options.onOpenSettings },
-        }),
-      ]),
-    );
-  }
-
-  if (options.changes.dirty) {
-    const cuenta = options.changes.total === 1 ? '1 cambio' : `${options.changes.total} cambios`;
-
-    // El conflicto de versiones se anuncia desde que se carga, no desde el
-    // primer intento de publicar: es una situacion del recetario, no del
-    // automatismo, y es la unica en la que publicar puede borrar el trabajo de
-    // la otra sede. Por eso va en rojo y lo dice antes que la cuenta.
-    const enConflicto = Boolean(options.changes.conflict);
-    const detalle = enConflicto
-      ? ' Otra sede publicó una versión nueva mientras tanto: hay que decidir en Ajustes cuál se conserva.'
-      : options.sync && options.sync.texto
-        ? ' ' + options.sync.texto
-        : '';
-
-    badges.push(
-      el('p', { class: 'context-badge no-print' + (enConflicto ? ' context-badge--warn' : '') }, [
-        `${cuenta} sin publicar en este equipo.${detalle} `,
-        el('button', {
-          type: 'button',
-          class: 'context-badge__action',
-          text: enConflicto ? 'Revisar' : 'Publicar',
-          on: { click: options.onOpenSettings },
-        }),
-      ]),
-    );
-  }
-
-  return badges;
-}
-
-/**
- * Texto del aviso de aislamiento, o cadena vacia si no hay nada que avisar.
- *
- * @param {object} options los mismos que `renderBadges`
- * @returns {string}
- */
-function mensajeDeAislamiento(options) {
-  // Sin conexion ya hay un aviso propio, y decir ademas que el servidor no
-  // responde seria repetir lo mismo con otras palabras.
-  if (!options.online) return '';
-  if (window.location.protocol === 'file:') return '';
-
-  const estado = options.server ? options.server.state : 'desconocido';
-  if (estado === 'sin_api') {
-    return 'Este equipo no está conectado al recetario compartido: lo que guardes se queda aquí.';
-  }
-  if (estado === 'error') {
-    return 'El recetario compartido no responde: lo que guardes se queda en este equipo.';
-  }
-  return '';
+  if (options.online) return [];
+  return [
+    el('p', {
+      class: 'context-badge context-badge--offline no-print',
+      attrs: { role: 'status' },
+      text: 'Sin conexión. El recetario y la operación viven en el servidor: vuelve a intentarlo cuando haya red.',
+    }),
+  ];
 }

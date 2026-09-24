@@ -10,14 +10,16 @@
  *   1. La direccion no existe            404.html
  *   2. El programa no arranca            src/salvavidas.js
  *   3. La receta pedida ya no esta       renderNotFound
- *   4. No hay red, o no hay servidor     sw.js y el aviso de aislamiento
+ *   4. El servidor no contesta           el recetario vive en Supabase (0024)
+ *   5. No hay red                        sw.js (solo la carcasa)
  *
  * Fija lo que pasa cuando algo va mal: la direccion que no existe, el programa
- * que no arranca, la receta borrada, el sitio sin servidor y el recetario sin red.
+ * que no arranca, la receta borrada, el servidor que falla y la falta de red.
+ * El recetario ya no se guarda en el equipo ni se publica (F1-D, F4-1).
  */
 
 import { test, expect } from '@playwright/test';
-import { entrar, abrirAjustes, TOTAL_RECETAS } from './apoyo.js';
+import { entrar, simularSupabase, llamadasA, PERFIL, TOTAL_RECETAS } from './apoyo.js';
 
 /* ===========================================================================
  *  1. LA DIRECCION NO EXISTE
@@ -132,250 +134,63 @@ test.describe('Receta inexistente', () => {
 });
 
 /* ===========================================================================
- *  4. NO HAY SERVIDOR
+ *  4. EL RECETARIO VIVE EN EL SERVIDOR
  * ======================================================================== */
 
-test.describe('Sin recetario compartido', () => {
-  // El servidor de pruebas no tiene la funcion `/api/recipes`, igual que un
-  // despliegue al que le faltan las variables de entorno. Ese es justo el caso
-  // que hay que anunciar: se puede trabajar durante semanas creyendo que lo
-  // guardado llega a la otra sede.
-
-  test('lo anuncia en la cabecera, no escondido en Ajustes', async ({ page }) => {
+test.describe('Recetario en el servidor', () => {
+  test('llega del servidor y no deja copia en el equipo', async ({ page }) => {
     await entrar(page);
-
-    const aviso = page.locator('.context-badge--warn');
-    await expect(aviso).toBeVisible();
-    await expect(aviso).toContainText('no está conectado al recetario compartido');
+    await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
+    const sim = await simularSupabase(page.context());
+    expect(llamadasA(sim, '/rest/v1/rpc/operacion_leer')).toBeGreaterThan(0);
+    const copia = await page.evaluate(() => window.localStorage.getItem('zahavi_recetario_v1'));
+    expect(copia).toBeNull();
   });
 
-  test('Ajustes lo explica en una línea', async ({ page }) => {
+  test('si el servidor falla, no enseña recetas viejas y dice por qué', async ({ page, context }) => {
+    const sim = await simularSupabase(context);
+    sim.leerRecetario = { status: 500, datos: { code: 'error', message: 'fallo del servidor' } };
     await entrar(page);
-    await abrirAjustes(page);
-
-    const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
-    // "Sitio" se cambio por "No configurado": en una panaderia un sitio es una
-    // sede, y quien leia esto en Panaderia entendia "no disponible en esta sede".
-    await expect(fila.locator('.diag__value')).toHaveText('No configurado');
-
-    const automatica = page.locator('.diag__row', { hasText: 'Publicación automática' });
-    await expect(automatica.locator('.diag__value')).toHaveText('No disponible');
+    await expect(page.locator('nav [role=status]')).not.toHaveText(`${TOTAL_RECETAS} recetas`);
+    await expect(page.locator('.notice')).toBeVisible();
   });
 
-  test('si el servidor falla, Ajustes enseña lo que dijo', async ({ page }) => {
-    // Es el caso real de un despliegue al que le faltan las variables de
-    // entorno: la funcion existe y contesta con su motivo. Antes ese motivo se
-    // descartaba y Ajustes solo decia "responde con error", que no permite
-    // arreglar nada.
-    await page.route('**/api/recipes', (route) =>
-      route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'El servidor no tiene configurado el acceso al repositorio.' }),
-      }),
-    );
-
-    await entrar(page);
-    await abrirAjustes(page);
-
-    const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
-    await expect(fila.locator('.diag__value')).toHaveText('Responde con error');
-    await expect(page.locator('.diag__error')).toContainText(
-      'no tiene configurado el acceso al repositorio',
-    );
-  });
-
-  test('un 404 con motivo propio no se confunde con un sitio sin recetario', async ({ page }) => {
-    // La funcion contesta 404 cuando `GITHUB_BRANCH` apunta a una rama que no
-    // existe. Anunciarlo como "no disponible en este sitio" mandaria a revisar
-    // justo donde no esta el problema.
-    await page.route('**/api/recipes', (route) =>
-      route.fulfill({
-        status: 404,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'El archivo de recetas no existe en el repositorio.' }),
-      }),
-    );
-
-    await entrar(page);
-    await abrirAjustes(page);
-
-    const fila = page.locator('.diag__row', { hasText: 'Recetario compartido' });
-    await expect(fila.locator('.diag__value')).toHaveText('Responde con error');
-    await expect(page.locator('.diag__error')).toContainText('no existe en el repositorio');
-  });
-
-  test('guardar dice que el cambio se queda en este equipo', async ({ page }) => {
+  test('guardar va al servidor y lo ven todas las sedes', async ({ page, context }) => {
+    const sim = await simularSupabase(context);
     await entrar(page);
 
-    // Receta nueva con el prefijo de pruebas: no se toca ninguna de las 121.
+    // Receta nueva con el prefijo de pruebas: no se toca ninguna real.
     await page.getByRole('button', { name: 'Nueva receta' }).click();
     await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-RESILIENCIA');
-    // Una receta sin ningun ingrediente no se guarda: la validacion la rechaza.
-    // El campo lleva lista de sugerencias, asi que su papel es `combobox`.
     await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-HARINA');
     await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('1000');
     await page.getByRole('button', { name: 'Guardar' }).click();
 
-    // Sin servidor no puede haber publicacion automatica, y el mensaje no debe
-    // prometer lo contrario.
-    await expect(page.locator('.notice')).toContainText('en este equipo');
-    await expect(page.locator('.notice')).not.toContainText('Publicando');
-
-    // Se deja el recetario como estaba: las pruebas no dejan restos.
-    await page.evaluate(() => {
-      window.localStorage.removeItem('zahavi_recetario_v1');
-    });
+    await expect(page.locator('.notice')).toContainText('todas las sedes');
+    const escritura = sim.llamadas.find((l) => l.ruta.startsWith('/rest/v1/rpc/operacion_ejecutar'));
+    expect(escritura && escritura.cuerpo.p_solicitud.accion).toBe('guardar_receta');
+    expect(escritura.cuerpo.p_solicitud.datos.componentes[0].items[0].cantidad).toBe(1000);
+    // Nada se publica en GitHub: la ruta ya no existe.
+    expect(await page.evaluate(() => window.localStorage.getItem('zahavi_recetario_v1'))).toBeNull();
   });
-});
 
-/* ===========================================================================
- *  4b. DOS SEDES SOBRE LA MISMA RECETA
- * ======================================================================== */
+  test('si otra persona cambió la receta, no la pisa: avisa y la relee', async ({ page, context }) => {
+    const sim = await simularSupabase(context);
+    await entrar(page, '#/receta/R016');
+    // Otra sede guarda la R016 mientras esta pantalla la tiene abierta.
+    sim.recetario.find((r) => r.id === 'R016').revision += 1;
 
-test.describe('Dos sedes editando', () => {
-  /**
-   * Sirve un recetario compartido con la revision que se le diga.
-   *
-   * Es el minimo para representar a la otra sede: lo unico que hace falta es
-   * que la revision cambie, porque es lo que le dice a este equipo que hay una
-   * version nueva que el no tiene.
-   *
-   * @param {import('@playwright/test').Page} page
-   * @param {{revision: string, sha: string}} version
-   */
-  /**
-   * Pasa la puerta que pide la clave de edicion antes de tocar una receta.
-   *
-   * @param {import('@playwright/test').Page} page
-   */
-  async function pasarLaPuerta(page) {
-    const campo = page.locator('#desbloquear-clave');
-    await campo.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    if (!(await campo.count())) return;
-    await campo.fill('clave-de-prueba');
-    await page.getByRole('button', { name: 'Continuar' }).click();
-    await expect(campo).toHaveCount(0);
-  }
-
-  async function servirRecetario(page, version) {
-    await page.route('**/api/recipes', async (route) => {
-      if (route.request().method() !== 'GET') {
-        const cuerpo = JSON.parse(route.request().postData() || '{}');
-
-        // La puerta comprueba la clave antes de dejar tocar una receta. Esto no
-        // es publicar: no escribe nada.
-        if (cuerpo.verificar === true) {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({ ok: true, verificada: true }),
-          });
-          return;
-        }
-
-        // Un PUT de publicacion aqui significaria que este equipo publico: la
-        // prueba lo cuenta para comprobar que NO ocurre.
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ revision: 'no-deberia', count: 0, sha: 'x' }),
-        });
-        return;
-      }
-
-      const publicado = await route.fetch({ url: new URL('/data/recipes.json', route.request().url()).href });  // El puerto sale de la propia petición: la suite puede correr en otro (PLAYWRIGHT_PUERTO).
-      const datos = await publicado.json();
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ ...datos, revision: version.revision, sha: version.sha }),
-      });
-    });
-  }
-
-  test('no se publica solo encima de lo que publicó la otra sede', async ({ page }) => {
-    await servirRecetario(page, { revision: '2026-01-01', sha: 'sha-uno' });
-    await entrar(page);
-
-    // Este equipo edita y su cambio queda pendiente, apoyado en la revisión 1.
-    // Se pasa la puerta: sin ella no se llega al editor, y sin la clave guardada
-    // tampoco habría publicación automática que comprobar.
-    await page.getByRole('button', { name: 'Nueva receta' }).click();
-    await pasarLaPuerta(page);
-    await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-DOS-SEDES');
-    await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-HARINA');
-    await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('1000');
+    await page.getByRole('button', { name: 'Editar la receta' }).click();
     await page.getByRole('button', { name: 'Guardar' }).click();
-    await expect(page.locator('.context-badge')).toContainText('sin publicar');
-
-
-    // Mientras tanto, la otra sede publica: al recargar hay una revisión nueva.
-    await servirRecetario(page, { revision: '2026-01-02', sha: 'sha-dos' });
-
-    let publicaciones = 0;
-    page.on('request', (peticion) => {
-      if (!peticion.url().includes('/api/recipes') || peticion.method() !== 'PUT') return;
-
-      // Las comprobaciones de clave viajan por la misma via y no escriben nada:
-      // aqui solo cuentan las publicaciones de verdad.
-      const cuerpo = JSON.parse(peticion.postData() || '{}');
-      if (cuerpo.verificar === true) return;
-
-      publicaciones += 1;
-    });
-
-    await page.reload();
-
-    // Se avisa de que hay dos versiones y de que hay que elegir.
-    await expect(page.locator('.context-badge')).toContainText('Otra sede publicó');
-
-    // Y guardar otra vez NO dispara la publicación: enviar el recetario de
-    // este equipo, que no tiene lo de la otra sede, la borraría en silencio.
-    await page.getByRole('button', { name: 'Nueva receta' }).click();
-    await pasarLaPuerta(page);
-    await page.getByRole('textbox', { name: 'nombre de la receta' }).fill('QA-TEST-DOS-SEDES-B');
-    await page.getByRole('combobox', { name: 'Ingrediente' }).first().fill('QA-TEST-AZUCAR');
-    await page.getByRole('textbox', { name: 'Cantidad' }).first().fill('500');
-    await page.getByRole('button', { name: 'Guardar' }).click();
-
-    await expect(page.locator('.notice')).toContainText('en este equipo');
-    await page.waitForTimeout(500);
-    expect(publicaciones).toBe(0);
+    await expect(page.locator('.notice')).toContainText('cambió mientras la editabas');
   });
-});
 
-/* ===========================================================================
- *  4c. LA COPIA GUARDADA ESTA DAÑADA
- * ======================================================================== */
-
-test.describe('Copia local ilegible', () => {
-  test('no se sobrescribe en silencio: se aparta y se avisa', async ({ page }) => {
+  test('el operario consulta el recetario pero no ve cómo editarlo', async ({ page, context }) => {
+    const sim = await simularSupabase(context);
+    sim.perfil = { ...PERFIL, rol: 'operario' };
     await entrar(page);
-
-    // Así queda una copia local si la escritura se corta a mitad: por la cuota
-    // agotada, por cerrar el navegador en mal momento, o por un fallo del
-    // dispositivo. El texto no se puede interpretar, así que no hay forma de
-    // saber si contenía trabajo sin publicar.
-    await page.evaluate(() => {
-      window.localStorage.setItem('zahavi_recetario_v1', '{"dirty":true,"recipes":[{"id":"R0');
-    });
-
-    await page.reload();
-
-    // Antes de esto, una copia ilegible se trataba como "aquí no hay nada":
-    // se escribía encima la versión publicada y lo que hubiera desaparecía sin
-    // un solo aviso.
-    await expect(page.locator('.notice')).toContainText('estaba dañada');
-
-    // Y lo ilegible se conserva, que es lo único que queda de ese trabajo.
-    const rescatado = await page.evaluate(() =>
-      window.localStorage.getItem('zahavi_recetario_rescate_crudo'),
-    );
-    expect(rescatado).toContain('{"dirty":true');
-
-    // El recetario sigue usable con la versión publicada.
     await expect(page.locator('nav [role=status]')).toHaveText(`${TOTAL_RECETAS} recetas`);
+    await expect(page.getByRole('button', { name: 'Nueva receta' })).toHaveCount(0);
   });
 });
 

@@ -4,9 +4,9 @@
  * =============================================================================
  *
  *  Aqui vive lo que la aplicacion SABE HACER, separado de lo que la aplicacion
- *  PINTA. Son las cuatro operaciones que tocan las 121 recetas de la panaderia:
- *
- *      guardar   ·   eliminar   ·   publicar   ·   descartar
+ *  PINTA. Sobre el recetario hay tres operaciones, todas contra el servidor
+ *  (Supabase, 0024): cargar, guardar y retirar. Ya no existe «publicar» ni
+ *  «descartar cambios»: no hay copia local que publicar ni que descartar.
  *
  *  Antes estaban escritas dentro de `main.js`, mezcladas con el codigo que
  *  construye la pantalla. Eso tenia dos problemas:
@@ -34,9 +34,8 @@
 
 import * as repo from '../core/repository.js';
 import { getState, setState, notify } from '../core/store.js';
-import { navigate, ALL_CATEGORIES } from '../core/router.js';
+import { navigate } from '../core/router.js';
 import { announce } from '../lib/a11y.js';
-import { setEditKey, getEditKey } from '../core/remote.js';
 import {
   iniciarSesion,
   verificarSegundoPaso,
@@ -50,38 +49,7 @@ import {
   MENSAJE_TURNO_VENCIDO,
 } from '../core/sesion.js';
 import { guardarEscalaTexto } from '../core/preferencias.js';
-import { publicarEnSegundoPlano, sePuedePublicarSolo } from './sync.js';
 import { olvidarEquipo } from './equipo.js';
-
-/**
- * Pide la clave de edicion si es lo unico que falta para publicar.
- *
- * SE COMPRUEBA LA CONDICION, NO EL MOTIVO QUE DEJO `sync.js`. El motivo cuenta
- * como acabo el ULTIMO intento, y eso no es lo mismo que lo que pasa ahora:
- * despues de publicar a mano, la clave ya esta puesta pero el motivo sigue
- * diciendo `sin_clave`, y el dialogo reaparecia en cada guardado siguiente
- * pidiendo algo que ya se habia dado.
- *
- * Las cuatro condiciones son las de publicar, en el orden en que dejan de
- * tener sentido:
- *
- *   sin cambios          no hay nada que enviar
- *   con conflicto        hay dos versiones y eso se decide en Ajustes, mirando
- *                        las dos; la clave no arregla nada
- *   sin servidor         no hay a donde publicar (archivo local, o despliegue
- *                        sin las variables puestas)
- *   con clave ya puesta  este equipo ya publica solo
- *
- * Sin red no se pide tampoco, porque `canPublishToAll()` exige haber leido el
- * recetario del servidor: sin esa lectura no hay referencia con la que publicar.
- */
-function pedirClaveSiEsLoUnicoQueFalta() {
-  const cambios = repo.localChanges();
-  if (!cambios.dirty || cambios.conflict) return;
-  if (!repo.canPublishToAll()) return;
-  if (getEditKey()) return;
-  setState({ pedirClave: true });
-}
 
 /**
  * Vuelca al estado lo que el repositorio tenga ahora mismo.
@@ -97,177 +65,103 @@ function refreshState() {
 }
 
 // ---------------------------------------------------------------------------
+//  CARGAR EL RECETARIO
+// ---------------------------------------------------------------------------
+
+/**
+ * Lee el recetario del servidor y lo pone en pantalla. Se llama al arrancar con
+ * sesion y al entrar: sin sesion la API no deja leer nada.
+ *
+ * @returns {Promise<{ok: true, value: number} | {ok: false, code: string, message: string}>}
+ */
+export async function cargarRecetario() {
+  const loaded = await repo.hydrate();
+  refreshState();
+  if (loaded.warning) {
+    notify(loaded.warning, 'error');
+    return { ok: false, code: 'sin_recetario', message: loaded.warning };
+  }
+  return { ok: true, value: loaded.recipes.length };
+}
+
+// ---------------------------------------------------------------------------
 //  GUARDAR UNA RECETA
 // ---------------------------------------------------------------------------
 
 /**
- * Guarda una receta nueva o modificada en este equipo.
+ * Guarda una receta nueva o modificada en el servidor, que deja una version.
  *
- * Guardar y publicar siguen siendo dos cosas distintas: esto escribe en el
- * equipo, siempre, tambien sin conexion. Lo que cambia es que, si se puede
- * publicar, no hace falta acordarse de pulsar nada: `sync.js` lo hace en
- * segundo plano. El mensaje dice cual de los dos casos ha ocurrido, porque la
- * diferencia importa: uno lo ven las demas sedes y el otro no.
+ * Si la conexion se cae despues de enviar, el resultado queda incierto: el
+ * editor sigue abierto y volver a guardar reenvia la MISMA solicitud, asi que
+ * el servidor no crea la receta dos veces.
  *
  * @param {object} recipe receta ya validada por el editor
- * @returns {{ok: true, value: object} | {ok: false, code: string, message: string}}
+ * @returns {Promise<{ok: true, value: object} | {ok: false, code: string, message: string}>}
  */
-export function saveRecipe(recipe) {
-  const result = repo.save(recipe);
+export async function saveRecipe(recipe) {
+  const result = await repo.save(recipe);
 
   if (!result.ok) {
+    // Otra persona la cambio mientras tanto: se relee para que la vea.
+    if (result.code === 'conflicto') await repo.hydrate().then(refreshState);
     notify(result.message, 'error');
     return result;
   }
 
   refreshState();
-  notify(
-    sePuedePublicarSolo() ? 'Receta guardada. Publicando…' : 'Receta guardada en este equipo.',
-    'success',
-  );
+  notify('Receta guardada. Ya la ven todas las sedes.', 'success');
   announce('Receta guardada.');
-  // El permiso muere con la accion: volver a editar vuelve a pedir la clave.
-  setState({ autorizacion: null });
-  navigate({ modulo: 'recetario', name: 'detail', id: recipe.id });
-  publicarEnSegundoPlano();
-  pedirClaveSiEsLoUnicoQueFalta();
-
+  navigate({ modulo: 'recetario', name: 'detail', id: result.value.id });
   return result;
 }
 
 // ---------------------------------------------------------------------------
-//  ELIMINAR UNA RECETA
+//  RETIRAR UNA RECETA
 // ---------------------------------------------------------------------------
 
 /**
- * Elimina una receta de este equipo.
+ * Retira una receta del recetario. No se borra: la produccion que la cito la
+ * conserva, y el servidor guarda la version con quien la retiro.
  *
- * El dialogo de confirmacion ya se mostro antes de llegar aqui: esta funcion no
- * vuelve a preguntar.
+ * El dialogo de confirmacion ya se mostro antes de llegar aqui.
  *
  * @param {string} id codigo de la receta, por ejemplo "R057"
- * @returns {{ok: true, value: undefined} | {ok: false, code: string, message: string}}
+ * @returns {Promise<{ok: true, value: undefined} | {ok: false, code: string, message: string}>}
  */
-export function deleteRecipe(id) {
-  const result = repo.remove(id);
+export async function deleteRecipe(id) {
+  const result = await repo.remove(id);
+  setState({ recetario: { confirmDelete: null } });
 
   if (!result.ok) {
+    if (result.code === 'conflicto') await repo.hydrate().then(refreshState);
     notify(result.message, 'error');
-    // El permiso se retira tambien cuando el borrado FALLA: si no, un reintento
-    // sobre la misma receta se saltaria la puerta.
-    setState({ recetario: { confirmDelete: null }, autorizacion: null });
     return result;
   }
 
   refreshState();
-  setState({ recetario: { confirmDelete: null }, autorizacion: null });
-  notify(
-    sePuedePublicarSolo() ? 'Receta eliminada. Publicando…' : 'Receta eliminada en este equipo.',
-    'success',
-  );
-  announce('Receta eliminada.');
+  notify('Receta retirada del recetario.', 'success');
+  announce('Receta retirada.');
   navigate({ modulo: 'recetario', name: 'index', id: null });
-  publicarEnSegundoPlano();
-  pedirClaveSiEsLoUnicoQueFalta();
-
   return result;
 }
-
-// ---------------------------------------------------------------------------
-//  PUBLICAR PARA TODAS LAS SEDES
-// ---------------------------------------------------------------------------
-
-/**
- * Envia el recetario de este equipo al servidor, para que lo vean la panaderia
- * y la casa de produccion.
- *
- * Es la unica operacion que sale del dispositivo, y la unica que necesita la
- * clave de edicion. La clave NO se comprueba aqui: viaja al servidor, que es
- * quien la valida. Si aqui se comprobara, bastaria con abrir las herramientas
- * del navegador para saltarsela.
- *
- * Cuando la publicacion sale bien, la clave se guarda para el resto de la
- * sesion, para no tener que escribirla en cada publicacion.
- *
- * @param {string} password clave de edicion escrita por la persona
- * @returns {Promise<{ok: true, value: {revision: string, count: number}} | {ok: false, code: string, message: string}>}
- */
-export async function publish(password) {
-  const result = await repo.publishToAll({ password, author: 'recetario' });
-
-  if (!result.ok) {
-    // El error se muestra dentro del propio dialogo de Ajustes, junto al campo
-    // de la clave, que es donde la persona esta mirando.
-    return result;
-  }
-
-  setEditKey(password);
-  refreshState();
-  notify(`Publicado para todas las sedes: ${result.value.count} recetas.`, 'success');
-  announce('Recetario publicado.');
-
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-//  DESCARTAR LOS CAMBIOS DE ESTE EQUIPO
-// ---------------------------------------------------------------------------
-
-/**
- * Tira los cambios sin publicar de este equipo y vuelve a la version publicada.
- *
- * Es una operacion destructiva y no se puede deshacer, asi que el boton que la
- * dispara esta marcado como peligroso en la interfaz.
- *
- * @returns {{ok: true, value: number} | {ok: false, code: string, message: string}}
- */
-export function discardChanges() {
-  const result = repo.discardLocalChanges();
-
-  if (!result.ok) {
-    notify(result.message, 'error');
-    return result;
-  }
-
-  refreshState();
-  setState({ settingsOpen: false });
-  notify(`Se descartaron los cambios. Vuelves a la versión publicada (${result.value} recetas).`, 'info');
-  announce('Cambios locales descartados.');
-  // Al recetario y no al modulo que estuviera abierto: descartar cambios
-  // recarga las recetas publicadas, asi que lo que hay que enseñar es el
-  // listado que acaba de cambiar.
-  navigate({ modulo: 'recetario', name: 'index', id: null, query: '', category: ALL_CATEGORIES });
-
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-//  ABRIR Y CERRAR LA SESION DE ESTE EQUIPO
-// ---------------------------------------------------------------------------
 
 /*
  * Entrar y salir estaban escritos dentro de las vistas, y cada copia limpiaba
- * un conjunto distinto de claves: `views/settings.js` borraba `settingsOpen`,
- * `main.js` no, y ninguna de las dos retiraba `autorizacion`. Es decir, un
- * permiso de escritura podia sobrevivir a un cierre de sesion.
- *
- * Ahora la lista vive UNA sola vez, aqui, y los dos sitios llaman a lo mismo.
+ * un conjunto distinto de claves. Ahora la lista vive UNA sola vez, aqui, y los
+ * dos sitios llaman a lo mismo.
  */
 
 /**
  * Todo lo que deja de tener sentido cuando ya no hay nadie dentro.
  *
- * `recipes` e `ingredientes` NO se tocan a proposito: son el recetario, no la
- * sesion, y borrarlos dejaria al siguiente turno sin nada que consultar
- * mientras vuelve a cargar. Los cambios sin publicar tampoco se pierden.
+ * El recetario se vacia aparte (`repo.vaciar`): sin sesion la API no deja
+ * leerlo, y no queda copia en el equipo. Se vuelve a cargar al entrar.
  */
 const SESION_CERRADA = Object.freeze({
   authed: false,
   // Quien estaba dentro. Lo primero que deja de ser cierto.
   usuario: null,
   // Permiso de escritura: lo primero que hay que retirar.
-  autorizacion: null,
-  pedirClave: false,
   settingsOpen: false,
   loginError: '',
   loginCampo: '',
@@ -407,6 +301,7 @@ function abrirSesion(usuario) {
     loginSecreto: '',
   });
   vigilarTurno();
+  cargarRecetario();
 }
 
 /** El temporizador que cierra la sesion al terminar el turno. */
@@ -514,7 +409,6 @@ export function cambiarEscalaTexto(clave) {
  * @returns {{ok: true, value: undefined}}
  */
 export function cerrarSesion(motivo = '') {
-  setEditKey(null);
   if (temporizadorTurno !== null) {
     clearTimeout(temporizadorTurno);
     temporizadorTurno = null;
@@ -523,6 +417,14 @@ export function cerrarSesion(motivo = '') {
   // La lista del equipo es de quien estaba dentro: el siguiente turno la pide
   // de nuevo con su propio permiso, o no la ve.
   olvidarEquipo();
-  setState({ ...SESION_CERRADA, loginError: typeof motivo === 'string' ? motivo : '' });
+  repo.vaciar();
+  // UNA sola actualizacion: cerrar la sesion y vaciar el recetario juntos. Con
+  // dos, el segundo repintado de la pantalla de entrada llegaba tarde (va detras
+  // de la transicion de vista) y borraba el PIN que la persona ya escribia.
+  setState({
+    ...SESION_CERRADA,
+    recetario: { ...SESION_CERRADA.recetario, recipes: [], ingredientes: [] },
+    loginError: typeof motivo === 'string' ? motivo : '',
+  });
   return { ok: true, value: undefined };
 }
