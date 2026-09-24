@@ -221,6 +221,7 @@ try {
   console.log(limpiar(correrSql('db/local/pruebas-api-confirmar.sql')));
   console.log(limpiar(correrSql('db/local/pruebas-api-notas.sql')));
   console.log(limpiar(correrSql('db/local/pruebas-api-recetario.sql')));
+  console.log(limpiar(correrSql('db/local/pruebas-api-documento.sql')));
 
   // Dos sesiones de verdad a la vez: doble toque, dos pantallas y bodega
   // cambiando mientras se confirma (F3-8).
